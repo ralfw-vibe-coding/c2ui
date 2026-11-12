@@ -1,6 +1,6 @@
 {
   "name": "ContactCard",
-  "description": "Visitenkarte einer Person: Foto, Name, Rolle, E-Mail (mit Knopf „E-Mail schreiben“) und Status-Badge.",
+  "description": "Visitenkarte einer Person: Foto, Name, Rolle, E-Mail (anklickbar, öffnet die Mail-App) und Status-Badge.",
   "properties": {
     "name": {
       "type": "DynamicString",
@@ -67,8 +67,7 @@
       "children": [
         "name",
         "role",
-        "email",
-        "mail"
+        "email"
       ]
     },
     {
@@ -84,34 +83,16 @@
     },
     {
       "id": "email",
-      "component": "Text",
+      "component": "Link",
       "variant": "caption",
-      "text": "$email"
+      "text": "$email",
+      "url": "mailto:$email"
     },
     {
       "id": "badge",
       "component": "Badge",
       "text": "$statusText",
       "tone": "$status"
-    },
-    {
-      "id": "mailText",
-      "component": "Text",
-      "text": "E-Mail schreiben"
-    },
-    {
-      "id": "mail",
-      "component": "Button",
-      "variant": "borderless",
-      "child": "mailText",
-      "action": {
-        "functionCall": {
-          "@call": "openUrl",
-          "args": {
-            "url": "mailto:$email"
-          }
-        }
-      }
     }
   ],
   "example": {

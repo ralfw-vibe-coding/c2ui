@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { callMessages, CLAUDE2UI_CATALOG_ID } from '@shared/a2ui'
-import { EXTRA_APIS } from '@shared/a2ui-catalog'
+import { EXTRA_APIS, linkLabel, OPEN_URL_SCHEMES } from '@shared/a2ui-catalog'
 import { validate } from './validate'
 
 // Die Beispiele aus dem Skill müssen gültig sein – sonst lernt Claude Falsches.
@@ -124,5 +124,29 @@ describe('A2UI-Validierung', () => {
       const r = validate([], [{ version, createSurface: { surfaceId: 's', components: [{ id: 'root', component: 'Text', text: 'x' }] } }])
       expect(r.errors, String(version)).toEqual([])
     }
+  })
+
+  it('Link: gültig mit url, ohne url abgelehnt', () => {
+    const ok = validate([], [{ createSurface: { surfaceId: 's', components: [
+      { id: 'root', component: 'Column', children: ['a', 'b', 'c'] },
+      { id: 'a', component: 'Link', url: 'mailto:ada@x.org' },
+      { id: 'b', component: 'Link', url: 'tel:+49401234', text: 'Anrufen', variant: 'caption' },
+      { id: 'c', component: 'Link', url: { '@path': '/web' }, text: 'Webseite' }
+    ] } }])
+    expect(ok.errors).toEqual([])
+    const bad = validate([], [{ createSurface: { surfaceId: 's', components: [{ id: 'root', component: 'Link', text: 'x' }] } }])
+    expect(bad.errors.length).toBeGreaterThan(0)
+  })
+
+  it('Link: nur https/http, mailto und tel werden geöffnet', () => {
+    for (const u of ['https://x.org', 'http://x.org', 'mailto:a@b.de', 'tel:+491', 'MAILTO:a@b.de']) expect(OPEN_URL_SCHEMES.test(u), u).toBe(true)
+    for (const u of ['file:///etc/passwd', 'javascript:alert(1)', 'ftp://x', 'c2ui-file:///x', 'x.org', '']) expect(OPEN_URL_SCHEMES.test(u), u).toBe(false)
+  })
+
+  it('Link: Anzeigetext ohne Schema', () => {
+    expect(linkLabel('mailto:ada@x.org?subject=Hallo')).toBe('ada@x.org')
+    expect(linkLabel('tel:+49 40 1234')).toBe('+49 40 1234')
+    expect(linkLabel('https://example.org/')).toBe('example.org')
+    expect(linkLabel('https://example.org/a?b=1')).toBe('example.org/a?b=1')
   })
 })

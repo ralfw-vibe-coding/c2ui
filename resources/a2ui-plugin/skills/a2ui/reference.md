@@ -310,6 +310,13 @@ Mehrere Metrics nebeneinander: in eine Row mit `weight: 1` je Kachel.
 - `text` **Pflicht**: DynamicString – kurzer Text, z. B. "offen" oder "v2.1".
 - `tone`: 'neutral' | 'info' | 'success' | 'warning' | 'error' (Standard neutral).
 
+### Link – anklickbare Adresse (Web, E-Mail, Telefon)
+- `url` **Pflicht**: DynamicString – `"https://…"` (Browser), `"mailto:name@firma.de"` (Mail-App, auch mit `?subject=…`) oder `"tel:+49…"` (Telefon). Andere Schemata werden nicht geöffnet.
+- `text`: DynamicString – angezeigter Text (Standard: die Adresse ohne `mailto:`/`tel:`/`https://`).
+- `variant`: 'body' | 'caption' – Schriftgröße wie bei Text (Standard body).
+Sieht aus wie ein Text, blau und unterstrichen; nach dem Klick violett. Öffnet direkt, ohne Nachricht an dich.
+Für E-Mail-Adressen, Telefonnummern und Webseiten statt eines Buttons verwenden.
+
 ### CodeBlock – Quelltext mit Hervorhebung und Kopier-Knopf
 - `code` **Pflicht**: DynamicString – der Quelltext.
 - `language`: string – z. B. "ts", "python", "json", "bash", "sql" (sonst automatisch erkannt).

@@ -165,11 +165,12 @@ describe('eigene Komponenten', () => {
     }
   })
 
-  it('ContactCard-Beispiel: Knopf „E-Mail schreiben“ öffnet mailto mit der Adresse', () => {
+  it('ContactCard-Beispiel: E-Mail als Link mit mailto', () => {
     setComposites(loadComposites(exampleDir).defs)
     const out = expandComposites([{ id: 'k', component: 'ContactCard', name: 'Ada', email: 'ada@x.org' }]) as any[]
-    expect(out.find((c) => c.id === 'k__mail').action.functionCall.args.url).toBe('mailto:ada@x.org')
+    const link = out.find((c) => c.id === 'k__email')
+    expect(link).toMatchObject({ component: 'Link', url: 'mailto:ada@x.org', text: 'ada@x.org' })
     const ohne = expandComposites([{ id: 'k', component: 'ContactCard', name: 'Ada' }]) as any[]
-    expect(ohne.some((c) => c.id === 'k__mail')).toBe(false)
+    expect(ohne.some((c) => c.id === 'k__email')).toBe(false)
   })
 })

@@ -343,13 +343,24 @@ Die Auflösung geht bis zu fünf Ebenen tief; tiefere (oder zirkuläre) Verschac
 
 ## Links, E-Mail und Telefon
 
-Die eingebaute Funktion `openUrl` öffnet Adressen direkt in der App, ohne Umweg über das Modell:
+Für anklickbare Adressen gibt es die eingebaute Komponente **`Link`**. Sie sieht aus wie ein Text, ist blau und
+unterstrichen, und nach dem Klick violett (wie im Browser). Ein Klick öffnet direkt, ohne Umweg über das Modell:
 
 - `https://…` öffnet den Browser,
 - `mailto:adresse@beispiel.de` öffnet das Mail-Programm (auch mit `?subject=…`),
 - `tel:+49…` öffnet die Telefon-App bzw. FaceTime.
 
-Andere Schemata (z. B. `file:` oder `javascript:`) werden aus Sicherheitsgründen ignoriert.
+Andere Schemata (z. B. `file:` oder `javascript:`) werden aus Sicherheitsgründen nicht geöffnet; der Link erscheint
+dann grau gepunktet.
+
+```json
+{ "id": "email", "component": "Link", "variant": "caption", "text": "$email", "url": "mailto:$email" }
+```
+
+Ohne `text` zeigt der Link die Adresse ohne `mailto:`/`tel:`/`https://`.
+
+Soll es stattdessen wie ein Knopf aussehen (z. B. „E-Mail schreiben“), nimm einen `Button` mit der eingebauten
+Funktion `openUrl` – sie erlaubt dieselben Schemata:
 
 ```json
 { "id": "mail", "component": "Button", "child": "mailText",

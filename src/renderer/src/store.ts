@@ -1,7 +1,6 @@
 import { create } from 'zustand'
 import { disposeChatSurfaces, resetAllChatSurfaces, setA2uiActionHandler } from './a2ui/chatSurfaces'
 import { setComposites, type CompositeDef } from '@shared/a2ui-composites'
-import { setOpenUrlHandler } from '@shared/a2ui-catalog'
 import { setDraft } from './drafts'
 import * as L from '@shared/layout'
 import { applyEvent } from '@shared/transcript'
@@ -143,7 +142,6 @@ export const useStore = create<State & Actions>((set, get) => {
       window.api.onBusy((id, b) => set((st) => ({ busy: { ...st.busy, [id]: b } })))
       window.api.onChatsChanged((chats) => set({ chats }))
       // openUrl aus A2UI-Screens (auch mailto:/tel:) über das System öffnen.
-      setOpenUrlHandler((url) => void window.api.openExternal(url))
       // Button-Aktionen aus A2UI-Screens gehen als Nutzernachricht an den Chat (gesperrt, solange er arbeitet).
       setA2uiActionHandler((chatId, text) => {
         if (get().busy[chatId]) return

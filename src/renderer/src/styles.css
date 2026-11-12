@@ -1333,6 +1333,42 @@ button.a2ui-update:hover {
   background: var(--danger);
 }
 
+.c2-link {
+  --c2-link: #2f6fde;
+  --c2-link-visited: #8a4fd8;
+  align-self: flex-start;
+  color: var(--c2-link);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+  font-size: inherit;
+}
+.c2-link.caption {
+  font-size: 12px;
+}
+.c2-link.visited {
+  color: var(--c2-link-visited);
+}
+.c2-link:hover {
+  text-decoration-thickness: 2px;
+}
+.c2-link:focus-visible {
+  outline: 2px solid var(--c2-link);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+.c2-link.invalid {
+  color: var(--text-muted);
+  text-decoration: underline dotted;
+  cursor: not-allowed;
+}
+@media (prefers-color-scheme: dark) {
+  .c2-link {
+    --c2-link: #6ea8ff;
+    --c2-link-visited: #b48cf2;
+  }
+}
 .c2-badge {
   display: inline-block;
   align-self: flex-start;

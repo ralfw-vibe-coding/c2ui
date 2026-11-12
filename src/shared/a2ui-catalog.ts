@@ -199,6 +199,22 @@ export const BadgeApi = {
     .strict()
 } satisfies ComponentApi
 
+export const LinkApi = {
+  name: 'Link',
+  schema: z
+    .object({
+      url: CommonSchemas.DynamicString.describe(
+        'Ziel: "https://…" (Browser), "mailto:name@firma.de" (Mail-App, auch mit ?subject=…) oder "tel:+49…" (Telefon).'
+      ),
+      text: CommonSchemas.DynamicString.optional().describe(
+        'Angezeigter Text (Standard: die Adresse ohne "mailto:"/"tel:"/"https://").'
+      ),
+      variant: z.enum(['body', 'caption']).optional().describe('Schriftgröße wie Text: body (Standard) oder caption (klein).'),
+      ...Common
+    })
+    .strict()
+} satisfies ComponentApi
+
 export const CodeBlockApi = {
   name: 'CodeBlock',
   schema: z
@@ -223,13 +239,31 @@ export const EXTRA_APIS: ComponentApi[] = [
   ProgressApi,
   AlertApi,
   BadgeApi,
+  LinkApi,
   CodeBlockApi
 ]
 
 /** Erlaubte Ziele von openUrl: Web, E-Mail, Telefon. Kein javascript:, file: usw. */
 export const OPEN_URL_SCHEMES = /^(https?:|mailto:|tel:)/i
 
+/** Anzeigetext eines Links ohne Schema: "mailto:ada@x.org" → "ada@x.org". */
+export function linkLabel(url: string): string {
+  return url
+    .trim()
+    .replace(/^(mailto:|tel:)/i, '')
+    .replace(/^https?:\/\//i, '')
+    .replace(/\?.*$/, (q) => (/^mailto:/i.test(url.trim()) ? '' : q))
+    .replace(/\/$/, '')
+}
+
 let openUrlHandler: (url: string) => void = () => {}
+/** Öffnet eine erlaubte Adresse über das System; liefert false bei unerlaubtem Schema. */
+export function openAllowedUrl(url: string): boolean {
+  const u = url.trim()
+  if (!OPEN_URL_SCHEMES.test(u)) return false
+  openUrlHandler(u)
+  return true
+}
 /** Renderer: wie openUrl tatsächlich öffnet (über den Main-Prozess, siehe shell:openExternal). */
 export function setOpenUrlHandler(h: (url: string) => void): void {
   openUrlHandler = h
@@ -240,8 +274,7 @@ export function setOpenUrlHandler(h: (url: string) => void): void {
  * nur http/https). Geöffnet wird über das System – Mail-App bzw. Telefon.
  */
 const OpenUrlImpl = createFunctionImplementation(OpenUrlApi as never, (args: { url?: unknown }) => {
-  const url = String(args?.url ?? '').trim()
-  if (OPEN_URL_SCHEMES.test(url)) openUrlHandler(url)
+  openAllowedUrl(String(args?.url ?? ''))
 })
 
 /**

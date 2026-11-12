@@ -22,7 +22,7 @@ export type A2uiMessage = Record<string, any>
 export const BUILTIN_COMPONENT_NAMES = [
   'Text', 'Image', 'Icon', 'Video', 'AudioPlayer', 'Row', 'Column', 'List', 'Card', 'Tabs', 'Modal', 'Divider',
   'Button', 'TextField', 'CheckBox', 'ChoicePicker', 'Slider', 'DateTimeInput',
-  'LineChart', 'BarChart', 'PieChart', 'ScatterChart', 'Table', 'Metric', 'Progress', 'Alert', 'Badge', 'CodeBlock'
+  'LineChart', 'BarChart', 'PieChart', 'ScatterChart', 'Table', 'Metric', 'Progress', 'Alert', 'Badge', 'Link', 'CodeBlock'
 ]
 
 export function isA2uiCall(b: Block): boolean {

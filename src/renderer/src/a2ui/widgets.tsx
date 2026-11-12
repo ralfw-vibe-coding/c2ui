@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useSyncExternalStore } from 'react'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import hljs from 'highlight.js/lib/common'
@@ -8,6 +8,10 @@ import {
   AlertApi,
   BadgeApi,
   CodeBlockApi,
+  LinkApi,
+  linkLabel,
+  openAllowedUrl,
+  OPEN_URL_SCHEMES,
   MetricApi,
   ProgressApi,
   ScatterChartApi,
@@ -209,6 +213,64 @@ export const BadgeImpl = createComponentImplementation(BadgeApi, ({ props }) => 
   <span className={`c2-badge tone-${props.tone ?? 'neutral'}`}>{props.text}</span>
 ))
 
+// ---------- Link ----------
+
+/** Besuchte Adressen (wie im Browser violett), bleiben über Neustarts erhalten. */
+const VISITED_KEY = 'c2ui.visitedLinks'
+const visited = new Set<string>(
+  (() => {
+    try {
+      return JSON.parse(localStorage.getItem(VISITED_KEY) ?? '[]') as string[]
+    } catch {
+      return []
+    }
+  })()
+)
+const visitedListeners = new Set<() => void>()
+let visitedVersion = 0
+function markVisited(url: string): void {
+  if (visited.has(url)) return
+  visited.add(url)
+  visitedVersion++
+  try {
+    localStorage.setItem(VISITED_KEY, JSON.stringify([...visited].slice(-500)))
+  } catch {
+    /* egal */
+  }
+  visitedListeners.forEach((l) => l())
+}
+const subscribeVisited = (l: () => void): (() => void) => {
+  visitedListeners.add(l)
+  return () => visitedListeners.delete(l)
+}
+
+export const LinkImpl = createComponentImplementation(LinkApi, ({ props }) => {
+  useSyncExternalStore(subscribeVisited, () => visitedVersion)
+  const url = String(props.url ?? '').trim()
+  const text = props.text || linkLabel(url) || url
+  const size = props.variant === 'caption' ? ' caption' : ''
+  if (!OPEN_URL_SCHEMES.test(url)) {
+    return (
+      <span className={`c2-link invalid${size}`} title={url ? `Kann nicht geöffnet werden: ${url}` : 'Keine Adresse'}>
+        {text}
+      </span>
+    )
+  }
+  return (
+    <a
+      className={`c2-link${visited.has(url) ? ' visited' : ''}${size}`}
+      href={url}
+      title={url}
+      onClick={(e) => {
+        e.preventDefault()
+        if (openAllowedUrl(url)) markVisited(url)
+      }}
+    >
+      {text}
+    </a>
+  )
+})
+
 // ---------- CodeBlock ----------
 
 export const CodeBlockImpl = createComponentImplementation(CodeBlockApi, ({ props }) => {
@@ -308,6 +370,7 @@ export const WIDGET_IMPLS = {
   Progress: ProgressImpl,
   Alert: AlertImpl,
   Badge: BadgeImpl,
+  Link: LinkImpl,
   CodeBlock: CodeBlockImpl,
   ScatterChart: ScatterChartImpl
 }

@@ -15,7 +15,7 @@ const sample = [
       surfaceId: 'demo',
       components: [
         { id: 'root', component: 'Card', child: 'col' },
-        { id: 'col', component: 'Column', children: ['kpis', 'tbl', 'prog', 'alerts', 'badges', 'code', 'scatter', 'h', 'name', 'agree', 'size', 'rating', 'row', 'list', 'charts', 'pie', 'img', 'imgMissing'] },
+        { id: 'col', component: 'Column', children: ['kpis', 'tbl', 'prog', 'alerts', 'badges', 'links', 'code', 'scatter', 'h', 'name', 'agree', 'size', 'rating', 'row', 'list', 'charts', 'pie', 'img', 'imgMissing'] },
         { id: 'kpis', component: 'Row', children: ['k1', 'k2', 'k3'] },
         { id: 'k1', component: 'Metric', weight: 1, label: 'Umsatz Q3', value: 1284500, format: 'currency', delta: 12.4, deltaLabel: 'ggü. Q2', trend: [8, 9, 8.5, 11, 12.8] },
         { id: 'k2', component: 'Metric', weight: 1, label: 'Kosten', value: 412300, format: 'currency', delta: 6.1, higherIsBetter: false, trend: [3, 3.2, 3.5, 4.1] },
@@ -33,6 +33,11 @@ const sample = [
         { id: 'b2', component: 'Badge', text: 'bezahlt', tone: 'success' },
         { id: 'b3', component: 'Badge', text: 'überfällig', tone: 'error' },
         { id: 'b4', component: 'Badge', text: 'v2.1' },
+        { id: 'links', component: 'Row', children: ['l1', 'l2', 'l3', 'l4'] },
+        { id: 'l1', component: 'Link', url: 'mailto:ada@example.org' },
+        { id: 'l2', component: 'Link', url: 'tel:+4940123456', text: 'Anrufen' },
+        { id: 'l3', component: 'Link', url: 'https://example.org/', variant: 'caption' },
+        { id: 'l4', component: 'Link', url: 'file:///etc/hosts', text: 'Datei (gesperrt)' },
         { id: 'code', component: 'CodeBlock', title: 'umsatz.py', language: 'python',
           code: 'import pandas as pd\n\n# Umsatz je Monat\ndf = pd.read_csv("umsatz.csv")\nprint(df.groupby("monat")["betrag"].sum())  # 6 Zeilen' },
         { id: 'scatter', component: 'ScatterChart', title: 'Preis vs. Absatz', data: [

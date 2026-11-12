@@ -9,7 +9,7 @@ Die App Claude2UI kann A2UI-Oberflächen (Protokoll v1.0) direkt im Chat anzeige
 Komponenten des A2UI-Basic-Catalog **plus**:
 - Diagramme: **LineChart, BarChart, PieChart, ScatterChart**
 - **Table** (sortierbar, Zeilen auswählbar), **Metric** (KPI-Kachel mit Veränderung und Verlauf), **Progress**,
-  **Alert** (Hinweisbox), **Badge** (Status-Etikett), **CodeBlock** (Quelltext mit Hervorhebung)
+  **Alert** (Hinweisbox), **Badge** (Status-Etikett), **Link** (E-Mail, Telefon, Web), **CodeBlock** (Quelltext mit Hervorhebung)
 - ein **Image, das auch lokale Dateien** zeigt (Pfad absolut, mit `~` oder relativ zum Arbeitsverzeichnis)
 Du lieferst sie über das Tool **`render_ui`** (MCP-Server `a2ui`, volle Bezeichnung `mcp__a2ui__render_ui`).
 

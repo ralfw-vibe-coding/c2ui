@@ -15,9 +15,12 @@ import {
   XAxis,
   YAxis
 } from 'recharts'
-import { BarChartApi, ImageApi, LineChartApi, PieChartApi } from '@shared/a2ui-catalog'
+import { BarChartApi, ImageApi, LineChartApi, PieChartApi, setOpenUrlHandler } from '@shared/a2ui-catalog'
 import { LOCAL_FILE_SCHEME } from '@shared/a2ui'
 import { WIDGET_IMPLS } from './widgets'
+
+// openUrl und Link öffnen über den Main-Prozess (prüft das Schema nochmals, dann shell.openExternal).
+setOpenUrlHandler((url) => void window.api.openExternal(url))
 
 /** Kontext des Chats, in dem ein Screen angezeigt wird (für relative Bildpfade). */
 export const A2uiChatContext = createContext<{ cwd: string; home: string }>({ cwd: '', home: '' })
