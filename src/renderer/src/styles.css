@@ -443,12 +443,20 @@ body.resizing-row * {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.cell-cwd {
-  color: var(--text-muted);
-  font-weight: 400;
-  font-size: 12px;
-  white-space: nowrap;
+.cell-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-muted);
+  white-space: nowrap;
+  padding: 1px 6px;
+  border-radius: 5px;
+}
+.cell-meta .icon {
+  opacity: 0.75;
 }
 .cell-spacer {
   flex: 1;
@@ -456,19 +464,7 @@ body.resizing-row * {
 /* Modell im Kopf: wirkt wie Text, darüber liegt unsichtbar ein Dropdown. */
 .model-chip {
   position: relative;
-  display: inline-flex;
-  align-items: center;
-  flex-shrink: 0;
-  font-size: 12px;
-  color: var(--text-muted);
-  padding: 1px 6px;
-  border-radius: 5px;
   cursor: pointer;
-  white-space: nowrap;
-}
-.model-chip::before {
-  content: '·';
-  margin-right: 6px;
 }
 .model-chip:hover {
   background: var(--bg-sunken);

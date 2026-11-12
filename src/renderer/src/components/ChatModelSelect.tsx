@@ -1,6 +1,7 @@
 import { chatModel, type Chat } from '@shared/types'
 import { modelDisplay, useModelList } from '../models'
 import { useStore } from '../store'
+import { Icon } from './Icon'
 
 /**
  * Modell eines Chats im Zellenkopf: sieht aus wie Text, ist aber ein Dropdown.
@@ -15,7 +16,8 @@ export function ChatModelSelect({ chat }: { chat: Chat }) {
   const custom = value && !known.some((o) => o.value === value)
 
   return (
-    <label className="model-chip" title="Modell dieses Chats (Wechsel gilt ab der nächsten Nachricht)">
+    <label className="cell-meta model-chip" title="Modell dieses Chats (Wechsel gilt ab der nächsten Nachricht)">
+      <Icon name="sparkle" size={13} />
       <span className="model-chip-text">{modelDisplay(value, list)}</span>
       <select
         value={value}

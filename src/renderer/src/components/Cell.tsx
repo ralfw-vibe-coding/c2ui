@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import type { DropZone } from '@shared/layout'
 import { AGENTS } from '@shared/types'
-import { baseName, CHAT_MIME, shortPath, useChat, useStore } from '../store'
+import { displayDir } from '@shared/paths'
+import { CHAT_MIME, useChat, useStore } from '../store'
 import { AgentLogo } from './AgentLogo'
 import { ChatModelSelect } from './ChatModelSelect'
 import { ChatPanel } from './ChatPanel'
@@ -45,9 +46,6 @@ export function Cell({ cellId, chatId }: { cellId: string; chatId: string | null
               editing={editing}
               onEditingChange={setEditing}
             />
-            <span className="cell-cwd" title={chat.cwd}>
-              {baseName(shortPath(chat.cwd, home))}
-            </span>
             {!editing && (
               <button className="icon-btn rename-btn" title="Umbenennen" onClick={() => setEditing(true)}>
                 <Icon name="pencil" size={13} />
@@ -55,10 +53,13 @@ export function Cell({ cellId, chatId }: { cellId: string; chatId: string | null
             )}
           </div>
         ) : null}
-        {chat && <ChatModelSelect chat={chat} />}
-        {!chat && (
-          <div className="cell-title muted" />
+        {chat && (
+          <span className="cell-meta cell-cwd" title={chat.cwd}>
+            <Icon name="folder" size={13} />
+            {displayDir(chat.cwd, home)}
+          </span>
         )}
+        {chat && <ChatModelSelect chat={chat} />}
         <div className="cell-spacer" />
         <div className="cell-actions">
           {chat && (
