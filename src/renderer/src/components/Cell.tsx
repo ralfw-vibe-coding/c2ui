@@ -54,7 +54,7 @@ export function Cell({ cellId, chatId }: { cellId: string; chatId: string | null
             )}
           </div>
         ) : (
-          <div className="cell-title muted">Leere Zelle</div>
+          <div className="cell-title muted" />
         )}
         <div className="cell-actions">
           {chat && (
