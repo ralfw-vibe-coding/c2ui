@@ -31,6 +31,8 @@ export interface AgentContext {
   attachmentsDir?(): string | undefined
   /** Bisheriger Verlauf als Text (für einen Neustart ohne resume), ohne die aktuelle Nachricht. */
   history?(): string
+  /** Verlauf des Chats, aus dem dieser abgezweigt wurde (für den ersten Turn ohne Fork der CLI). */
+  forkHistory?(): string
 }
 
 export type AgentFactory = (ctx: AgentContext, cb: AgentCallbacks) => AgentSession

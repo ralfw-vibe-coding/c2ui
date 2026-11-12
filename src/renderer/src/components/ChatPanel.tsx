@@ -10,6 +10,8 @@ import { TranscriptView } from './TranscriptView'
 const NEAR_BOTTOM_PX = 60
 import { drafts } from '../drafts'
 import { AttachmentChips } from './Attachments'
+import { QuoteSelection, RefChips } from './QuoteRefs'
+import { composeMessage } from '@shared/quotes'
 
 export function ChatPanel({ chatId, active }: { chatId: string; active: boolean }) {
   const transcript = useStore((s) => s.transcripts[chatId])
@@ -114,6 +116,7 @@ export function ChatPanel({ chatId, active }: { chatId: string; active: boolean 
     >
       {fileOver && <div className="file-drop-hint">Dateien hier ablegen, um sie anzuhängen</div>}
       <ScreenStrip chatId={chatId} surfaceIds={activeSurfaces} />
+      <QuoteSelection chatId={chatId} scrollRef={scrollRef} />
       <div className="transcript" ref={scrollRef} onScroll={onScroll}>
         <div className="transcript-inner" ref={innerRef}>
         {!transcript ? (
@@ -182,18 +185,22 @@ function Composer({
   }, [text])
 
   const attachments = useStore((s) => s.pendingAttachments[chatId]) ?? []
+  const refs = useStore((s) => s.pendingRefs[chatId]) ?? []
+  const canSend = !!text.trim() || attachments.length > 0 || refs.length > 0
 
   async function submit(): Promise<void> {
     const t = text.trim()
-    if ((!t && attachments.length === 0) || busy) return
+    if (!canSend || busy) return
     setError(null)
     setText('')
     const sent = attachments
     useStore.getState().clearAttachments(chatId)
+    const sentRefs = useStore.getState().takeRefs(chatId)
     try {
-      await useStore.getState().send(chatId, t, sent)
+      await useStore.getState().send(chatId, composeMessage(sentRefs, t), sent)
     } catch (e) {
       setText(t)
+      useStore.getState().restoreRefs(chatId, sentRefs)
       for (const a of sent) useStore.setState((st) => ({ pendingAttachments: { ...st.pendingAttachments, [chatId]: [...(st.pendingAttachments[chatId] ?? []), a] } }))
       setError(String((e as Error).message ?? e).replace(/^Error invoking remote method '[^']+': (Error: )?/, ''))
     }
@@ -210,6 +217,7 @@ function Composer({
   return (
     <div className="composer">
       {error && <div className="composer-error">{error}</div>}
+      {refs.length > 0 && <RefChips chatId={chatId} refs={refs} />}
       {attachments.length > 0 && <AttachmentChips chatId={chatId} attachments={attachments} />}
       <div className="composer-row">
         <textarea
@@ -236,7 +244,7 @@ function Composer({
             <Icon name="stop" />
           </button>
         ) : (
-          <button className="btn primary" onClick={() => void submit()} disabled={!text.trim() && attachments.length === 0} title="Senden">
+          <button className="btn primary" onClick={() => void submit()} disabled={!canSend} title="Senden">
             <Icon name="send" />
           </button>
         )}

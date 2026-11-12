@@ -5,6 +5,7 @@ import { A2uiBlock, ActionMessage } from '../a2ui/A2uiBlock'
 import { Icon } from './Icon'
 import { ChatMarkdown, LocalImage } from './LocalImage'
 import { SentAttachments } from './Attachments'
+import { UserText } from './QuoteRefs'
 
 export const TranscriptItemView = memo(function TranscriptItemView({ item, chatId }: { item: TranscriptItem; chatId: string }) {
   switch (item.type) {
@@ -14,13 +15,15 @@ export const TranscriptItemView = memo(function TranscriptItemView({ item, chatI
         return (
           <div className="msg msg-user msg-user-col">
             <SentAttachments attachments={item.attachments} />
-            {item.text && <div className="bubble">{item.text}</div>}
+            {item.text && <div className="bubble"><UserText text={item.text} /></div>}
           </div>
         )
       }
       return (
         <div className="msg msg-user">
-          <div className="bubble">{item.text}</div>
+          <div className="bubble">
+            <UserText text={item.text} />
+          </div>
         </div>
       )
     case 'assistant':

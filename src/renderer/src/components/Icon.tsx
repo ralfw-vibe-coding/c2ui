@@ -12,6 +12,7 @@ const paths: Record<string, string> = {
   stop: 'M7 7h10v10H7z',
   down: 'M12 5v14M6 13l6 6 6-6',
   tool: 'M14 6a4 4 0 00-5 5l-5 5 3 3 5-5a4 4 0 005-5l-2 2-3-3z',
+  quote: 'M5 7h5v5l-2 5H6l1.5-5H5zM14 7h5v5l-2 5h-2l1.5-5H14z',
   check: 'M5 12l5 5 9-10',
   sidebar: 'M4 5h16v14H4zM9.5 5v14',
   sparkle: 'M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8zM18.5 15.5l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7z',

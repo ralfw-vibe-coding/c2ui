@@ -2,20 +2,9 @@
 
 ## Als Nächstes (in dieser Reihenfolge)
 
-1. **Auf Teile einer Antwort Bezug nehmen.**
-   Ziel: In einer langen Antwort z. B. die Frage aus Absatz 3 beantworten und zu Absatz 5 nachfragen –
-   gezielt, ohne alles abzutippen.
-   - **Markieren + Overlay (bevorzugt):** Absatz/Sätze markieren → kleines Overlay mit Eingabefeld → Anmerkung tippen.
-     Das Ergebnis wird **unten in den Composer eingetragen** (Zitat + Anmerkung, gern als Chips gesammelt),
-     gesendet wird erst, wenn ich im Haupt-Chat abschicke. Mehrere Bezüge lassen sich so zu einer Nachricht sammeln.
-     Beim Senden etwa: `> Zitat aus der Antwort` + meine Anmerkung, je Bezug ein Block.
-   - **Optional Absatznummern:** dezente Nummern beim Überfahren (¶3); Klick fügt „zu ¶3: “ samt Zitat in den
-     Composer ein. Reine Nummern ohne Zitat reichen nicht – das Modell sieht die Nummerierung der App nicht.
-   - **Nachfrage in neuem Chat:** im selben Overlay alternativ „in neuem Chat fragen“ – der neue Chat bringt den
-     Kontext des bisherigen mit und öffnet sich in einer Zelle neben dem aktuellen.
-     - Claude: `--resume <sessionId> --fork-session` (headless möglich, ganzer Kontext).
-     - Codex: `codex fork` gibt es nur interaktiv; für `exec` vermutlich neue Session mit zitiertem Kontext
-       oder Kopie der Session – prüfen.
+1. **Absatznummern** (Rest von „Auf Teile einer Antwort Bezug nehmen“): dezente Nummern beim Überfahren (¶3);
+   Klick fügt „zu ¶3: “ samt Zitat in den Composer ein. Reine Nummern ohne Zitat reichen nicht – das Modell sieht
+   die Nummerierung der App nicht. Optional – Markieren + Overlay deckt das meiste ab.
 2. **Codex über `codex app-server`** statt `codex exec`: Codex stellt Threads im Hintergrund auf ein
    „paginated“-Format um, das `codex exec resume` nicht fortsetzen kann („paginated_threads is not supported yet“).
    Derzeit fängt die App das ab und startet einen neuen Thread mit dem Verlauf aus ihrem Transkript (verliert
@@ -50,4 +39,5 @@
 - Links/E-Mail/Telefon öffnen (`openUrl` mit mailto:/tel:, Komponente `Link`)
 - Einklappbare Arbeitsschritte zwischen Frage und Antwort
 - Bilder und Dateien per Einfügen und Drag & Drop
+- Bezug auf Teile einer Antwort: markieren → Overlay → Chips im Eingabefeld; „In neuem Chat fragen“ (Fork)
 - Umbenennung in C2UI (Repo ralfw-vibe-coding/c2ui)

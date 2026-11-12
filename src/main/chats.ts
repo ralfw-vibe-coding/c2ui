@@ -136,6 +136,41 @@ export class ChatManager {
     return chat
   }
 
+  /**
+   * Neuer Chat, der den Kontext eines bestehenden mitbringt („in neuem Chat fragen“): gleicher Agent,
+   * gleiches Verzeichnis, Modus und Modell. Die Quelle bleibt unverändert.
+   */
+  fork(sourceId: string, title: string): Chat {
+    const src = this.chats.get(sourceId)
+    if (!src) throw new Error('Unbekannter Chat')
+    const now = Date.now()
+    const chat: Chat = {
+      id: randomUUID(),
+      title: title.trim() || `Nachfrage: ${src.title}`,
+      cwd: src.cwd,
+      agent: src.agent,
+      permissionMode: src.permissionMode,
+      model: chatModel(src, this.settings),
+      forkFrom: {
+        chatId: src.id,
+        title: src.title,
+        ...(src.agent === 'claude' && src.sessionStarted ? { sessionId: src.sessionId } : {})
+      },
+      sessionId: randomUUID(),
+      sessionStarted: false,
+      createdAt: now,
+      updatedAt: now
+    }
+    this.chats.set(chat.id, chat)
+    this.saveChats()
+    this.emit(chat.id, {
+      kind: 'notice',
+      id: randomUUID(),
+      text: `Abgezweigt aus „${src.title}“ – der bisherige Verlauf ist bekannt. Screens von dort erscheinen hier nicht.`
+    })
+    return chat
+  }
+
   update(id: string, patch: ChatPatch): Chat | undefined {
     const chat = this.chats.get(id)
     if (!chat) return undefined
@@ -228,6 +263,10 @@ export class ChatManager {
         path: this.path,
         a2ui: () => this.a2uiSetup(chat.id),
         history: () => this.historyText(chat.id),
+        forkHistory: () => {
+          const src = this.chats.get(chat.id)?.forkFrom?.chatId
+          return src && this.chats.has(src) ? this.historyText(src, 40_000, false) : ''
+        },
         attachmentsDir: () => this.attachmentsDir(chat.id)
       },
       {
@@ -246,10 +285,12 @@ export class ChatManager {
    * Verlauf als Text für einen Neustart ohne resume: Nutzer- und Antworttexte sowie angezeigte
    * A2UI-Screens, ohne die gerade gesendete Nachricht. Gekürzt wird vorne (das Neueste bleibt).
    */
-  private historyText(chatId: string, maxChars = 40_000): string {
+  private historyText(chatId: string, maxChars = 40_000, withoutCurrent = true): string {
     const t = [...this.transcript(chatId)]
-    while (t.length && t[t.length - 1].type !== 'user') t.pop()
-    t.pop() // aktuelle Nachricht
+    if (withoutCurrent) {
+      while (t.length && t[t.length - 1].type !== 'user') t.pop()
+      t.pop() // aktuelle Nachricht
+    }
     const lines: string[] = []
     const screens = new Set<string>()
     for (const item of t) {

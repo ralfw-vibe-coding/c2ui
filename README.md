@@ -14,6 +14,10 @@ Desktop-App (Electron), in der mehrere Chats mit der Claude CLI oder der Codex C
 - Anhänge: Bilder per Einfügen (⌘V) und Dateien per Drag & Drop. Sie landen im Anhang-Ordner des Chats
   (`<userData>/attachments/<chat>`); Claude bekommt Bilder als Bild und darf den Ordner lesen, Codex bekommt Bilder per `--image`.
 - Arbeitsschritte (Werkzeugaufrufe, Zwischentexte) je Antwort einklappbar.
+- **Bezug auf Teile einer Antwort:** Text im Chat markieren → „Bezug nehmen“ → Anmerkung tippen.
+  ↩ übernimmt Zitat + Anmerkung als Chip ins Eingabefeld (mehrere sammelbar, gesendet als `> Zitat` + Anmerkung).
+  ⌘↩ bzw. „In neuem Chat fragen“ zweigt einen neuen Chat daneben ab, der den bisherigen Verlauf kennt
+  (Claude: `--resume <quelle> --fork-session --session-id <neu>`; Codex: Verlauf als Kontext im ersten Turn).
 - Ein Chat ist höchstens in einer Zelle offen. Layout, Chatliste und Transkripte überstehen einen Neustart.
 - Wird ein arbeitender Chat geschlossen, fragt die App nach: im Hintergrund weiterlaufen lassen, abbrechen oder nicht schließen.
 

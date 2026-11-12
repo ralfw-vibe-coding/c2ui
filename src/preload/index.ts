@@ -24,6 +24,7 @@ const api = {
     ipcRenderer.invoke('chats:create', cwd, agent, mode),
   updateChat: (id: string, patch: ChatPatch): Promise<Chat> =>
     ipcRenderer.invoke('chats:update', id, patch),
+  forkChat: (sourceId: string, title: string): Promise<Chat> => ipcRenderer.invoke('chats:fork', sourceId, title),
   createWorkshopChat: (component?: string): Promise<Chat> => ipcRenderer.invoke('chats:createWorkshop', component),
   deleteChat: (id: string): Promise<void> => ipcRenderer.invoke('chats:delete', id),
   transcript: (id: string): Promise<Transcript> => ipcRenderer.invoke('transcript:get', id),

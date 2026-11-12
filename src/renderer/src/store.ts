@@ -3,6 +3,7 @@ import { disposeChatSurfaces, resetAllChatSurfaces, setA2uiActionHandler } from 
 import { setComposites, type CompositeDef } from '@shared/a2ui-composites'
 import { setDraft } from './drafts'
 import * as L from '@shared/layout'
+import { composeMessage, forkTitle, type QuoteRef } from '@shared/quotes'
 import { applyEvent } from '@shared/transcript'
 import type { AgentEvent, AgentKind, Attachment, Chat, LayoutState, Settings, Transcript } from '@shared/types'
 
@@ -26,6 +27,8 @@ interface State {
   componentsVersion: number
   /** Noch nicht gesendete Anhänge je Chat. */
   pendingAttachments: Record<string, Attachment[] | undefined>
+  /** Gesammelte Bezüge (Zitat + Anmerkung) je Chat, noch nicht gesendet. */
+  pendingRefs: Record<string, QuoteRef[] | undefined>
 }
 
 interface Actions {
@@ -47,6 +50,13 @@ interface Actions {
   addFiles(chatId: string, files: File[]): Promise<string[]>
   removeAttachment(chatId: string, path: string): void
   clearAttachments(chatId: string): void
+  addRef(chatId: string, quote: string, note: string): void
+  removeRef(chatId: string, id: string): void
+  /** Bezüge leeren; liefert die bisherigen (zum Wiederherstellen bei Fehlern). */
+  takeRefs(chatId: string): QuoteRef[]
+  restoreRefs(chatId: string, refs: QuoteRef[]): void
+  /** Neuer Chat mit dem Kontext dieses Chats, rechts daneben geöffnet; fragt dort sofort nach. */
+  askInNewChat(sourceChatId: string, quote: string, note: string): Promise<void>
   setDragging(chatId: string | null): void
   setSettingsOpen(open: boolean): void
   toggleSidebar(): void
@@ -116,6 +126,7 @@ export const useStore = create<State & Actions>((set, get) => {
     components: { defs: [], errors: [], dir: '' },
     componentsVersion: 0,
     pendingAttachments: {},
+    pendingRefs: {},
 
     async init() {
       // Eigene Komponenten zuerst – sie werden beim Anzeigen der Screens aufgelöst.
@@ -293,6 +304,38 @@ export const useStore = create<State & Actions>((set, get) => {
 
     clearAttachments(chatId) {
       set((s) => ({ pendingAttachments: { ...s.pendingAttachments, [chatId]: [] } }))
+    },
+
+    addRef(chatId, quote, note) {
+      const ref: QuoteRef = { id: crypto.randomUUID(), quote, note: note.trim() }
+      set((s) => ({ pendingRefs: { ...s.pendingRefs, [chatId]: [...(s.pendingRefs[chatId] ?? []), ref] } }))
+    },
+
+    removeRef(chatId, id) {
+      set((s) => ({ pendingRefs: { ...s.pendingRefs, [chatId]: (s.pendingRefs[chatId] ?? []).filter((r) => r.id !== id) } }))
+    },
+
+    takeRefs(chatId) {
+      const refs = get().pendingRefs[chatId] ?? []
+      set((s) => ({ pendingRefs: { ...s.pendingRefs, [chatId]: [] } }))
+      return refs
+    },
+
+    restoreRefs(chatId, refs) {
+      set((s) => ({ pendingRefs: { ...s.pendingRefs, [chatId]: [...refs, ...(s.pendingRefs[chatId] ?? [])] } }))
+    },
+
+    async askInNewChat(sourceChatId, quote, note) {
+      const c = await window.api.forkChat(sourceChatId, forkTitle({ quote, note }))
+      set((s) => ({ chats: s.chats.some((x) => x.id === c.id) ? s.chats : [c, ...s.chats] }))
+      // In eine neue Zelle rechts neben dem Ausgangs-Chat.
+      const { layout } = get()
+      const src = L.findCellOfChat(layout.root, sourceChatId)
+      const nl = L.leaf()
+      const root = src ? L.splitCell(layout.root, src.id, 'row', 'after', nl) : L.splitCell(layout.root, layout.selectedCellId, 'row', 'after', nl)
+      get().setLayout({ root, selectedCellId: nl.id })
+      await get().openChat(c.id, nl.id)
+      await get().send(c.id, composeMessage([{ id: '', quote, note }], ''))
     },
 
     setDragging(chatId) {

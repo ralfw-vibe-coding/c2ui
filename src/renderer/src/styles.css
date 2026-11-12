@@ -1873,3 +1873,107 @@ button.a2ui-update:hover {
     max-width: 92px;
   }
 }
+
+/* ---------- Bezüge auf Antwortteile ---------- */
+.quote-pill,
+.quote-box {
+  position: absolute;
+  z-index: 30;
+}
+.quote-pill button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border-strong);
+  background: var(--bg-elev);
+  color: var(--text);
+  box-shadow: var(--shadow);
+  font-size: 12.5px;
+  cursor: pointer;
+}
+.quote-pill button:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.quote-box {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid var(--border-strong);
+  background: var(--bg-elev);
+  box-shadow: var(--shadow);
+}
+.quote-box-quote {
+  font-size: 12px;
+  color: var(--text-muted);
+  border-left: 3px solid var(--accent);
+  padding: 1px 0 1px 8px;
+  white-space: pre-wrap;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.quote-box textarea {
+  resize: none;
+  font: inherit;
+  font-size: 13px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border-strong);
+  background: var(--bg);
+  color: var(--text);
+}
+.quote-box-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+.ref-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.ref-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  padding: 3px 4px 3px 7px;
+  border: 1px solid var(--border-strong);
+  border-left: 3px solid var(--accent);
+  border-radius: 7px;
+  background: var(--bg-elev);
+  font-size: 12px;
+  color: var(--text);
+}
+.ref-chip > .icon {
+  color: var(--accent);
+  flex: none;
+}
+.ref-quote {
+  color: var(--text-muted);
+  font-style: italic;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 220px;
+}
+.ref-note {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 220px;
+}
+.bubble-quote {
+  border-left: 3px solid color-mix(in srgb, var(--text) 30%, transparent);
+  padding: 1px 0 1px 8px;
+  margin: 2px 0 6px;
+  color: var(--text-muted);
+  font-style: italic;
+}

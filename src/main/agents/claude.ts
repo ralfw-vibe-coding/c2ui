@@ -98,7 +98,10 @@ class ClaudeSession implements AgentSession {
     if (att) args.push('--add-dir', att)
     if (a2ui && chat.purpose === 'component-workshop') args.push('--append-system-prompt', workshopPrompt(a2ui.componentsDir))
     if (chat.sessionStarted) args.push('--resume', chat.sessionId)
-    else args.push('--session-id', chat.sessionId)
+    else if (chat.forkFrom?.sessionId) {
+      // Abgezweigter Chat: Kopie der Quell-Session unter der eigenen ID (gleiches Arbeitsverzeichnis).
+      args.push('--resume', chat.forkFrom.sessionId, '--fork-session', '--session-id', chat.sessionId)
+    } else args.push('--session-id', chat.sessionId)
 
     const cmd = cfg.path || 'claude'
     const p = spawn(cmd, args, { cwd: chat.cwd, env: childEnv(path) })

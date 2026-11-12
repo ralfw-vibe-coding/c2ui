@@ -68,6 +68,17 @@ class CodexSession implements AgentSession {
     this.seenTools.clear()
     this.pendingEnd = null
     this.lastNotice = ''
+    // Abgezweigter Chat, erster Turn: Codex kann headless nicht forken – Verlauf als Kontext mitgeben.
+    const chat = this.ctx.chat()
+    if (!chat.sessionStarted && chat.forkFrom) {
+      const history = this.ctx.forkHistory?.() ?? ''
+      if (history) {
+        text =
+          `Dieses Gespräch zweigt von einem früheren Chat („${chat.forkFrom.title}“) ab.\n` +
+          `Dessen Verlauf (vom Client mitgeschrieben, ggf. gekürzt):\n<verlauf>\n${history}\n</verlauf>\n\n` +
+          `Neue Nachricht des Nutzers:\n${text}`
+      }
+    }
     this.turnText = text
     this.retried = false
     try {

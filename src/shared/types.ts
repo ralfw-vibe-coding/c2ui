@@ -58,6 +58,11 @@ export interface Chat {
   model?: string
   /** Sonderzweck: 'component-workshop' = Chat zum Bauen/Bearbeiten eigener A2UI-Komponenten. */
   purpose?: 'component-workshop'
+  /**
+   * Abgezweigt aus einem anderen Chat („in neuem Chat fragen“): Der erste Turn bringt dessen Verlauf mit.
+   * Claude setzt dafür die Session fort (`--resume <sessionId> --fork-session`), Codex bekommt den Verlauf als Text.
+   */
+  forkFrom?: { chatId: string; title: string; sessionId?: string }
   /** Session-ID der CLI (Claude: vorab vergeben; Codex: Thread-ID nach dem ersten Turn). */
   sessionId: string
   /** true, sobald die CLI-Session existiert (dann wird fortgesetzt statt neu begonnen). */
