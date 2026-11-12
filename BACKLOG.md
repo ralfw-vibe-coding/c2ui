@@ -16,7 +16,7 @@
     - Claude: `--resume <sessionId> --fork-session` (headless möglich, ganzer Kontext).
     - Codex: `codex fork` gibt es nur interaktiv; für `exec` vermutlich neue Session mit zitiertem Kontext
       oder Kopie der Session – prüfen.
-- **Eigene A2UI-Komponenten ohne Neubau der App** (in Arbeit, Stufen 1+2):
+- **Eigene A2UI-Komponenten ohne Neubau der App** (Stufen 1+2 erledigt, Anleitung: docs/eigene-komponenten.md):
   1. Komponenten-Ordner `<userData>/components/<Name>/component.json`: Name, Beschreibung, Eigenschaften,
      Vorlage aus vorhandenen Komponenten (zusammengesetzte Komponente, ähnlich A2UI-Macros). Wird beim
      Normalisieren der Nachrichten aufgelöst – Validator und Renderer brauchen nichts Neues.

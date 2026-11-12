@@ -96,4 +96,39 @@ describe('eigene Komponenten', () => {
     const msgs = callMessages({ messages: [{ createSurface: { surfaceId: 's', components: [{ id: 'root', component: 'ContactCard', name: 'X' }] } }] })
     expect(msgs[0].createSurface.components.every((c: any) => reserved.has(c.component))).toBe(true)
   })
+
+  it('Beispiele aus docs/eigene-komponenten.md sind gültig und ihre Beispiel-Instanzen werden angenommen', () => {
+    const doc = readFileSync(join(__dirname, '../../docs/eigene-komponenten.md'), 'utf8')
+    const defs = [...doc.matchAll(/```json\n([\s\S]*?)```/g)]
+      .map((m) => {
+        try {
+          return JSON.parse(m[1])
+        } catch {
+          return null // Ausschnitte (z. B. zwei Komponenten mit Komma) sind kein vollständiges JSON
+        }
+      })
+      .filter((j) => j && j.template)
+    expect(defs.map((d) => d.name)).toEqual(['KpiTile', 'Section', 'ConfirmBox'])
+    const parsed = defs.map((d) => {
+      const r = parseCompositeDef(d, reserved)
+      expect(r.errors, d.name).toEqual([])
+      return r.def!
+    })
+    setComposites(parsed)
+    for (const def of parsed) {
+      // Slots (Child) brauchen existierende Komponenten
+      const slots = Object.entries(def.properties)
+        .filter(([, p]) => p.type === 'Child')
+        .map(([k]) => ({ id: (def.example as any)[k], component: 'Text', text: 'Inhalt' }))
+      const r = validate([], [{ createSurface: { surfaceId: 's', components: [{ id: 'root', component: def.name, ...def.example }, ...slots] } }])
+      expect(r.errors, def.name).toEqual([])
+    }
+  })
+
+  it('zu tiefe oder zirkuläre Verschachtelung wird gemeldet', () => {
+    const Loop: CompositeDef = { name: 'Loop', description: 'x', properties: {}, template: [{ id: 'root', component: 'Loop' }] }
+    setComposites([Loop])
+    const r = validate([], [{ createSurface: { surfaceId: 's', components: [{ id: 'root', component: 'Loop' }] } }])
+    expect(r.ok).toBe(false)
+  })
 })

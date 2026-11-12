@@ -42,6 +42,9 @@ Ohne ausdrücklichen Wunsch antwortet Claude wie gewohnt mit Text.
   Table, Metric, Progress, Alert, Badge, CodeBlock und ein Image, das lokale Dateien über `c2ui-file://` lädt
   (nur Bilddateien). Neue Komponente = Schema dort + React-Implementierung (`src/renderer/src/a2ui/`) + Doku in
   `resources/a2ui-plugin/skills/a2ui/extra-components.md` (ein Test prüft, dass jede Eigenschaft beschrieben ist).
+- **Eigene Komponenten ohne Programmieren**: `component.json` im Komponenten-Ordner (Einstellungen → „Ordner öffnen“),
+  Vorlage aus vorhandenen Komponenten mit eigenen Eigenschaften; Claude/Codex finden sie über `describe_components`.
+  **Anleitung: [docs/eigene-komponenten.md](docs/eigene-komponenten.md)**
 - **Screen-Übersicht**: Leiste mit Live-Miniaturen aller aktiven Screens eines Chats; Klick springt hin,
   sichtbare Screens sind markiert, einklappbar.
 - **Codex**: Den Skill findet Codex über ein Schatten-Home (`<userData>/codex-home`, Symlinks auf das echte Home,

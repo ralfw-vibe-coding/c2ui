@@ -47,18 +47,37 @@ let componentsDir = ''
 
 const COMPONENTS_README = `# Eigene A2UI-Komponenten für Claude2UI
 
-Jeder Unterordner mit einer \`component.json\` ist eine eigene Komponente. Claude und Codex sehen sie über das
-Werkzeug \`describe_components\` und können sie in Screens wie eingebaute Komponenten verwenden.
-Änderungen wirken sofort (für neue Screens bzw. Aufrufe).
+(Diese Datei wird von Claude2UI bei jedem Start aktualisiert – eigene Notizen bitte woanders ablegen.)
 
-Aufbau (siehe ContactCard/component.json):
-- name: Name in PascalCase, nicht wie eine eingebaute Komponente
-- description: wofür die Komponente gedacht ist (liest das Modell)
-- properties: Eigenschaften mit type (DynamicString, DynamicNumber, DynamicBoolean, DynamicValue, Action, Child,
-  ChildList, string, number, boolean), optional required, enum, default, description
-- template: Komponenten aus vorhandenen Bausteinen, eine davon mit "id": "root"; "$eigenschaft" als Platzhalter.
-  Fehlt eine optionale Eigenschaft, entfällt der Vorlagenteil, der sie direkt anzeigt (samt Verweisen darauf).
-- example: Beispielwerte für die Doku
+Jeder Unterordner mit einer \`component.json\` ist eine eigene Komponente: eine Vorlage aus vorhandenen
+A2UI-Komponenten mit eigenen Eigenschaften. Claude und Codex sehen sie über das Werkzeug \`describe_components\`
+und verwenden sie wie eingebaute Komponenten. Änderungen wirken sofort; Fehler zeigt Claude2UI unter
+Einstellungen → Eigene A2UI-Komponenten.
+
+Vollständige Anleitung mit Beispielen:
+https://github.com/ralfw-vibe-coding/claude2ui/blob/main/docs/eigene-komponenten.md
+
+Kurzfassung einer component.json (siehe auch ContactCard/component.json):
+
+{
+  "name": "KpiTile",                       // PascalCase, nicht wie eine eingebaute Komponente
+  "description": "Kennzahl-Kachel …",      // wann die Komponente passt – liest das Modell
+  "properties": {                          // Eigenschaften der Komponente
+    "title": { "type": "DynamicString", "required": true },
+    "note":  { "type": "DynamicString" }   // optional: fehlt sie, entfällt der Teil, der sie anzeigt
+  },
+  "template": [                            // Vorlage aus vorhandenen Komponenten, eine mit id "root"
+    { "id": "root",  "component": "Card", "child": "col" },
+    { "id": "col",   "component": "Column", "children": ["title", "note"] },
+    { "id": "title", "component": "Text", "text": "$title" },   // "$eigenschaft" = Platzhalter
+    { "id": "note",  "component": "Text", "variant": "caption", "text": "$note" }
+  ],
+  "example": { "title": "Umsatz Q3", "note": "+12 %" }          // Beispiel für das Modell
+}
+
+Typen: DynamicString, DynamicNumber, DynamicBoolean, DynamicValue (Text/Zahl/… oder Bindung {"@path": …}),
+string, number, boolean (feste Werte, mit "enum" einschränkbar), Action (für Buttons), Child/ChildList (Slots).
+(Kommentare mit // sind nur zur Erklärung – in echten JSON-Dateien nicht erlaubt.)
 `
 let quitting = false
 
