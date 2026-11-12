@@ -9,7 +9,7 @@ export default defineConfig({
     resolve: { alias: shared },
     build: {
       // web_core ist reines ESM; in den CJS-Build des MCP-Servers wird es eingebunden.
-      externalizeDeps: { exclude: ['@a2ui/web_core'] },
+      externalizeDeps: { exclude: ['@a2ui/web_core', 'zod'] },
       rollupOptions: {
         input: {
           index: resolve(__dirname, 'src/main/index.ts'),

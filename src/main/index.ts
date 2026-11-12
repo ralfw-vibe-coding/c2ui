@@ -14,6 +14,12 @@ if (process.env.CLAUDE2UI_USER_DATA) app.setPath('userData', process.env.CLAUDE2
 
 const iconPath = join(app.getAppPath(), 'resources', 'icon.png')
 
+/**
+ * Pfad für externe Programme (Claude/Codex, MCP-Server): In der gepackten App liegen diese Dateien
+ * entpackt neben dem asar-Archiv (asarUnpack), weil fremde Prozesse nicht in app.asar lesen können.
+ */
+const unpacked = (p: string): string => p.replace(/app\.asar([\\/])/, 'app.asar.unpacked$1')
+
 // Lokale Bilder für A2UI-Screens: c2ui-file://local/<absoluter Pfad>. Nur Bilddateien.
 const IMAGE_EXT = /\.(png|jpe?g|gif|webp|svg|bmp|avif|ico)$/i
 protocol.registerSchemesAsPrivileged([
@@ -164,8 +170,8 @@ app.whenReady().then(() => {
       chatsChanged: (chats) => send('chats:changed', chats)
     },
     {
-      pluginDir: join(app.getAppPath(), 'resources', 'a2ui-plugin'),
-      serverScript: join(__dirname, 'a2ui-mcp.js'),
+      pluginDir: unpacked(join(app.getAppPath(), 'resources', 'a2ui-plugin')),
+      serverScript: unpacked(join(__dirname, 'a2ui-mcp.js')),
       execPath: process.execPath,
       stateDir: join(app.getPath('userData'), 'a2ui-state'),
       shadowHomeDir: join(app.getPath('userData'), 'codex-home')

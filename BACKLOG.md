@@ -20,7 +20,7 @@
 - **Weitere Widgets** nach Bedarf (z. B. Timeline, Kalender, Karte, Kanban); Muster: Schema in
   `src/shared/a2ui-catalog.ts`, React in `src/renderer/src/a2ui/`, Doku in `extra-components.md`.
 - **Codex**: Antworten streamen (derzeit nur ganze Absätze), Kosten anzeigen.
-- **Paketierung** als echte macOS-App (electron-builder, `resources/icon.icns`).
+- **Paketierung**: DMG/Zip und Notarisierung für die Weitergabe (lokal läuft `npm run dist` bereits).
 - **Freigaben im UI** statt nur fester Berechtigungsmodi (Claude `--permission-prompt-tool`).
 
 ## Erledigt

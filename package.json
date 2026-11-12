@@ -12,7 +12,8 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
     "smoke": "electron-vite build && node scripts/smoke.mjs smoke-out",
-    "postinstall": "node scripts/dev-branding.mjs"
+    "postinstall": "node scripts/dev-branding.mjs",
+    "dist": "electron-vite build && electron-builder --mac --dir"
   },
   "dependencies": {
     "@a2ui/react": "^0.15.0",
@@ -32,10 +33,44 @@
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.3.0",
     "electron": "^45.3.1",
+    "electron-builder": "^26.18.0",
     "electron-vite": "^6.0.0",
     "playwright-core": "^1.65.0",
     "typescript": "^7.0.2",
     "vite": "^8.3.8",
     "vitest": "^5.1.0"
+  },
+  "build": {
+    "appId": "de.ralfw.claude2ui",
+    "productName": "Claude2UI",
+    "directories": {
+      "output": "dist",
+      "buildResources": "resources"
+    },
+    "files": [
+      "out/**/*",
+      "resources/**/*",
+      "package.json",
+      "!node_modules/**/*"
+    ],
+    "asarUnpack": [
+      "out/main/**/*",
+      "resources/a2ui-plugin/**/*"
+    ],
+    "npmRebuild": false,
+    "mac": {
+      "target": [
+        {
+          "target": "dir",
+          "arch": [
+            "arm64"
+          ]
+        }
+      ],
+      "icon": "resources/icon.icns",
+      "category": "public.app-category.developer-tools",
+      "identity": "-",
+      "hardenedRuntime": false
+    }
   }
 }

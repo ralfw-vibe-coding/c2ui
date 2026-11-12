@@ -64,6 +64,16 @@ node scripts/screens-strip-check.mjs   # Screen-Übersicht ohne Modellaufruf
 node scripts/a2ui-codex-e2e.mjs   # A2UI mit Codex
 ```
 
+### App bauen und installieren (macOS, Apple Silicon)
+
+```bash
+npm run dist                                   # baut dist/mac-arm64/Claude2UI.app (ad-hoc signiert)
+ditto dist/mac-arm64/Claude2UI.app /Applications/Claude2UI.app
+```
+
+Skill und MCP-Server liegen in der App entpackt unter `Contents/Resources/app.asar.unpacked/`, weil Claude und Codex
+als fremde Prozesse nicht in `app.asar` lesen können. Gepackte App und Entwicklungsmodus teilen sich das Datenverzeichnis.
+
 Daten liegen unter `~/Library/Application Support/Claude2UI/` (`chats.json`, `layout.json`, `settings.json`, `transcripts/`).
 
 ## Aufbau
