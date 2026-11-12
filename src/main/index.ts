@@ -4,6 +4,8 @@ import { app, BrowserWindow, dialog, ipcMain, nativeImage, net, protocol, shell 
 import { LOCAL_FILE_SCHEME } from '@shared/a2ui'
 import type { AgentKind, ChatPatch, LayoutState, PermissionMode, Settings } from '@shared/types'
 import { ChatManager } from './chats'
+import { ensureComponentsDir, loadComposites } from './componentsLoader'
+import { watch } from 'node:fs'
 import { listModels } from './models'
 import { resolveLoginPath } from './env'
 import { Storage } from './storage'
@@ -41,6 +43,23 @@ function registerLocalFileProtocol(): void {
 let win: BrowserWindow | null = null
 let manager: ChatManager
 let loginPath = ''
+let componentsDir = ''
+
+const COMPONENTS_README = `# Eigene A2UI-Komponenten für Claude2UI
+
+Jeder Unterordner mit einer \`component.json\` ist eine eigene Komponente. Claude und Codex sehen sie über das
+Werkzeug \`describe_components\` und können sie in Screens wie eingebaute Komponenten verwenden.
+Änderungen wirken sofort (für neue Screens bzw. Aufrufe).
+
+Aufbau (siehe ContactCard/component.json):
+- name: Name in PascalCase, nicht wie eine eingebaute Komponente
+- description: wofür die Komponente gedacht ist (liest das Modell)
+- properties: Eigenschaften mit type (DynamicString, DynamicNumber, DynamicBoolean, DynamicValue, Action, Child,
+  ChildList, string, number, boolean), optional required, enum, default, description
+- template: Komponenten aus vorhandenen Bausteinen, eine davon mit "id": "root"; "$eigenschaft" als Platzhalter.
+  Fehlt eine optionale Eigenschaft, entfällt der Vorlagenteil, der sie direkt anzeigt (samt Verweisen darauf).
+- example: Beispielwerte für die Doku
+`
 let quitting = false
 
 function send(channel: string, ...args: unknown[]): void {
@@ -128,6 +147,7 @@ function registerIpc(): void {
     })
     return r.canceled ? null : r.filePaths[0]
   })
+  ipcMain.handle('components:list', () => ({ ...loadComposites(componentsDir), dir: componentsDir }))
   ipcMain.handle('models:list', (_e, agent: AgentKind) =>
     listModels(agent, manager.getSettings().agents[agent].path, loginPath)
   )
@@ -161,6 +181,18 @@ app.whenReady().then(() => {
   if (process.platform === 'darwin' && !app.isPackaged) app.dock?.setIcon(nativeImage.createFromPath(iconPath))
   const storage = new Storage(app.getPath('userData'))
   loginPath = resolveLoginPath()
+  componentsDir = join(app.getPath('userData'), 'components')
+  ensureComponentsDir(componentsDir, unpacked(join(app.getAppPath(), 'resources', 'example-components')), COMPONENTS_README)
+  // Eigene Komponenten beobachten und den Renderer informieren.
+  let watchTimer: NodeJS.Timeout | null = null
+  try {
+    watch(componentsDir, { recursive: true }, () => {
+      if (watchTimer) clearTimeout(watchTimer)
+      watchTimer = setTimeout(() => send('components:changed', loadComposites(componentsDir)), 300)
+    })
+  } catch {
+    /* ohne Beobachtung: Änderungen wirken nach Neustart */
+  }
   manager = new ChatManager(
     storage,
     loginPath,
@@ -174,7 +206,8 @@ app.whenReady().then(() => {
       serverScript: unpacked(join(__dirname, 'a2ui-mcp.js')),
       execPath: process.execPath,
       stateDir: join(app.getPath('userData'), 'a2ui-state'),
-      shadowHomeDir: join(app.getPath('userData'), 'codex-home')
+      shadowHomeDir: join(app.getPath('userData'), 'codex-home'),
+      componentsDir
     }
   )
   registerIpc()

@@ -55,7 +55,8 @@
     ],
     "asarUnpack": [
       "out/main/**/*",
-      "resources/a2ui-plugin/**/*"
+      "resources/a2ui-plugin/**/*",
+      "resources/example-components/**/*"
     ],
     "npmRebuild": false,
     "mac": {

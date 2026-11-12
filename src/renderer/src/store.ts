@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { disposeChatSurfaces, setA2uiActionHandler } from './a2ui/chatSurfaces'
+import { setComposites, type CompositeDef } from '@shared/a2ui-composites'
 import * as L from '@shared/layout'
 import { applyEvent } from '@shared/transcript'
 import type { AgentEvent, AgentKind, Chat, LayoutState, Settings, Transcript } from '@shared/types'
@@ -18,6 +19,8 @@ interface State {
   dragging: string | null
   settingsOpen: boolean
   sidebarCollapsed: boolean
+  /** Eigene A2UI-Komponenten aus dem Komponenten-Ordner. */
+  components: { defs: CompositeDef[]; errors: string[]; dir: string }
 }
 
 interface Actions {
@@ -99,8 +102,17 @@ export const useStore = create<State & Actions>((set, get) => {
     dragging: null,
     settingsOpen: false,
     sidebarCollapsed: readFlag('sidebarCollapsed'),
+    components: { defs: [], errors: [], dir: '' },
 
     async init() {
+      // Eigene Komponenten zuerst – sie werden beim Anzeigen der Screens aufgelöst.
+      const components = await window.api.listComponents()
+      setComposites(components.defs)
+      set({ components })
+      window.api.onComponentsChanged((r) => {
+        setComposites(r.defs)
+        set((st) => ({ components: { ...st.components, ...r } }))
+      })
       const s = await window.api.init()
       const layout = L.sanitize(s.layout, new Set(s.chats.map((c) => c.id)))
       set({

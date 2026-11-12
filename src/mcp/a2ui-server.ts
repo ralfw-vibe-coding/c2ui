@@ -8,9 +8,29 @@
 // App vor dem Start), damit Updates auf bestehende Screens auch nach einem Neustart prüfbar sind.
 
 import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { createInterface } from 'node:readline'
-import { A2UI_SERVER, A2UI_TOOL, A2UI_ACTION_PREFIX, BASIC_CATALOG_ID, callMessages, type A2uiMessage } from '@shared/a2ui'
+import {
+  A2UI_ACTION_PREFIX,
+  A2UI_SERVER,
+  A2UI_TOOL,
+  BUILTIN_COMPONENT_NAMES,
+  CLAUDE2UI_CATALOG_ID,
+  rawCallMessages,
+  type A2uiMessage
+} from '@shared/a2ui'
+import { compositeDoc, getComposites, setComposites } from '@shared/a2ui-composites'
+import { loadComposites } from '../main/componentsLoader'
 import { validate } from './validate'
+
+/** Eigene Komponenten bei jedem Aufruf neu laden – neue Dateien wirken sofort. */
+function refreshComposites(): string[] {
+  const dir = process.env.A2UI_COMPONENTS_DIR
+  if (!dir) return []
+  const r = loadComposites(dir)
+  setComposites(r.defs)
+  return r.errors
+}
 
 const history: A2uiMessage[] = loadHistory()
 
@@ -28,13 +48,68 @@ function loadHistory(): A2uiMessage[] {
 const INSTRUCTIONS = `Dieser Server zeigt A2UI-Oberflächen (v1.0, Basic Catalog) direkt im Chat der App Claude2UI an.
 Nutze render_ui nur, wenn der Nutzer eine Oberfläche wünscht oder mit einem Screen interagiert
 (Nachrichten, die mit "${A2UI_ACTION_PREFIX.trim()}" beginnen). Sonst normal mit Text antworten.
-Vor dem ersten Screen den Skill "a2ui" laden (Protokoll, Komponenten, Beispiele).`
+Vor dem ersten Screen den Skill "a2ui" laden (Protokoll, Komponenten, Beispiele).
+describe_components listet alle verfügbaren Komponenten – auch eigene des Nutzers – und liefert ihre Doku.`
+
+const DESCRIBE_TOOL = 'describe_components'
+
+const DESCRIBE = {
+  name: DESCRIBE_TOOL,
+  description: `Liefert die verfügbaren A2UI-Komponenten von Claude2UI: eingebaute (Basic Catalog, Charts, Table, Metric …)
+und eigene Komponenten des Nutzers. Ohne Argument: Übersicht plus vollständige Doku der eigenen Komponenten.
+Mit "names": Doku genau dieser Komponenten. Vor dem Bau eines Screens aufrufen, um eigene Komponenten zu kennen.`,
+  inputSchema: {
+    type: 'object',
+    properties: { names: { type: 'array', items: { type: 'string' }, description: 'Komponentennamen, z. B. ["Table", "ContactCard"].' } }
+  },
+  annotations: { readOnlyHint: true }
+}
+
+/** Abschnitt „### Name“ aus der Skill-Referenz (eingebaute Komponenten). */
+function builtinDoc(name: string): string | undefined {
+  const dir = process.env.A2UI_SKILL_DIR
+  if (!dir) return undefined
+  try {
+    const ref = readFileSync(join(dir, 'reference.md'), 'utf8')
+    const re = new RegExp(`^### ${name}\\b[^\\n]*\\n([\\s\\S]*?)(?=^### |^## |(?![\\s\\S]))`, 'm')
+    const m = ref.match(re)
+    return m ? `### ${name}\n${m[1].trim()}` : undefined
+  } catch {
+    return undefined
+  }
+}
+
+function describeComponents(args: Record<string, any>): string {
+  const loadErrors = refreshComposites()
+  const custom = getComposites()
+  const names: string[] = Array.isArray(args?.names) ? args.names.filter((n: unknown) => typeof n === 'string') : []
+  if (names.length) {
+    return names
+      .map((n) => {
+        const c = custom.find((d) => d.name === n)
+        if (c) return compositeDoc(c)
+        return builtinDoc(n) ?? `### ${n}\nUnbekannte Komponente.`
+      })
+      .join('\n\n')
+  }
+  const parts = [
+    `catalogId: ${CLAUDE2UI_CATALOG_ID}`,
+    `Eingebaute Komponenten: ${BUILTIN_COMPONENT_NAMES.join(', ')} (Doku: Skill-Referenz oder describe_components mit "names").`,
+    custom.length
+      ? `Eigene Komponenten des Nutzers (${custom.length}) – wie eingebaute verwenden, mit denselben Eigenschaften wie dokumentiert:\n\n` +
+        custom.map(compositeDoc).join('\n\n')
+      : 'Eigene Komponenten des Nutzers: keine.'
+  ]
+  if (loadErrors.length) parts.push('Nicht geladene eigene Komponenten (fehlerhaft):\n' + loadErrors.map((e) => '- ' + e).join('\n'))
+  return parts.join('\n\n')
+}
 
 const TOOL = {
   name: A2UI_TOOL,
   description: `Zeigt eine A2UI-v1.0-Oberfläche im Chat des Nutzers an oder aktualisiert eine bestehende in-place.
 Eingabe: {"messages": [...]} mit A2UI-Nachrichten (createSurface, updateComponents, updateDataModel, deleteSurface),
-Katalog: ${BASIC_CATALOG_ID}. Bestehende Screens per surfaceId aktualisieren statt neu anlegen.
+Katalog: ${CLAUDE2UI_CATALOG_ID}. Bestehende Screens per surfaceId aktualisieren statt neu anlegen.
+Eigene Komponenten des Nutzers sind erlaubt (siehe describe_components).
 Bei Validierungsfehlern wird nichts angezeigt: korrigieren und erneut aufrufen. Details und Beispiele: Skill "a2ui".`,
   inputSchema: {
     type: 'object',
@@ -64,7 +139,8 @@ function fail(id: unknown, code: number, message: string): void {
 }
 
 function renderUi(args: Json): { text: string; isError: boolean } {
-  const incoming = callMessages(args)
+  refreshComposites()
+  const incoming = rawCallMessages(args)
   const r = validate(history, incoming)
   if (!r.ok) {
     return {
@@ -104,8 +180,17 @@ function handle(msg: Json): void {
     case 'ping':
       return reply(id, {})
     case 'tools/list':
-      return reply(id, { tools: [TOOL] })
+      return reply(id, { tools: [TOOL, DESCRIBE] })
     case 'tools/call': {
+      if (params?.name === DESCRIBE_TOOL) {
+        let text: string
+        try {
+          text = describeComponents(params.arguments ?? {})
+        } catch (e) {
+          return reply(id, { content: [{ type: 'text', text: `Fehler: ${(e as Error).message}` }], isError: true })
+        }
+        return reply(id, { content: [{ type: 'text', text }], isError: false })
+      }
       if (params?.name !== A2UI_TOOL) return fail(id, -32602, `Unbekanntes Tool: ${params?.name}`)
       let r: { text: string; isError: boolean }
       try {

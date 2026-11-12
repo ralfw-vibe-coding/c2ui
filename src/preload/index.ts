@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer, webFrame, type IpcRendererEvent } from 'electron'
+import type { CompositeDef } from '@shared/a2ui-composites'
 import type { AgentEvent, AgentKind, Chat, ChatPatch, LayoutState, ModelList, PermissionMode, Settings, Transcript } from '@shared/types'
 
 export interface InitState {
@@ -29,6 +30,8 @@ const api = {
   interrupt: (id: string): Promise<void> => ipcRenderer.invoke('agent:interrupt', id),
   pickDirectory: (defaultPath?: string): Promise<string | null> => ipcRenderer.invoke('dialog:pickDirectory', defaultPath),
   listModels: (agent: AgentKind): Promise<ModelList> => ipcRenderer.invoke('models:list', agent),
+  listComponents: (): Promise<{ defs: CompositeDef[]; errors: string[]; dir: string }> => ipcRenderer.invoke('components:list'),
+  onComponentsChanged: (cb: (r: { defs: CompositeDef[]; errors: string[] }) => void) => on('components:changed', cb),
   reveal: (path: string): Promise<string> => ipcRenderer.invoke('shell:reveal', path),
   confirmBusy: (title: string, action: string): Promise<'background' | 'stop' | 'cancel'> =>
     ipcRenderer.invoke('dialog:confirmBusy', title, action),

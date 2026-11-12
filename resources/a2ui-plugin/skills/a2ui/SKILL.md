@@ -13,6 +13,14 @@ Komponenten des A2UI-Basic-Catalog **plus**:
 - ein **Image, das auch lokale Dateien** zeigt (Pfad absolut, mit `~` oder relativ zum Arbeitsverzeichnis)
 Du lieferst sie über das Tool **`render_ui`** (MCP-Server `a2ui`, volle Bezeichnung `mcp__a2ui__render_ui`).
 
+## Eigene Komponenten des Nutzers
+
+Der Nutzer kann eigene Komponenten anlegen (z. B. `ContactCard`). Welche es gibt, liefert das Tool
+**`describe_components`** (MCP-Server `a2ui`) – rufe es **vor dem ersten Screen einer Session** auf.
+Eigene Komponenten verwendest du wie eingebaute: `{"id": "k1", "component": "ContactCard", "name": "…"}`
+mit genau den dokumentierten Eigenschaften. Passt eine eigene Komponente zur Aufgabe, nimm sie bevorzugt –
+der Nutzer hat sie genau dafür angelegt. `describe_components` mit `"names"` liefert auch die Doku eingebauter Komponenten.
+
 ## Wann
 
 - Nur wenn der Nutzer eine Oberfläche wünscht oder mit einem bestehenden Screen interagiert.

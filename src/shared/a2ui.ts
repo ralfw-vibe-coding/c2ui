@@ -1,3 +1,4 @@
+import { expandComposites } from './a2ui-composites'
 import type { Block, Transcript } from './types'
 
 // Gemeinsame A2UI-Bausteine für Main-Prozess, MCP-Server und Renderer.
@@ -17,15 +18,27 @@ export const A2UI_ACTION_PREFIX = 'A2UI-Aktion: '
 
 export type A2uiMessage = Record<string, any>
 
+/** Namen aller eingebauten Komponenten (Basic Catalog + Claude2UI); eigene dürfen sie nicht überschreiben. */
+export const BUILTIN_COMPONENT_NAMES = [
+  'Text', 'Image', 'Icon', 'Video', 'AudioPlayer', 'Row', 'Column', 'List', 'Card', 'Tabs', 'Modal', 'Divider',
+  'Button', 'TextField', 'CheckBox', 'ChoicePicker', 'Slider', 'DateTimeInput',
+  'LineChart', 'BarChart', 'PieChart', 'ScatterChart', 'Table', 'Metric', 'Progress', 'Alert', 'Badge', 'CodeBlock'
+]
+
 export function isA2uiCall(b: Block): boolean {
   return b.type === 'tool_use' && (b.name === A2UI_TOOL_FULL || b.name.endsWith(`__${A2UI_TOOL}`))
 }
 
 /** Nachrichten eines render_ui-Aufrufs, vereinheitlicht (Version/Katalog ergänzt). */
 export function callMessages(input: unknown): A2uiMessage[] {
+  return rawCallMessages(input).map(normalizeMessage)
+}
+
+/** Nachrichten eines render_ui-Aufrufs, so wie das Modell sie geschickt hat (für Prüfungen vor dem Auflösen). */
+export function rawCallMessages(input: unknown): A2uiMessage[] {
   const raw = (input as { messages?: unknown })?.messages
   const list = typeof raw === 'string' ? safeParse(raw) : raw
-  return Array.isArray(list) ? list.filter((m) => m && typeof m === 'object').map(normalizeMessage) : []
+  return Array.isArray(list) ? list.filter((m) => m && typeof m === 'object') : []
 }
 
 /**
@@ -42,10 +55,10 @@ export function normalizeMessage(m: A2uiMessage): A2uiMessage {
       : list
   if (out.createSurface) {
     out.createSurface = { ...out.createSurface, catalogId: cat(out.createSurface.catalogId) }
-    if (out.createSurface.components) out.createSurface.components = comps(out.createSurface.components)
+    if (out.createSurface.components) out.createSurface.components = expandComposites(comps(out.createSurface.components))
   }
   if (out.updateComponents?.components) {
-    out.updateComponents = { ...out.updateComponents, components: comps(out.updateComponents.components) }
+    out.updateComponents = { ...out.updateComponents, components: expandComposites(comps(out.updateComponents.components)) }
   }
   return out
 }

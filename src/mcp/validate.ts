@@ -1,5 +1,6 @@
 import { basicCatalog, MessageProcessor } from '@a2ui/web_core/v1_0'
 import { buildClaude2uiCatalog } from '@shared/a2ui-catalog'
+import { checkCompositeInstance, getComposite } from '@shared/a2ui-composites'
 
 const catalogs = [buildClaude2uiCatalog(), basicCatalog]
 const knownComponents = new Map(catalogs.map((c) => [c.id, new Set(c.components.keys())]))
@@ -36,6 +37,17 @@ export interface ValidationResult {
  */
 export function validate(historyRaw: A2uiMessage[], incomingRaw: A2uiMessage[]): ValidationResult {
   const history = historyRaw.map(normalizeMessage)
+  // Eigene Komponenten vor dem Auflösen prüfen – so beziehen sich Fehler auf die Instanz.
+  const compositeErrors: string[] = []
+  incomingRaw.forEach((m, i) => {
+    const list = m?.createSurface?.components ?? m?.updateComponents?.components
+    if (!Array.isArray(list)) return
+    for (const c of list) {
+      const def = c && typeof c === 'object' ? getComposite(c.component) : undefined
+      if (def) compositeErrors.push(...checkCompositeInstance(c, def).map((e) => `Nachricht ${i + 1}: ${e}`))
+    }
+  })
+  if (compositeErrors.length) return { ok: false, errors: compositeErrors, created: [], updated: [] }
   const incoming = incomingRaw.map(normalizeMessage)
   const errors: string[] = []
   const p = new MessageProcessor(catalogs as never, undefined, {

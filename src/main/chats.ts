@@ -33,6 +33,7 @@ export interface A2uiPaths {
   stateDir: string
   /** Verzeichnis für das Schatten-Home von Codex (Skills ohne Eingriff ins echte Home). */
   shadowHomeDir: string
+  componentsDir: string
 }
 
 export interface ChatManagerEvents {
@@ -251,11 +252,11 @@ export class ChatManager {
   /** A2UI-Einrichtung für einen Prozessstart; legt vorher den bisherigen A2UI-Stand des Chats ab. */
   private a2uiSetup(chatId: string): A2uiSetup | null {
     if (!this.a2ui) return null
-    const { pluginDir, serverScript, execPath, stateDir, shadowHomeDir } = this.a2ui
+    const { pluginDir, serverScript, execPath, stateDir, shadowHomeDir, componentsDir } = this.a2ui
     mkdirSync(stateDir, { recursive: true })
     const stateFile = join(stateDir, `${chatId}.json`)
     writeFileSync(stateFile, JSON.stringify(acceptedMessages(this.transcript(chatId))))
-    return { pluginDir, skillDir: join(pluginDir, 'skills', 'a2ui'), serverScript, execPath, stateFile, shadowHomeDir }
+    return { pluginDir, skillDir: join(pluginDir, 'skills', 'a2ui'), serverScript, execPath, stateFile, shadowHomeDir, componentsDir }
   }
 
   private emit(id: string, e: AgentEvent): void {

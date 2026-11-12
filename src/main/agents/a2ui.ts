@@ -16,9 +16,17 @@ export interface A2uiSetup {
   stateFile: string
   /** Verzeichnis für das Schatten-Home von Codex. */
   shadowHomeDir: string
+  /** Ordner mit eigenen Komponenten (`<Name>/component.json`). */
+  componentsDir: string
 }
 
-const serverEnv = (s: A2uiSetup) => ({ ELECTRON_RUN_AS_NODE: '1', A2UI_STATE_FILE: s.stateFile })
+const serverEnv = (s: A2uiSetup) => ({
+  ELECTRON_RUN_AS_NODE: '1',
+  A2UI_STATE_FILE: s.stateFile,
+  A2UI_COMPONENTS_DIR: s.componentsDir,
+  A2UI_SKILL_DIR: s.skillDir
+})
+const DESCRIBE_TOOL = 'describe_components'
 
 /** Claude: Skill per Plugin, MCP-Server per --mcp-config, Tool ohne Rückfrage erlaubt. */
 export function claudeA2uiArgs(s: A2uiSetup): string[] {
@@ -32,7 +40,7 @@ export function claudeA2uiArgs(s: A2uiSetup): string[] {
     // Damit Claude die Referenz des Skills lesen darf, obwohl sie außerhalb des Arbeitsverzeichnisses liegt.
     '--add-dir', join(s.pluginDir, 'skills'),
     '--mcp-config', JSON.stringify(mcp),
-    '--allowedTools', A2UI_TOOL_FULL
+    '--allowedTools', `${A2UI_TOOL_FULL},mcp__${A2UI_SERVER}__${DESCRIBE_TOOL}`
   ]
 }
 
@@ -61,7 +69,8 @@ export function codexA2uiLaunch(s: A2uiSetup): { args: string[]; env: Record<str
     '-c', `${p}.env=${toml(serverEnv(s))}`,
     '-c', `${p}.startup_timeout_sec=30`,
     // Ohne Freigabe bricht Codex im exec-Modus MCP-Aufrufe ab.
-    '-c', `${p}.tools.${A2UI_TOOL}.approval_mode="approve"`
+    '-c', `${p}.tools.${A2UI_TOOL}.approval_mode="approve"`,
+    '-c', `${p}.tools.${DESCRIBE_TOOL}.approval_mode="approve"`
   ]
   return {
     args,

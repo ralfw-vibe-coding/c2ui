@@ -56,6 +56,7 @@ export function SettingsDialog() {
             onChange={(e) => setDraft({ ...draft, idleTimeoutMinutes: Math.max(1, Number(e.target.value) || 1) })}
           />
         </label>
+        <ComponentsSection />
         <p className="muted small">Änderungen gelten für neu gestartete CLI-Prozesse.</p>
         <div className="modal-actions">
           <button className="btn" onClick={close}>
@@ -121,5 +122,31 @@ function ModelSelect({ agent, value, onChange }: { agent: AgentKind; value: stri
       )}
       {list?.error && <span className="muted small">{list.error}</span>}
     </div>
+  )
+}
+
+/** Eigene A2UI-Komponenten: Ordner, geladene Komponenten, Fehler. */
+function ComponentsSection() {
+  const { defs, errors, dir } = useStore((s) => s.components)
+  return (
+    <fieldset className="agent-settings">
+      <legend>Eigene A2UI-Komponenten</legend>
+      <div className="components-head">
+        <span className="muted small">
+          {defs.length ? defs.map((d) => d.name).join(', ') : 'Keine'} · Ordner: <code>{dir.split('/').slice(-2).join('/')}</code>
+        </span>
+        <button className="btn" onClick={() => window.api.reveal(dir)}>
+          Ordner öffnen
+        </button>
+      </div>
+      {errors.length > 0 && (
+        <ul className="components-errors">
+          {errors.map((e) => (
+            <li key={e}>{e}</li>
+          ))}
+        </ul>
+      )}
+      <span className="muted small">Je Komponente ein Unterordner mit component.json (Anleitung: README.md im Ordner). Änderungen wirken sofort.</span>
+    </fieldset>
   )
 }

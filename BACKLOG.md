@@ -16,6 +16,15 @@
     - Claude: `--resume <sessionId> --fork-session` (headless möglich, ganzer Kontext).
     - Codex: `codex fork` gibt es nur interaktiv; für `exec` vermutlich neue Session mit zitiertem Kontext
       oder Kopie der Session – prüfen.
+- **Eigene A2UI-Komponenten ohne Neubau der App** (in Arbeit, Stufen 1+2):
+  1. Komponenten-Ordner `<userData>/components/<Name>/component.json`: Name, Beschreibung, Eigenschaften,
+     Vorlage aus vorhandenen Komponenten (zusammengesetzte Komponente, ähnlich A2UI-Macros). Wird beim
+     Normalisieren der Nachrichten aufgelöst – Validator und Renderer brauchen nichts Neues.
+  2. MCP-Tool `describe_components`: liefert die Doku aller Komponenten (eingebaut + eigene) bei Bedarf –
+     neue Komponenten sind sofort für Claude und Codex sichtbar, der Skill bleibt unverändert.
+  3. Später: echte neue Darstellung als Web Component (`element.js`), nur für vertrauenswürdige eigene
+     Komponenten (läuft im App-Fenster) oder abgeschottet im iframe.
+  4. Später: Claude baut Komponenten selbst („Bau mir ein Kanban-Widget“), mit Freigabe vor dem Aktivieren.
 - **Lokale Eingaben in A2UI-Screens speichern**, die ohne Button-Aktion gemacht wurden (überleben derzeit keinen Neustart).
 - **Weitere Widgets** nach Bedarf (z. B. Timeline, Kalender, Karte, Kanban); Muster: Schema in
   `src/shared/a2ui-catalog.ts`, React in `src/renderer/src/a2ui/`, Doku in `extra-components.md`.

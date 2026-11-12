@@ -1589,3 +1589,16 @@ button.a2ui-update:hover {
   max-height: 520px;
   object-fit: contain;
 }
+
+.components-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.components-errors {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--danger);
+  font-size: 12px;
+}
