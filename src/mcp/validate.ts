@@ -1,4 +1,7 @@
 import { basicCatalog, MessageProcessor } from '@a2ui/web_core/v1_0'
+import { buildClaude2uiCatalog } from '@shared/a2ui-catalog'
+
+const catalogs = [buildClaude2uiCatalog(), basicCatalog]
 import { danglingRefs, normalizeMessage, surfaceIdOf, type A2uiMessage } from '@shared/a2ui'
 
 export interface ValidationResult {
@@ -18,7 +21,7 @@ export function validate(historyRaw: A2uiMessage[], incomingRaw: A2uiMessage[]):
   const history = historyRaw.map(normalizeMessage)
   const incoming = incomingRaw.map(normalizeMessage)
   const errors: string[] = []
-  const p = new MessageProcessor([basicCatalog], undefined, {
+  const p = new MessageProcessor(catalogs as never, undefined, {
     errorHandler: (e: any) => errors.push(e?.error?.message ?? JSON.stringify(e))
   })
   for (const m of history) {

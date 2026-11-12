@@ -49,9 +49,11 @@ function componentProps(def) {
 }
 
 const lines = []
-lines.push('# A2UI v1.0 – Basic Catalog Referenz')
+const CLAUDE2UI_CATALOG_ID = 'https://claude2ui.local/catalogs/v1/catalog.json'
+lines.push('# A2UI v1.0 – Katalog von Claude2UI')
 lines.push('')
-lines.push(`catalogId: \`${catalog.catalogId}\``)
+lines.push(`catalogId: \`${CLAUDE2UI_CATALOG_ID}\` – enthält alle Komponenten des offiziellen Basic Catalog`)
+lines.push('(unten) plus Charts und ein Image für lokale Dateien (am Ende). Diese catalogId bei createSurface verwenden.')
 lines.push('')
 lines.push('Automatisch erzeugt aus dem offiziellen Katalog (scripts/gen-a2ui-reference.mjs). Typen:')
 lines.push('- `DynamicString|Number|Boolean|StringList|Value`: Literal ODER `{"@path": "/json/pointer"}` ODER Funktionsaufruf `{"@call": "name", "args": {...}}`.')
@@ -60,8 +62,9 @@ lines.push('- `ChildList`: Array von IDs ODER Vorlage `{"path": "/liste", "compo
 lines.push('- `Action`: `{"event": {"name": "...", "context": {...}}}` (geht an dich zurück) ODER `{"functionCall": {"@call": "openUrl", "args": {"url": "..."}}}` (lokal).')
 lines.push('- Alle Komponenten haben `id` und `component`; optional `weight` (Flex-Anteil in Row/Column) und `checks` (bei Eingaben).')
 lines.push('')
-lines.push('## Komponenten')
+lines.push('## Komponenten des Basic Catalog')
 for (const [name, def] of Object.entries(catalog.components)) {
+  if (name === 'Image') continue // ersetzt durch das Image von Claude2UI (siehe unten)
   const { props, required, checkable } = componentProps(def)
   lines.push('')
   lines.push(`### ${name}${checkable ? ' (unterstützt `checks`)' : ''}`)
@@ -85,7 +88,9 @@ for (const [name, def] of Object.entries(catalog.functions)) {
 lines.push('')
 lines.push('## Hinweise aus dem Katalog')
 lines.push('')
-lines.push(catalog.instructions.trim())
+lines.push(catalog.instructions.trim().replaceAll(catalog.catalogId, CLAUDE2UI_CATALOG_ID))
+lines.push('')
+lines.push(readFileSync(join(root, 'resources/a2ui-plugin/skills/a2ui/extra-components.md'), 'utf8').trim())
 lines.push('')
 writeFileSync(out, lines.join('\n'))
 console.log('geschrieben:', out, `(${lines.length} Zeilen)`)

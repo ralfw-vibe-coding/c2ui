@@ -1,11 +1,13 @@
 ---
 name: a2ui
-description: Zeigt interaktive Oberflächen (Formulare, Karten, Listen, Auswahlen, kleine Dashboards) direkt im Chat der App Claude2UI an, über das MCP-Tool render_ui im A2UI-Format v1.0. Verwenden, wenn der Nutzer ausdrücklich eine Oberfläche, einen Screen, ein Formular, „A2UI“ o. Ä. wünscht, oder wenn eine Nachricht mit „A2UI-Aktion:“ beginnt (Interaktion mit einem bereits angezeigten Screen).
+description: Zeigt interaktive Oberflächen (Formulare, Karten, Listen, Auswahlen, Diagramme/Charts, Bilder auch aus lokalen Dateien, kleine Dashboards) direkt im Chat der App Claude2UI an, über das MCP-Tool render_ui im A2UI-Format v1.0. Verwenden, wenn der Nutzer ausdrücklich eine Oberfläche, einen Screen, ein Formular, „A2UI“ o. Ä. wünscht, oder wenn eine Nachricht mit „A2UI-Aktion:“ beginnt (Interaktion mit einem bereits angezeigten Screen).
 ---
 
 # A2UI-Screens im Chat rendern
 
-Die App Claude2UI kann A2UI-Oberflächen (Protokoll v1.0, Basic Catalog) direkt im Chat anzeigen.
+Die App Claude2UI kann A2UI-Oberflächen (Protokoll v1.0) direkt im Chat anzeigen. Ihr Katalog enthält alle
+Komponenten des A2UI-Basic-Catalog **plus LineChart, BarChart, PieChart** und ein **Image, das auch lokale Dateien** zeigt
+(Pfad absolut, mit `~` oder relativ zum Arbeitsverzeichnis).
 Du lieferst sie über das Tool **`render_ui`** (MCP-Server `a2ui`, volle Bezeichnung `mcp__a2ui__render_ui`).
 
 ## Wann
@@ -20,7 +22,7 @@ Du lieferst sie über das Tool **`render_ui`** (MCP-Server `a2ui`, volle Bezeich
 Jede Nachricht hat `"version": "1.0"` und genau einen dieser Schlüssel:
 
 - **`createSurface`** – neuer Screen: `surfaceId` (eindeutig und sprechend, z. B. `"bestellung"`),
-  `catalogId` (`https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json`),
+  `catalogId` (`https://claude2ui.local/catalogs/v1/catalog.json` – der Katalog von Claude2UI),
   `components` (flache Liste, genau eine Komponente mit `"id": "root"`), optional `dataModel`.
 - **`updateComponents`** – `surfaceId` + `components`: fügt Komponenten hinzu oder ersetzt sie (gleiche `id` = ersetzen).
 - **`updateDataModel`** – `surfaceId`, `path` (JSON Pointer, Standard `/`), `value`: setzt einen Wert (`null` löscht).
@@ -33,7 +35,8 @@ Regeln:
 - Ein Screen bleibt im Chat stehen. **Ändere ihn in-place** mit `updateDataModel`/`updateComponents` und derselben
   `surfaceId`. Lege für dieselbe ID nie ein zweites `createSurface` an.
 - Meldet das Tool einen Validierungsfehler, wurde nichts angezeigt: korrigieren und den ganzen Aufruf wiederholen.
-- Bilder/Videos nur über `http(s):`- oder `data:`-URLs.
+- Bilder: `http(s):`, `data:` oder lokale Bilddateien (z. B. ein Plot, den du gerade gespeichert hast). Videos/Audio nur per `http(s):`.
+- Diagramme: Daten als Liste von Zeilen-Objekten ins Datenmodell, das Chart bindet sie per `@path`.
 
 ## Interaktion
 
@@ -56,7 +59,7 @@ Reagiere darauf in der Regel, indem du **denselben Screen aktualisierst** (z. B.
 {"messages": [
   {"version": "1.0", "createSurface": {
     "surfaceId": "zinsrechner",
-    "catalogId": "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json",
+    "catalogId": "https://claude2ui.local/catalogs/v1/catalog.json",
     "components": [
       {"id": "root", "component": "Card", "child": "col"},
       {"id": "col", "component": "Column", "children": ["titel", "betrag", "zins", "rechnen", "ergebnis"]},
@@ -79,7 +82,32 @@ Nach `A2UI-Aktion: {"name": "berechnen", ... "context": {"eingabe": {"betrag": 1
 {"messages": [{"version": "1.0", "updateDataModel": {"surfaceId": "zinsrechner", "path": "/ergebnis", "value": "Nach einem Jahr: **1.030 €**"}}]}
 ```
 
+Ein Chart-Dashboard (zwei Diagramme nebeneinander, Daten im Datenmodell):
+
+```json
+{"messages": [
+  {"version": "1.0", "createSurface": {
+    "surfaceId": "umsatz",
+    "catalogId": "https://claude2ui.local/catalogs/v1/catalog.json",
+    "components": [
+      {"id": "root", "component": "Column", "children": ["titel", "charts"]},
+      {"id": "titel", "component": "Text", "text": "## Umsatz 1. Halbjahr"},
+      {"id": "charts", "component": "Row", "children": ["verlauf", "anteile"]},
+      {"id": "verlauf", "component": "LineChart", "weight": 2, "title": "Umsatz je Monat", "unit": "€",
+       "data": {"@path": "/monate"}, "xKey": "monat", "series": [{"key": "umsatz", "label": "Umsatz"}]},
+      {"id": "anteile", "component": "PieChart", "weight": 1, "title": "Nach Region", "donut": true,
+       "data": {"@path": "/regionen"}}
+    ],
+    "dataModel": {
+      "monate": [{"monat": "Jan", "umsatz": 120}, {"monat": "Feb", "umsatz": 135}, {"monat": "Mär", "umsatz": 160}],
+      "regionen": [{"label": "Nord", "value": 45}, {"label": "Süd", "value": 30}, {"label": "West", "value": 25}]
+    }
+  }}
+]}
+```
+
 ## Referenz
 
-Alle 18 Komponenten des Basic Catalog mit ihren Eigenschaften sowie die Funktionen (`required`, `formatString`,
-`formatCurrency`, …) stehen in **`reference.md`** in diesem Skill-Verzeichnis. Lies sie vor dem ersten Screen einer Session.
+Alle Komponenten (Basic Catalog + Charts + Image) mit ihren Eigenschaften sowie die Funktionen (`required`,
+`formatString`, `formatCurrency`, …) stehen in **`reference.md`** in diesem Skill-Verzeichnis. Lies sie vor dem ersten
+Screen einer Session.

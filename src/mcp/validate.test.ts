@@ -1,19 +1,20 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { callMessages } from '@shared/a2ui'
+import { callMessages, CLAUDE2UI_CATALOG_ID } from '@shared/a2ui'
+import { EXTRA_APIS } from '@shared/a2ui-catalog'
 import { validate } from './validate'
 
 // Die Beispiele aus dem Skill müssen gültig sein – sonst lernt Claude Falsches.
 const skill = readFileSync(join(__dirname, '../../resources/a2ui-plugin/skills/a2ui/SKILL.md'), 'utf8')
 const examples = [...skill.matchAll(/```json\n([\s\S]*?)```/g)].map((m) => JSON.parse(m[1]))
-const [create, , update] = examples.filter((e) => e.messages)
+const [create, update, chart] = examples.filter((e) => e.messages)
 
 describe('A2UI-Validierung', () => {
   it('Skill-Beispiele: Screen anlegen und in-place aktualisieren', () => {
     const c = validate([], callMessages(create))
     expect(c).toMatchObject({ ok: true, created: ['zinsrechner'] })
-    const u = validate(callMessages(create), callMessages(update ?? examples[examples.length - 1]))
+    const u = validate(callMessages(create), callMessages(update))
     expect(u.errors).toEqual([])
     expect(u.updated).toEqual(['zinsrechner'])
   })
@@ -43,5 +44,37 @@ describe('A2UI-Validierung', () => {
     const base = [{ createSurface: { surfaceId: 's', components: [{ id: 'root', component: 'Text', text: 'x' }] } }]
     expect(validate(base, base).errors[0]).toMatch(/existiert schon/)
     expect(validate([], [{ updateDataModel: { surfaceId: 'x', path: '/a', value: 1 } }]).errors[0]).toMatch(/existiert nicht/)
+  })
+
+  it('Skill-Beispiel: Chart-Dashboard', () => {
+    expect(validate([], callMessages(chart))).toMatchObject({ ok: true, created: ['umsatz'] })
+  })
+
+  it('Charts: Pflichtfelder und Tippfehler werden erkannt', () => {
+    const mk = (c: object) => [{ createSurface: { surfaceId: 's', components: [{ id: 'root', ...c }] } }]
+    expect(validate([], mk({ component: 'BarChart', data: [], xKey: 'x' })).errors[0]).toMatch(/series/)
+    expect(validate([], mk({ component: 'LineChart', data: [], xKey: 'x', series: [{ key: 'y' }], seriess: 1 })).ok).toBe(false)
+    expect(validate([], mk({ component: 'PieChart', data: { '@path': '/d' }, donut: true })).ok).toBe(true)
+  })
+
+  it('Image akzeptiert lokale Pfade', () => {
+    for (const url of ['plots/a.png', '~/Bilder/b.jpg', '/tmp/c.webp', 'https://x/y.png']) {
+      const r = validate([], [{ createSurface: { surfaceId: 's', components: [{ id: 'root', component: 'Image', url }] } }])
+      expect(r.errors).toEqual([])
+    }
+  })
+
+  it('normalisiert auf den Claude2UI-Katalog', () => {
+    expect(callMessages({ messages: [{ createSurface: { surfaceId: 's' } }] })[0].createSurface.catalogId).toBe(CLAUDE2UI_CATALOG_ID)
+  })
+
+  it('Doku der Zusatzkomponenten nennt jede Eigenschaft', () => {
+    const doc = readFileSync(join(__dirname, '../../resources/a2ui-plugin/skills/a2ui/extra-components.md'), 'utf8')
+    for (const api of EXTRA_APIS) {
+      expect(doc).toContain(`### ${api.name}`)
+      const keys = Object.keys((api.schema as any).shape ?? (api.schema as any)._def.schema?.shape ?? {})
+      expect(keys.length).toBeGreaterThan(0)
+      for (const k of keys) expect(doc, `${api.name}.${k}`).toContain(`\`${k}\``)
+    }
   })
 })

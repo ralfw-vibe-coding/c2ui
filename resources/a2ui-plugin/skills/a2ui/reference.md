@@ -1,6 +1,7 @@
-# A2UI v1.0 – Basic Catalog Referenz
+# A2UI v1.0 – Katalog von Claude2UI
 
-catalogId: `https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json`
+catalogId: `https://claude2ui.local/catalogs/v1/catalog.json` – enthält alle Komponenten des offiziellen Basic Catalog
+(unten) plus Charts und ein Image für lokale Dateien (am Ende). Diese catalogId bei createSurface verwenden.
 
 Automatisch erzeugt aus dem offiziellen Katalog (scripts/gen-a2ui-reference.mjs). Typen:
 - `DynamicString|Number|Boolean|StringList|Value`: Literal ODER `{"@path": "/json/pointer"}` ODER Funktionsaufruf `{"@call": "name", "args": {...}}`.
@@ -9,17 +10,11 @@ Automatisch erzeugt aus dem offiziellen Katalog (scripts/gen-a2ui-reference.mjs)
 - `Action`: `{"event": {"name": "...", "context": {...}}}` (geht an dich zurück) ODER `{"functionCall": {"@call": "openUrl", "args": {"url": "..."}}}` (lokal).
 - Alle Komponenten haben `id` und `component`; optional `weight` (Flex-Anteil in Row/Column) und `checks` (bei Eingaben).
 
-## Komponenten
+## Komponenten des Basic Catalog
 
 ### Text
 - `text` **Pflicht**: DynamicString – The text content to display.
 - `variant`: 'caption' | 'body' (Standard: "body") – A hint for the base text style.
-
-### Image
-- `url` **Pflicht**: DynamicString – The URL of the image to display.
-- `description`: DynamicString – Accessibility text for the image.
-- `fit`: 'contain' | 'cover' | 'fill' | 'none' | 'scaleDown' (Standard: "fill") – Specifies how the image should be resized to fit its container.
-- `variant`: 'icon' | 'avatar' | 'smallFeature' | 'mediumFeature' | 'largeFeature' | 'header' (Standard: "mediumFeature") – A hint for the image size and style.
 
 ### Icon
 - `name` **Pflicht**: 'accountCircle' | 'add' | 'arrowBack' | 'arrowForward' | 'attachFile' | 'calendarToday' | 'call' | 'camera' | 'check' | 'close' | 'delete' | 'download' | 'edit' | 'event' | 'error' | 'fastForward' | 'favorite' | 'favoriteOff' | 'folder' | 'help' | 'home' | 'info' | 'locationOn' | 'lock' | 'lockOpen' | 'mail' | 'menu' | 'moreVert' | 'moreHoriz' | 'notificationsOff' | 'notifications' | 'pause' | 'payment' | 'person' | 'phone' | 'photo' | 'play' | 'print' | 'refresh' | 'rewind' | 'search' | 'send' | 'settings' | 'share' | 'shoppingCart' | 'skipNext' | 'skipPrevious' | 'star' | 'starHalf' | 'starOff' | 'stop' | 'upload' | 'visibility' | 'visibilityOff' | 'volumeDown' | 'volumeMute' | 'volumeOff' | 'volumeUp' | 'warning' | { svgPath: DynamicString } | DataBinding – The name of the icon to display.
@@ -139,7 +134,7 @@ Example 1: Dynamic text form
     "version": "1.0",
     "createSurface": {
       "surfaceId": "main",
-      "catalogId": "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json",
+      "catalogId": "https://claude2ui.local/catalogs/v1/catalog.json",
       "components": [
         {
           "id": "root",
@@ -189,7 +184,7 @@ Example 2: Dynamic list with templates
     "version": "1.0",
     "createSurface": {
       "surfaceId": "main",
-      "catalogId": "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json",
+      "catalogId": "https://claude2ui.local/catalogs/v1/catalog.json",
       "components": [
         {
           "id": "root",
@@ -225,3 +220,41 @@ Example 2: Dynamic list with templates
   }
 ]
 ```
+
+## Zusätzliche Komponenten von Claude2UI
+
+Diese Komponenten gibt es nur im Katalog von Claude2UI (`catalogId` siehe oben). Sie ergänzen bzw. ersetzen den Basic Catalog.
+
+### Image (ersetzt das Image des Basic Catalog)
+- `url` **Pflicht**: DynamicString – `http(s):`- oder `data:`-URL **oder lokaler Pfad**: absolut (`/Users/…/bild.png`),
+  mit `~` (`~/Bilder/x.jpg`) oder **relativ zum Arbeitsverzeichnis des Chats** (`plots/umsatz.png`). Erlaubt sind
+  Bilddateien (png, jpg, jpeg, gif, webp, svg, bmp, avif, ico). So kannst du z. B. ein Diagramm, das du per Skript
+  erzeugt und gespeichert hast, direkt anzeigen.
+- `description`: DynamicString – Alternativtext.
+- `fit`: 'contain' | 'cover' | 'fill' | 'none' | 'scaleDown' (Standard: "contain").
+- `variant`: 'icon' | 'avatar' | 'smallFeature' | 'mediumFeature' | 'largeFeature' | 'header' (Standard: "mediumFeature").
+
+### LineChart – Liniendiagramm (Verlauf, Zeitreihe)
+- `data` **Pflicht**: DynamicValue – Liste von Datenzeilen (Objekte), meist `{"@path": "/umsatz"}`.
+- `xKey` **Pflicht**: string – Spalte für die x-Achse.
+- `series` **Pflicht**: { key: string, label?: string, color?: string }[] – eine Linie je Eintrag; `key` ist die Wert-Spalte.
+- `title`: DynamicString – Überschrift.
+- `unit`: string – Einheit für Werte, z. B. "€" oder "%".
+- `height`: number – Höhe in Pixeln (Standard 260).
+- `area`: boolean – Fläche unter der Linie füllen.
+- `curved`: boolean – Linie glätten (Standard true).
+
+### BarChart – Balkendiagramm (Vergleich von Kategorien)
+- `data` **Pflicht**, `xKey` **Pflicht**, `series` **Pflicht**, `title`, `unit`, `height` – wie LineChart.
+- `stacked`: boolean – Reihen übereinander stapeln.
+- `horizontal`: boolean – Balken waagerecht.
+
+### PieChart – Kreis-/Ringdiagramm (Anteile)
+- `data` **Pflicht**: DynamicValue – Datenzeilen, z. B. `[{"label": "Miete", "value": 900}]`.
+- `labelKey`: string – Spalte mit dem Segmentnamen (Standard "label").
+- `valueKey`: string – Spalte mit dem Wert (Standard "value").
+- `donut`: boolean – als Ring darstellen.
+- `title`, `unit`, `height` – wie oben.
+
+Alle Charts haben außerdem `weight` (Flex-Anteil in Row/Column), z. B. zwei Charts nebeneinander in einer Row mit `weight: 1`.
+Zahlen als Zahlen liefern (nicht als Text). Ändern sich Werte, genügt `updateDataModel` auf den gebundenen Pfad – das Diagramm aktualisiert sich in-place.

@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
 import { A2uiSurface } from '@a2ui/react/v0_9'
 import { basicCatalog, injectBasicCatalogStyles, MessageProcessor } from '@a2ui/web_core/v1_0'
+import { buildClaude2uiCatalog, CLAUDE2UI_CATALOG_ID } from '@shared/a2ui-catalog'
+import { A2uiChatContext, COMPONENT_IMPLS } from './components'
 
 // Entwicklungs-Testansicht (#a2ui-test): rendert eine Beispiel-Surface aus v1.0-Nachrichten.
 
-const CAT = basicCatalog.id
+const CAT = CLAUDE2UI_CATALOG_ID
 const sample = [
   { version: '1.0', createSurface: { surfaceId: 'demo', catalogId: CAT } },
   {
@@ -13,7 +15,16 @@ const sample = [
       surfaceId: 'demo',
       components: [
         { id: 'root', component: 'Card', child: 'col' },
-        { id: 'col', component: 'Column', children: ['h', 'name', 'agree', 'size', 'rating', 'row', 'list'] },
+        { id: 'col', component: 'Column', children: ['h', 'name', 'agree', 'size', 'rating', 'row', 'list', 'charts', 'pie', 'img', 'imgMissing'] },
+        { id: 'charts', component: 'Row', children: ['line', 'bar'] },
+        { id: 'line', component: 'LineChart', weight: 1, title: 'Umsatz & Kosten', data: { '@path': '/sales' }, xKey: 'monat', unit: '€', area: true,
+          series: [{ key: 'umsatz', label: 'Umsatz' }, { key: 'kosten', label: 'Kosten' }] },
+        { id: 'bar', component: 'BarChart', weight: 1, title: 'Tickets je Team', data: { '@path': '/teams' }, xKey: 'team', stacked: true,
+          series: [{ key: 'offen', label: 'Offen' }, { key: 'erledigt', label: 'Erledigt' }] },
+        { id: 'pie', component: 'PieChart', title: 'Marktanteile', donut: true, unit: '%', data: [
+          { label: 'Alpha', value: 42 }, { label: 'Beta', value: 27 }, { label: 'Gamma', value: 18 }, { label: 'Rest', value: 13 } ] },
+        { id: 'img', component: 'Image', url: 'resources/icon.png', variant: 'smallFeature', description: 'App-Icon (lokal, relativ)' },
+        { id: 'imgMissing', component: 'Image', url: '/gibt/es/nicht.png' },
         { id: 'h', component: 'Text', text: '## Bestellung\nBitte **ausfüllen**.' },
         { id: 'name', component: 'TextField', label: 'Name', value: { '@path': '/form/name' } },
         { id: 'agree', component: 'CheckBox', label: 'AGB akzeptiert', value: { '@path': '/form/agree' } },
@@ -53,6 +64,11 @@ const sample = [
       path: '/',
       value: {
         form: { name: 'Ralf', agree: false, size: ['m'], rating: 7 },
+        sales: [
+          { monat: 'Jan', umsatz: 120, kosten: 80 }, { monat: 'Feb', umsatz: 135, kosten: 82 }, { monat: 'Mär', umsatz: 160, kosten: 95 },
+          { monat: 'Apr', umsatz: 150, kosten: 99 }, { monat: 'Mai', umsatz: 190, kosten: 105 }, { monat: 'Jun', umsatz: 210, kosten: 112 }
+        ],
+        teams: [{ team: 'Web', offen: 12, erledigt: 30 }, { team: 'App', offen: 8, erledigt: 22 }, { team: 'Backend', offen: 15, erledigt: 41 }],
         items: [{ label: 'Erster Eintrag' }, { label: 'Zweiter Eintrag' }]
       }
     }
@@ -64,7 +80,7 @@ export function A2uiHarness() {
   const [processor] = useState(() => {
     injectBasicCatalogStyles()
     return new MessageProcessor(
-      [basicCatalog],
+      [buildClaude2uiCatalog(COMPONENT_IMPLS as never), basicCatalog] as never,
       (a) => setLog((l) => [...l, 'Aktion: ' + JSON.stringify(a)]),
       { errorHandler: (e) => setLog((l) => [...l, 'Fehler: ' + JSON.stringify(e)]) }
     )
@@ -82,9 +98,11 @@ export function A2uiHarness() {
 
   return (
     <div style={{ padding: 20, overflow: 'auto', height: '100%' }}>
-      {surfaces.map((s) => (
-        <A2uiSurface key={s.id} surface={s as never} />
-      ))}
+      <A2uiChatContext.Provider value={{ cwd: sessionStorage.getItem('cwd') ?? '', home: '' }}>
+        {surfaces.map((s) => (
+          <A2uiSurface key={s.id} surface={s as never} />
+        ))}
+      </A2uiChatContext.Provider>
       <pre id="a2ui-log" style={{ fontSize: 11, whiteSpace: 'pre-wrap' }}>
         {log.join('\n')}
       </pre>

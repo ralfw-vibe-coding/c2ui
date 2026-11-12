@@ -1,5 +1,11 @@
 import { basicCatalog, injectBasicCatalogStyles, MessageProcessor } from '@a2ui/web_core/v1_0'
 import { A2UI_ACTION_PREFIX, callMessages, isA2uiCall, surfaceIdOf } from '@shared/a2ui'
+import { buildClaude2uiCatalog } from '@shared/a2ui-catalog'
+import { COMPONENT_IMPLS } from './components'
+
+// Ein Katalog für alle Chats: Claude2UI (mit React-Komponenten) und der Basic Catalog (ältere Screens).
+let catalogs: unknown[] | null = null
+const getCatalogs = (): unknown[] => (catalogs ??= [buildClaude2uiCatalog(COMPONENT_IMPLS as never), basicCatalog])
 import type { Transcript } from '@shared/types'
 
 /** Was ein render_ui-Aufruf bewirkt hat. */
@@ -32,7 +38,7 @@ export class ChatSurfaces {
       injectBasicCatalogStyles()
       stylesInjected = true
     }
-    this.processor = new MessageProcessor([basicCatalog], (action: unknown) =>
+    this.processor = new MessageProcessor(getCatalogs() as never, (action: unknown) =>
       actionHandler(this.chatId, A2UI_ACTION_PREFIX + JSON.stringify(action))
     )
   }

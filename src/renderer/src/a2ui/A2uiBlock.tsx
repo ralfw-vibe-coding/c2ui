@@ -6,6 +6,7 @@ import type { Block } from '@shared/types'
 import { useStore } from '../store'
 import { Icon } from '../components/Icon'
 import { chatSurfaces } from './chatSurfaces'
+import { A2uiChatContext } from './components'
 
 const A2uiMarkdown = ({ markdown }: { markdown: string }) => (
   <div className="md a2ui-md">
@@ -59,6 +60,8 @@ export function A2uiBlock({ chatId, block }: { chatId: string; block: Block & { 
 
 function SurfaceView({ chatId, surfaceId, locked }: { chatId: string; surfaceId: string; locked: boolean }) {
   const surface = chatSurfaces(chatId).surface(surfaceId)
+  const cwd = useStore((s) => s.chats.find((c) => c.id === chatId)?.cwd ?? '')
+  const home = useStore((s) => s.home)
   if (!surface) return <div className="a2ui-update muted">Screen „{surfaceId}“ wurde entfernt</div>
   return (
     <div
@@ -66,9 +69,11 @@ function SurfaceView({ chatId, surfaceId, locked }: { chatId: string; surfaceId:
       data-surface-id={surfaceId}
       title={locked ? 'Gesperrt, solange der Chat arbeitet' : undefined}
     >
-      <MarkdownComponentContext.Provider value={A2uiMarkdown}>
-        <A2uiSurface surface={surface as never} />
-      </MarkdownComponentContext.Provider>
+      <A2uiChatContext.Provider value={{ cwd, home }}>
+        <MarkdownComponentContext.Provider value={A2uiMarkdown}>
+          <A2uiSurface surface={surface as never} />
+        </MarkdownComponentContext.Provider>
+      </A2uiChatContext.Provider>
     </div>
   )
 }

@@ -1,5 +1,7 @@
 import { join } from 'node:path'
-import { app, BrowserWindow, dialog, ipcMain, nativeImage, shell } from 'electron'
+import { pathToFileURL } from 'node:url'
+import { app, BrowserWindow, dialog, ipcMain, nativeImage, net, protocol, shell } from 'electron'
+import { LOCAL_FILE_SCHEME } from '@shared/a2ui'
 import type { AgentKind, ChatPatch, LayoutState, PermissionMode, Settings } from '@shared/types'
 import { ChatManager } from './chats'
 import { listModels } from './models'
@@ -11,6 +13,24 @@ app.setName('Claude2UI')
 if (process.env.CLAUDE2UI_USER_DATA) app.setPath('userData', process.env.CLAUDE2UI_USER_DATA)
 
 const iconPath = join(app.getAppPath(), 'resources', 'icon.png')
+
+// Lokale Bilder für A2UI-Screens: c2ui-file://local/<absoluter Pfad>. Nur Bilddateien.
+const IMAGE_EXT = /\.(png|jpe?g|gif|webp|svg|bmp|avif|ico)$/i
+protocol.registerSchemesAsPrivileged([
+  { scheme: LOCAL_FILE_SCHEME, privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } }
+])
+
+function registerLocalFileProtocol(): void {
+  protocol.handle(LOCAL_FILE_SCHEME, async (req) => {
+    const path = decodeURIComponent(new URL(req.url).pathname)
+    if (!IMAGE_EXT.test(path)) return new Response('Nur Bilddateien', { status: 403 })
+    try {
+      return await net.fetch(pathToFileURL(path).toString())
+    } catch {
+      return new Response('Nicht gefunden', { status: 404 })
+    }
+  })
+}
 
 let win: BrowserWindow | null = null
 let manager: ChatManager
@@ -151,6 +171,7 @@ app.whenReady().then(() => {
     }
   )
   registerIpc()
+  registerLocalFileProtocol()
   createWindow()
 
   app.on('activate', () => {

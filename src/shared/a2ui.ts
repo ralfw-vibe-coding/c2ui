@@ -8,6 +8,10 @@ export const A2UI_TOOL = 'render_ui'
 export const A2UI_TOOL_FULL = `mcp__${A2UI_SERVER}__${A2UI_TOOL}`
 export const A2UI_VERSION = '1.0'
 export const BASIC_CATALOG_ID = 'https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json'
+/** Katalog von Claude2UI: Basic Catalog + Charts + Image mit lokalen Dateien (siehe a2ui-catalog.ts). */
+export const CLAUDE2UI_CATALOG_ID = 'https://claude2ui.local/catalogs/v1/catalog.json'
+/** Protokoll, über das der Renderer lokale Bilder lädt. */
+export const LOCAL_FILE_SCHEME = 'c2ui-file'
 /** Präfix der Nutzernachricht, mit der eine Button-Aktion an den Agenten geht. */
 export const A2UI_ACTION_PREFIX = 'A2UI-Aktion: '
 
@@ -27,7 +31,7 @@ export function callMessages(input: unknown): A2uiMessage[] {
 export function normalizeMessage(m: A2uiMessage): A2uiMessage {
   const out: A2uiMessage = { ...m, version: m.version ?? A2UI_VERSION }
   if (out.createSurface && !out.createSurface.catalogId) {
-    out.createSurface = { ...out.createSurface, catalogId: BASIC_CATALOG_ID }
+    out.createSurface = { ...out.createSurface, catalogId: CLAUDE2UI_CATALOG_ID }
   }
   return out
 }
