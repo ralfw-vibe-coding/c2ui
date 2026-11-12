@@ -1,4 +1,5 @@
 import type { AgentEvent, Chat, Settings } from '@shared/types'
+import type { A2uiSetup } from './a2ui'
 
 /**
  * Ein laufender oder ruhender Gesprächskanal zu einer CLI (Claude, später Codex).
@@ -24,8 +25,8 @@ export interface AgentContext {
   chat(): Chat
   settings(): Settings
   path: string
-  /** Zusätzliche CLI-Argumente für A2UI (Plugin, MCP-Server); wird direkt vor dem Start aufgerufen. */
-  a2uiArgs?(): string[]
+  /** A2UI-Einrichtung für diesen Chat; wird direkt vor jedem Prozessstart aufgerufen. */
+  a2ui?(): A2uiSetup | null
 }
 
 export type AgentFactory = (ctx: AgentContext, cb: AgentCallbacks) => AgentSession

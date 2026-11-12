@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto'
 import { chatModel, type Block } from '@shared/types'
 import { codexConfigDefaultModel } from '../models'
 import { childEnv } from '../env'
+import { codexA2uiLaunch } from './a2ui'
 import type { AgentCallbacks, AgentContext, AgentFactory, AgentSession } from './types'
 
 const MAX_TOOL_RESULT = 20_000
@@ -94,12 +95,16 @@ class CodexSession implements AgentSession {
     const model = chatModel(chat, this.ctx.settings())
     if (model) common.push('-m', model)
     this.turnModel = model || codexConfigDefaultModel()
+    // A2UI: Skill über Schatten-Home, MCP-Server per -c (bei jedem Start, auch bei resume).
+    const a2ui = this.ctx.a2ui?.()
+    const launch = a2ui ? codexA2uiLaunch(a2ui) : { args: [], env: {} }
+    common.push(...launch.args)
     const args = chat.sessionStarted
       ? ['exec', 'resume', ...common, chat.sessionId, '-']
       : ['exec', ...common, '-']
 
     const cmd = cfg.path || 'codex'
-    const p = spawn(cmd, args, { cwd: chat.cwd, env: childEnv(this.ctx.path) })
+    const p = spawn(cmd, args, { cwd: chat.cwd, env: { ...childEnv(this.ctx.path), ...launch.env } })
     this.proc = p
     this.buf = ''
     this.stderrTail = ''
@@ -258,11 +263,12 @@ function toolOf(item: any): { name: string; input: unknown; result: string; isEr
         isError: item.status === 'failed'
       }
     case 'mcp_tool_call':
+      // Benennung wie bei Claude (mcp__server__tool), damit z. B. A2UI-Aufrufe gleich erkannt werden.
       return {
-        name: `${item.server ?? 'mcp'}.${item.tool ?? ''}`,
+        name: `mcp__${item.server ?? 'mcp'}__${item.tool ?? ''}`,
         input: item.arguments ?? {},
-        result: item.error?.message ?? JSON.stringify(item.result ?? '', null, 2),
-        isError: item.status === 'failed' || !!item.error
+        result: item.error?.message ?? mcpResultText(item.result),
+        isError: item.status === 'failed' || !!item.error || !!item.result?.is_error || !!item.result?.isError
       }
     case 'web_search':
       return { name: 'WebSearch', input: { query: item.query }, result: '', isError: false }
@@ -276,6 +282,15 @@ function toolOf(item: any): { name: string; input: unknown; result: string; isEr
     default:
       return null
   }
+}
+
+/** Text eines MCP-Ergebnisses ({content: [{type: 'text', text}]}) für die Anzeige. */
+function mcpResultText(r: any): string {
+  if (!r) return ''
+  if (Array.isArray(r.content)) {
+    return r.content.map((c: any) => (c?.type === 'text' ? c.text : JSON.stringify(c))).join('\n')
+  }
+  return JSON.stringify(r, null, 2)
 }
 
 /** `/bin/zsh -lc "sed -n ..."` → `sed -n ...` für eine lesbare Zusammenfassung. */

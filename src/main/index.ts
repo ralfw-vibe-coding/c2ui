@@ -167,7 +167,8 @@ app.whenReady().then(() => {
       pluginDir: join(app.getAppPath(), 'resources', 'a2ui-plugin'),
       serverScript: join(__dirname, 'a2ui-mcp.js'),
       execPath: process.execPath,
-      stateDir: join(app.getPath('userData'), 'a2ui-state')
+      stateDir: join(app.getPath('userData'), 'a2ui-state'),
+      shadowHomeDir: join(app.getPath('userData'), 'codex-home')
     }
   )
   registerIpc()

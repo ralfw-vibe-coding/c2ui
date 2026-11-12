@@ -44,7 +44,10 @@ Ohne ausdrücklichen Wunsch antwortet Claude wie gewohnt mit Text.
   `resources/a2ui-plugin/skills/a2ui/extra-components.md` (ein Test prüft, dass jede Eigenschaft beschrieben ist).
 - **Screen-Übersicht**: Leiste mit Live-Miniaturen aller aktiven Screens eines Chats; Klick springt hin,
   sichtbare Screens sind markiert, einklappbar.
-- Noch nicht: lokale Eingaben ohne Aktion überleben keinen Neustart; Codex hat noch kein A2UI.
+- **Codex**: Den Skill findet Codex über ein Schatten-Home (`<userData>/codex-home`, Symlinks auf das echte Home,
+  nur `.agents/skills` ergänzt um den A2UI-Skill); `CODEX_HOME` bleibt `~/.codex`. Der MCP-Server kommt per
+  `-c mcp_servers.a2ui.…` mit Freigabe für `render_ui`.
+- Noch nicht: lokale Eingaben ohne Aktion überleben keinen Neustart (siehe `BACKLOG.md`).
 - Testansicht der Komponenten: Fenster mit `#a2ui-test` laden (`location.hash`).
 
 ## Entwicklung
@@ -58,6 +61,7 @@ npm run smoke      # E2E gegen echte Claude CLI (Modell haiku, eigenes Datenverz
 node scripts/a2ui-e2e.mjs   # A2UI-E2E mit Claude Sonnet (nach npm run build)
 node scripts/a2ui-charts-e2e.mjs; node scripts/a2ui-widgets-e2e.mjs   # Charts/Widgets mit Claude
 node scripts/screens-strip-check.mjs   # Screen-Übersicht ohne Modellaufruf
+node scripts/a2ui-codex-e2e.mjs   # A2UI mit Codex
 ```
 
 Daten liegen unter `~/Library/Application Support/Claude2UI/` (`chats.json`, `layout.json`, `settings.json`, `transcripts/`).

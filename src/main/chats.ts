@@ -1,7 +1,8 @@
 import { randomUUID } from 'node:crypto'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { A2UI_SERVER, A2UI_TOOL_FULL, acceptedMessages } from '@shared/a2ui'
+import { acceptedMessages } from '@shared/a2ui'
+import type { A2uiSetup } from './agents/a2ui'
 import { basename } from 'node:path'
 import { applyEvent } from '@shared/transcript'
 import {
@@ -30,6 +31,8 @@ export interface A2uiPaths {
   /** Programm, das den Server ausführt (Electron als Node). */
   execPath: string
   stateDir: string
+  /** Verzeichnis für das Schatten-Home von Codex (Skills ohne Eingriff ins echte Home). */
+  shadowHomeDir: string
 }
 
 export interface ChatManagerEvents {
@@ -198,7 +201,7 @@ export class ChatManager {
         chat: () => this.chats.get(chat.id) ?? chat,
         settings: () => this.settings,
         path: this.path,
-        a2uiArgs: () => this.a2uiArgs(chat.id)
+        a2ui: () => this.a2uiSetup(chat.id)
       },
       {
         onEvent: (e) => this.emit(chat.id, e),
@@ -212,33 +215,14 @@ export class ChatManager {
     return s
   }
 
-  /**
-   * Argumente, die A2UI für einen Claude-Prozess einschalten: Skill per --plugin-dir, MCP-Server
-   * per --mcp-config. Vorher wird der bisherige A2UI-Stand des Chats für den Server abgelegt.
-   */
-  private a2uiArgs(chatId: string): string[] {
-    if (!this.a2ui) return []
-    const { pluginDir, serverScript, execPath, stateDir } = this.a2ui
+  /** A2UI-Einrichtung für einen Prozessstart; legt vorher den bisherigen A2UI-Stand des Chats ab. */
+  private a2uiSetup(chatId: string): A2uiSetup | null {
+    if (!this.a2ui) return null
+    const { pluginDir, serverScript, execPath, stateDir, shadowHomeDir } = this.a2ui
     mkdirSync(stateDir, { recursive: true })
     const stateFile = join(stateDir, `${chatId}.json`)
     writeFileSync(stateFile, JSON.stringify(acceptedMessages(this.transcript(chatId))))
-    const mcp = {
-      mcpServers: {
-        [A2UI_SERVER]: {
-          type: 'stdio',
-          command: execPath,
-          args: [serverScript],
-          env: { ELECTRON_RUN_AS_NODE: '1', A2UI_STATE_FILE: stateFile }
-        }
-      }
-    }
-    return [
-      '--plugin-dir', pluginDir,
-      // Damit Claude die Referenz des Skills lesen darf, obwohl sie außerhalb des Arbeitsverzeichnisses liegt.
-      '--add-dir', join(pluginDir, 'skills'),
-      '--mcp-config', JSON.stringify(mcp),
-      '--allowedTools', A2UI_TOOL_FULL
-    ]
+    return { pluginDir, skillDir: join(pluginDir, 'skills', 'a2ui'), serverScript, execPath, stateFile, shadowHomeDir }
   }
 
   private emit(id: string, e: AgentEvent): void {
