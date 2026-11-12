@@ -932,6 +932,11 @@ body.resizing-row * {
   padding: 0 4px;
   font-weight: 600;
 }
+.model-select {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
 .field-row {
   display: grid;
   grid-template-columns: 1fr 1fr;

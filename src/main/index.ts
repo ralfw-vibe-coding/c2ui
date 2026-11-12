@@ -2,6 +2,7 @@ import { join } from 'node:path'
 import { app, BrowserWindow, dialog, ipcMain, nativeImage, shell } from 'electron'
 import type { AgentKind, Chat, LayoutState, PermissionMode, Settings } from '@shared/types'
 import { ChatManager } from './chats'
+import { listModels } from './models'
 import { resolveLoginPath } from './env'
 import { Storage } from './storage'
 
@@ -13,6 +14,7 @@ const iconPath = join(app.getAppPath(), 'resources', 'icon.png')
 
 let win: BrowserWindow | null = null
 let manager: ChatManager
+let loginPath = ''
 let quitting = false
 
 function send(channel: string, ...args: unknown[]): void {
@@ -102,6 +104,9 @@ function registerIpc(): void {
     })
     return r.canceled ? null : r.filePaths[0]
   })
+  ipcMain.handle('models:list', (_e, agent: AgentKind) =>
+    listModels(agent, manager.getSettings().agents[agent].path, loginPath)
+  )
   ipcMain.handle('shell:reveal', (_e, path: string) => shell.openPath(path))
   ipcMain.handle('dialog:confirmBusy', async (_e, title: string, action: string) => {
     const r = await dialog.showMessageBox(win!, {
@@ -131,7 +136,8 @@ app.whenReady().then(() => {
   // Im Entwicklungsmodus zeigt das Dock sonst das Electron-Icon (gepackt kommt es aus icon.icns).
   if (process.platform === 'darwin' && !app.isPackaged) app.dock?.setIcon(nativeImage.createFromPath(iconPath))
   const storage = new Storage(app.getPath('userData'))
-  manager = new ChatManager(storage, resolveLoginPath(), {
+  loginPath = resolveLoginPath()
+  manager = new ChatManager(storage, loginPath, {
     agentEvent: (id, e) => send('agent:event', id, e),
     busy: (id, b) => send('agent:busy', id, b),
     chatsChanged: (chats) => send('chats:changed', chats)

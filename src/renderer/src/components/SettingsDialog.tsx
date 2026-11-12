@@ -1,12 +1,7 @@
-import { useState } from 'react'
-import { AGENT_KINDS, AGENTS, type AgentKind, type AgentSettings, type Settings } from '@shared/types'
+import { useEffect, useState } from 'react'
+import { AGENT_KINDS, AGENTS, type AgentKind, type AgentSettings, type ModelList, type Settings } from '@shared/types'
 import { useStore } from '../store'
 import { AgentLogo } from './AgentLogo'
-
-const MODEL_HINT: Record<AgentKind, string> = {
-  claude: 'z. B. opus, sonnet, haiku',
-  codex: 'z. B. gpt-5-codex'
-}
 
 export function SettingsDialog() {
   const settings = useStore((s) => s.settings)
@@ -37,12 +32,8 @@ export function SettingsDialog() {
             </label>
             <div className="field-row">
               <label>
-                <span>Modell (leer = Standard der CLI)</span>
-                <input
-                  value={draft.agents[a].model}
-                  placeholder={MODEL_HINT[a]}
-                  onChange={(e) => setAgent(a, { model: e.target.value.trim() })}
-                />
+                <span>Modell</span>
+                <ModelSelect agent={a} value={draft.agents[a].model} onChange={(model) => setAgent(a, { model })} />
               </label>
               <label>
                 <span>Pfad zur Binary (leer = über PATH)</span>
@@ -80,6 +71,62 @@ export function SettingsDialog() {
           </button>
         </div>
       </div>
+    </div>
+  )
+}
+
+const CUSTOM = '__custom__'
+
+/** Dropdown mit den bekannten Modellen der CLI, „Standard der CLI“ und freier Eingabe. */
+function ModelSelect({ agent, value, onChange }: { agent: AgentKind; value: string; onChange: (v: string) => void }) {
+  const [list, setList] = useState<ModelList | null>(null)
+  const [custom, setCustom] = useState(false)
+
+  useEffect(() => {
+    let alive = true
+    window.api.listModels(agent).then((l) => alive && setList(l))
+    return () => {
+      alive = false
+    }
+  }, [agent])
+
+  const known = list?.options ?? []
+  const isKnown = value === '' || known.some((o) => o.value === value)
+  const showCustom = custom || (!!list && !isKnown)
+
+  return (
+    <div className="model-select">
+      <select
+        value={showCustom ? CUSTOM : value}
+        disabled={!list}
+        onChange={(e) => {
+          if (e.target.value === CUSTOM) {
+            setCustom(true)
+          } else {
+            setCustom(false)
+            onChange(e.target.value)
+          }
+        }}
+      >
+        <option value="">
+          {list ? `Standard der CLI${list.cliDefault ? ` (${list.cliDefault})` : ''}` : 'Lade Modelle …'}
+        </option>
+        {known.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label.toLowerCase() === o.value.toLowerCase() ? o.label : `${o.label} (${o.value})`}
+          </option>
+        ))}
+        <option value={CUSTOM}>Anderes Modell …</option>
+      </select>
+      {showCustom && (
+        <input
+          autoFocus={custom}
+          value={value}
+          placeholder="Modellname oder -ID"
+          onChange={(e) => onChange(e.target.value.trim())}
+        />
+      )}
+      {list?.error && <span className="muted small">{list.error}</span>}
     </div>
   )
 }

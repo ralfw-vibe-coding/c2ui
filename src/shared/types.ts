@@ -55,6 +55,14 @@ export interface Chat {
   updatedAt: number
 }
 
+/** Auswahlliste für das Modell-Dropdown. */
+export interface ModelList {
+  options: { value: string; label: string }[]
+  /** Modell, das die CLI ohne Angabe nutzt (aus deren Konfiguration), falls bekannt. */
+  cliDefault?: string
+  error?: string
+}
+
 export interface AgentSettings {
   /** Optionaler absoluter Pfad zur Binary; leer = über PATH suchen. */
   path: string
