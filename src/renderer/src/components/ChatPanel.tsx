@@ -5,7 +5,7 @@ import { ScreenStrip } from '../a2ui/ScreenStrip'
 import { AGENTS } from '@shared/types'
 import { useChat, useStore } from '../store'
 import { Icon } from './Icon'
-import { TranscriptItemView } from './Message'
+import { TranscriptView } from './TranscriptView'
 
 const NEAR_BOTTOM_PX = 60
 /** Entwürfe überleben das Neu-Einhängen einer Zelle (z. B. beim Teilen). */
@@ -93,7 +93,7 @@ export function ChatPanel({ chatId, active }: { chatId: string; active: boolean 
         ) : transcript.length === 0 ? (
           <div className="muted center-hint">Schreib die erste Nachricht.</div>
         ) : (
-          transcript.map((item) => <TranscriptItemView key={item.id} item={item} chatId={chatId} />)
+          <TranscriptView chatId={chatId} transcript={transcript} busy={busy} />
         )}
         {busy && (
           <div className="working">

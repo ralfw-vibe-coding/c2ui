@@ -87,6 +87,8 @@ export interface Settings {
   /** Nach so vielen Minuten Leerlauf wird ein dauerhafter CLI-Prozess (Claude) beendet. */
   idleTimeoutMinutes: number
   lastDirectory: string
+  /** Arbeitsschritte (Werkzeuge, Zwischentexte) je Turn einklappen. */
+  collapseSteps: boolean
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -95,7 +97,8 @@ export const DEFAULT_SETTINGS: Settings = {
     codex: { path: '', model: '', defaultMode: AGENTS.codex.defaultMode }
   },
   idleTimeoutMinutes: 10,
-  lastDirectory: ''
+  lastDirectory: '',
+  collapseSteps: true
 }
 
 /** Lädt gespeicherte Einstellungen, auch im alten Format (vor Codex). */
@@ -104,6 +107,7 @@ export function migrateSettings(raw: any): Settings {
   if (!raw || typeof raw !== 'object') return s
   if (typeof raw.idleTimeoutMinutes === 'number') s.idleTimeoutMinutes = raw.idleTimeoutMinutes
   if (typeof raw.lastDirectory === 'string') s.lastDirectory = raw.lastDirectory
+  if (typeof raw.collapseSteps === 'boolean') s.collapseSteps = raw.collapseSteps
   // Altes Format: Felder direkt auf oberster Ebene, nur Claude
   if (typeof raw.claudePath === 'string') s.agents.claude.path = raw.claudePath
   if (typeof raw.model === 'string') s.agents.claude.model = raw.model

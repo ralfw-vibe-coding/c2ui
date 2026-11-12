@@ -46,7 +46,7 @@ export const TranscriptItemView = memo(function TranscriptItemView({ item, chatI
   }
 })
 
-function BlockView({ block, chatId }: { block: Block; chatId: string }) {
+export function BlockView({ block, chatId }: { block: Block; chatId: string }) {
   switch (block.type) {
     case 'text':
       if (!block.text) return null

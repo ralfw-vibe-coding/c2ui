@@ -1602,3 +1602,75 @@ button.a2ui-update:hover {
   color: var(--danger);
   font-size: 12px;
 }
+
+/* Einklappbare Arbeitsschritte je Turn */
+.steps {
+  align-self: stretch;
+  border-radius: 6px;
+}
+.steps-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+  border: none;
+  background: none;
+  padding: 3px 4px;
+  border-radius: 6px;
+  color: var(--text-muted);
+  font-size: 12px;
+  cursor: pointer;
+  text-align: left;
+}
+.steps-head:hover {
+  background: var(--bg-sunken);
+  color: var(--text);
+}
+.steps-head .icon {
+  flex-shrink: 0;
+}
+.steps-status {
+  display: inline-flex;
+  flex-shrink: 0;
+}
+.steps-status.ok {
+  color: var(--ok);
+}
+.steps-status.fail {
+  color: var(--danger);
+}
+.steps-chevron {
+  width: 10px;
+  font-size: 10px;
+  flex-shrink: 0;
+}
+.steps-count {
+  flex-shrink: 0;
+  font-weight: 500;
+}
+.steps-names {
+  font-family: var(--mono);
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0.85;
+}
+.steps-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 4px 0 2px 14px;
+  padding-left: 10px;
+  border-left: 2px solid var(--border);
+}
+.check-row {
+  flex-direction: row !important;
+  align-items: center;
+  gap: 8px !important;
+}
+.check-row span {
+  font-size: 13px !important;
+  color: var(--text) !important;
+}

@@ -56,6 +56,14 @@ export function SettingsDialog() {
             onChange={(e) => setDraft({ ...draft, idleTimeoutMinutes: Math.max(1, Number(e.target.value) || 1) })}
           />
         </label>
+        <label className="check-row">
+          <input
+            type="checkbox"
+            checked={draft.collapseSteps}
+            onChange={(e) => setDraft({ ...draft, collapseSteps: e.target.checked })}
+          />
+          <span>Arbeitsschritte (Werkzeugaufrufe, Zwischentexte) im Chat einklappen</span>
+        </label>
         <ComponentsSection />
         <p className="muted small">Änderungen gelten für neu gestartete CLI-Prozesse.</p>
         <div className="modal-actions">
