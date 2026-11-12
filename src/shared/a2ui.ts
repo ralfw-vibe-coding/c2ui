@@ -28,10 +28,24 @@ export function callMessages(input: unknown): A2uiMessage[] {
   return Array.isArray(list) ? list.filter((m) => m && typeof m === 'object').map(normalizeMessage) : []
 }
 
+/**
+ * Vereinheitlicht eine Nachricht: Version ergänzen, Katalog auf den von Claude2UI setzen.
+ * Der Claude2UI-Katalog enthält den Basic Catalog vollständig – eine Basic-ID wird deshalb
+ * verlustfrei umgeschrieben (sonst fehlten Table, Charts usw., wenn ein Modell die alte ID nutzt).
+ */
 export function normalizeMessage(m: A2uiMessage): A2uiMessage {
   const out: A2uiMessage = { ...m, version: m.version ?? A2UI_VERSION }
-  if (out.createSurface && !out.createSurface.catalogId) {
-    out.createSurface = { ...out.createSurface, catalogId: CLAUDE2UI_CATALOG_ID }
+  const cat = (id: unknown): unknown => (id === undefined || id === BASIC_CATALOG_ID ? CLAUDE2UI_CATALOG_ID : id)
+  const comps = (list: unknown): unknown =>
+    Array.isArray(list)
+      ? list.map((c) => (c && typeof c === 'object' && c['@catalogId'] === BASIC_CATALOG_ID ? { ...c, '@catalogId': CLAUDE2UI_CATALOG_ID } : c))
+      : list
+  if (out.createSurface) {
+    out.createSurface = { ...out.createSurface, catalogId: cat(out.createSurface.catalogId) }
+    if (out.createSurface.components) out.createSurface.components = comps(out.createSurface.components)
+  }
+  if (out.updateComponents?.components) {
+    out.updateComponents = { ...out.updateComponents, components: comps(out.updateComponents.components) }
   }
   return out
 }

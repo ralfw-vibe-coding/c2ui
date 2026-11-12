@@ -1553,3 +1553,19 @@ button.a2ui-update:hover {
 .screen-thumb.active .screen-thumb-label {
   color: var(--accent);
 }
+
+/* Knopf mit Rückfrage („?“) */
+.confirm-btn.armed {
+  visibility: visible !important;
+  background: var(--danger);
+  color: #fff;
+}
+.confirm-btn.armed:hover {
+  background: var(--danger);
+  color: #fff;
+}
+.confirm-q {
+  font-weight: 700;
+  font-size: 13px;
+  line-height: 1;
+}

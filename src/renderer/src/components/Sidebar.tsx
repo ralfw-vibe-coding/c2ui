@@ -3,6 +3,7 @@ import * as L from '@shared/layout'
 import { AGENT_KINDS, AGENTS, type Chat } from '@shared/types'
 import { baseName, CHAT_MIME, shortPath, useStore } from '../store'
 import { AgentLogo } from './AgentLogo'
+import { ConfirmButton } from './ConfirmButton'
 import { EditableTitle } from './EditableTitle'
 import { formatDate } from './EmptyCell'
 import { Icon } from './Icon'
@@ -97,16 +98,13 @@ function ChatItem({ chat, open, inSelected, busy }: { chat: Chat; open: boolean;
           <Icon name="pencil" size={14} />
         </button>
       )}
-      <button
-        className="icon-btn danger hover-only"
+      <ConfirmButton
+        icon="trash"
+        className="danger hover-only"
         title="Chat löschen"
-        onClick={(e) => {
-          e.stopPropagation()
-          void useStore.getState().deleteChat(chat.id)
-        }}
-      >
-        <Icon name="trash" size={14} />
-      </button>
+        confirmTitle="Wirklich löschen? Nochmal klicken"
+        onConfirm={() => void useStore.getState().deleteChat(chat.id)}
+      />
     </li>
   )
 }

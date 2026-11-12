@@ -195,13 +195,7 @@ export const useStore = create<State & Actions>((set, get) => {
     },
 
     async deleteChat(chatId) {
-      const c = chat(chatId)
-      const ok = await window.api.confirm(
-        `Chat „${c?.title ?? ''}“ löschen?`,
-        'Der Chat verschwindet aus der Liste. Die Session der Claude CLI selbst bleibt erhalten.',
-        'Löschen'
-      )
-      if (!ok) return
+      // Die Rückfrage passiert im Knopf selbst (ConfirmButton). Die CLI-Session bleibt erhalten.
       if (get().busy[chatId]) await window.api.interrupt(chatId)
       const cell = L.findCellOfChat(get().layout.root, chatId)
       if (cell) get().setLayout({ ...get().layout, root: L.setChat(get().layout.root, cell.id, null) })

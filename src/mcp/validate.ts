@@ -2,6 +2,23 @@ import { basicCatalog, MessageProcessor } from '@a2ui/web_core/v1_0'
 import { buildClaude2uiCatalog } from '@shared/a2ui-catalog'
 
 const catalogs = [buildClaude2uiCatalog(), basicCatalog]
+const knownComponents = new Map(catalogs.map((c) => [c.id, new Set(c.components.keys())]))
+
+/** Komponenten, deren Typ im Katalog nicht existiert (die Bibliothek lässt sie als Platzhalter stehen). */
+function unknownComponents(m: A2uiMessage, surfaceCatalog: string | undefined): string[] {
+  const list = m.createSurface?.components ?? m.updateComponents?.components
+  if (!Array.isArray(list)) return []
+  const out: string[] = []
+  for (const c of list) {
+    const catId = c?.['@catalogId'] ?? surfaceCatalog
+    const names = knownComponents.get(catId)
+    if (!names) out.push(`Komponente „${c?.id}“: unbekannter Katalog „${catId}“.`)
+    else if (!names.has(c?.component)) {
+      out.push(`Komponente „${c?.id}“: Typ „${c?.component}“ gibt es nicht. Verfügbar: ${[...names].join(', ')}.`)
+    }
+  }
+  return out
+}
 import { danglingRefs, normalizeMessage, surfaceIdOf, type A2uiMessage } from '@shared/a2ui'
 
 export interface ValidationResult {
@@ -34,6 +51,9 @@ export function validate(historyRaw: A2uiMessage[], incomingRaw: A2uiMessage[]):
   errors.length = 0
 
   const known = new Set(p.model.surfacesMap.keys())
+  // Katalog je Surface (aus dem Verlauf), um updateComponents gegen den richtigen Katalog zu prüfen.
+  const surfaceCatalogs = new Map<string, string>()
+  for (const m of history) if (m.createSurface) surfaceCatalogs.set(m.createSurface.surfaceId, m.createSurface.catalogId)
   const created: string[] = []
   const updated: string[] = []
   if (incoming.length === 0) errors.push('`messages` ist leer oder kein Array von A2UI-Nachrichten.')
@@ -54,6 +74,13 @@ export function validate(historyRaw: A2uiMessage[], incomingRaw: A2uiMessage[]):
       errors.push(`${where}: Surface existiert nicht. Zuerst createSurface senden.`)
       return
     }
+    const surfaceCatalog = m.createSurface?.catalogId ?? (p.model.surfacesMap.get(sid) as any)?.catalogId ?? surfaceCatalogs.get(sid)
+    const unknown = unknownComponents(m, surfaceCatalog)
+    if (unknown.length) {
+      for (const u of unknown) errors.push(`${where}: ${u}`)
+      return
+    }
+    if (m.createSurface) surfaceCatalogs.set(sid, m.createSurface.catalogId)
     const before = errors.length
     try {
       p.processMessages([m] as never)

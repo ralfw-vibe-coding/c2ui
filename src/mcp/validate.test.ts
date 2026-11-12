@@ -104,4 +104,18 @@ describe('A2UI-Validierung', () => {
     expect(validate([], mk({ component: 'Metric', value: 1 })).errors[0]).toMatch(/label/)
     expect(validate([], mk({ component: 'Alert', tone: 'danger', text: 'x' })).ok).toBe(false)
   })
+
+  it('unbekannte Komponenten werden abgelehnt', () => {
+    const r = validate([], [{ createSurface: { surfaceId: 's', components: [{ id: 'root', component: 'Fancy' }] } }])
+    expect(r.errors[0]).toMatch(/Typ „Fancy“ gibt es nicht/)
+  })
+
+  it('Basic-Katalog-ID wird auf den Claude2UI-Katalog umgeschrieben (Table funktioniert trotzdem)', () => {
+    const basic = 'https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json'
+    const msgs = callMessages({
+      messages: [{ createSurface: { surfaceId: 's', catalogId: basic, components: [{ id: 'root', component: 'Table', columns: [{ key: 'a' }], data: [] }] } }]
+    })
+    expect(msgs[0].createSurface.catalogId).toBe(CLAUDE2UI_CATALOG_ID)
+    expect(validate([], msgs).errors).toEqual([])
+  })
 })
