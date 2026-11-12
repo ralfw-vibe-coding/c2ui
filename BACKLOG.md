@@ -2,15 +2,12 @@
 
 ## Als Nächstes (in dieser Reihenfolge)
 
-1. **Absatznummern** (Rest von „Auf Teile einer Antwort Bezug nehmen“): dezente Nummern beim Überfahren (¶3);
-   Klick fügt „zu ¶3: “ samt Zitat in den Composer ein. Reine Nummern ohne Zitat reichen nicht – das Modell sieht
-   die Nummerierung der App nicht. Optional – Markieren + Overlay deckt das meiste ab.
-2. **Codex über `codex app-server`** statt `codex exec`: Codex stellt Threads im Hintergrund auf ein
+1. **Codex über `codex app-server`** statt `codex exec`: Codex stellt Threads im Hintergrund auf ein
    „paginated“-Format um, das `codex exec resume` nicht fortsetzen kann („paginated_threads is not supported yet“).
    Derzeit fängt die App das ab und startet einen neuen Thread mit dem Verlauf aus ihrem Transkript (verliert
    Detailkontext wie Befehlsausgaben). Der app-server (JSON-RPC, von der Codex-App genutzt) könnte das sauber lösen
    und brächte auch Streaming, Bild-Events und Freigaben.
-3. **Codex**: Antworten streamen (derzeit nur ganze Absätze), Kosten anzeigen – voraussichtlich mit Punkt 2.
+2. **Codex**: Antworten streamen (derzeit nur ganze Absätze), Kosten anzeigen – voraussichtlich mit Punkt 1.
 
 ## A2UI (gesammelt, noch nicht eingeplant)
 

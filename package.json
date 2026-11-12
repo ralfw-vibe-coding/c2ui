@@ -13,7 +13,8 @@
     "test": "vitest run",
     "smoke": "electron-vite build && node scripts/smoke.mjs smoke-out",
     "postinstall": "node scripts/dev-branding.mjs",
-    "dist": "electron-vite build && electron-builder --mac --dir"
+    "dist": "node scripts/package.mjs",
+    "package": "node scripts/package.mjs"
   },
   "dependencies": {
     "@a2ui/react": "^0.15.0",
@@ -39,6 +40,9 @@
     "typescript": "^7.0.2",
     "vite": "^8.3.8",
     "vitest": "^5.1.0"
+  },
+  "c2ui": {
+    "signIdentity": "HyperRec Code Signing"
   },
   "build": {
     "appId": "de.ralfw.c2ui",
@@ -71,7 +75,7 @@
       ],
       "icon": "resources/icon.icns",
       "category": "public.app-category.developer-tools",
-      "identity": "-",
+      "identity": null,
       "hardenedRuntime": false
     }
   }

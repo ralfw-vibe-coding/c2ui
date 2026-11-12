@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { parseUpdateState, type UpdateState } from '@shared/update'
 import { AGENT_KINDS, AGENTS, type AgentKind, type AgentSettings, type Settings } from '@shared/types'
 import { useModelList } from '../models'
 import { useStore } from '../store'
@@ -65,6 +66,7 @@ export function SettingsDialog() {
           <span>Arbeitsschritte (Werkzeugaufrufe, Zwischentexte) im Chat einklappen</span>
         </label>
         <ComponentsSection />
+        <UpdateSection />
         <p className="muted small">Änderungen gelten für neu gestartete CLI-Prozesse.</p>
         <div className="modal-actions">
           <button className="btn" onClick={close}>
@@ -174,4 +176,98 @@ function ComponentsSection() {
       </span>
     </fieldset>
   )
+}
+
+interface Build {
+  version?: string
+  build?: number
+  commit?: string
+}
+
+function timeOf(iso: string): string {
+  const d = new Date(iso)
+  return Number.isNaN(d.getTime()) ? iso : d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })
+}
+
+/** Aktualisierung aus einem Ordner (z. B. geteilter Dropbox-Ordner). Nur in der gebauten App. */
+function UpdateSection() {
+  const update = useStore((s) => s.update)
+  const [build, setBuild] = useState<Build | null>(null)
+  const [working, setWorking] = useState(false)
+  useEffect(() => {
+    void window.api.updateCurrent().then((b) => setBuild(b && typeof b === 'object' ? (b as Build) : null))
+  }, [])
+  if (update.state === 'unavailable') return null
+
+  const apply = (u: unknown): void => useStore.setState({ update: parseUpdateState(u) })
+  const run = async (f: () => Promise<unknown>): Promise<void> => {
+    setWorking(true)
+    try {
+      apply(await f())
+    } finally {
+      setWorking(false)
+    }
+  }
+  const pick = async (): Promise<void> => {
+    const dir = await window.api.pickDirectory('folder' in update ? update.folder : undefined)
+    if (dir) await run(() => window.api.updateFolder(dir))
+  }
+  const install = async (): Promise<void> => {
+    const busy = Object.values(useStore.getState().busy).filter(Boolean).length
+    if (busy && !(await window.api.confirm(`${busy} Chat(s) arbeiten noch.`, 'Beim Aktualisieren wird C2UI beendet und neu gestartet; laufende Antworten werden abgebrochen.', 'Aktualisieren'))) return
+    await run(() => window.api.updateInstall())
+  }
+
+  return (
+    <fieldset className="agent-settings">
+      <legend>Aktualisierung</legend>
+      {build?.build && (
+        <span className="muted small">
+          Installiert: Version {build.version}, Build {build.build}
+          {build.commit ? ` (${build.commit})` : ''}
+        </span>
+      )}
+      {'folder' in update && <span className="small update-folder" title={update.folder}>Update-Ordner: {update.folder}</span>}
+      <UpdateStatus update={update} onInstall={() => void install()} />
+      <div className="components-head">
+        <button className="btn" disabled={working || update.state === 'installing'} onClick={() => void pick()}>
+          Ordner wählen …
+        </button>
+        <button className="btn" disabled={working || update.state === 'off' || update.state === 'installing'} onClick={() => void run(() => window.api.updateCheck())}>
+          Jetzt prüfen
+        </button>
+        <button className="btn" disabled={working || update.state === 'off' || update.state === 'installing'} onClick={() => void run(() => window.api.updateFolder(undefined))}>
+          Update-Ordner entfernen
+        </button>
+      </div>
+      <span className="muted small">
+        C2UI schaut beim Start und alle 30 Minuten in diesen Ordner (z. B. einen geteilten Dropbox-Ordner) und bietet neuere
+        Builds an. Der Ordner gilt nur für diesen Mac.
+      </span>
+    </fieldset>
+  )
+}
+
+function UpdateStatus({ update, onInstall }: { update: UpdateState; onInstall: () => void }) {
+  switch (update.state) {
+    case 'off':
+      return <span className="update-status">Kein Update-Ordner gewählt.</span>
+    case 'current':
+      return <span className="update-status">Aktuell · zuletzt geprüft {timeOf(update.checked)}</span>
+    case 'available':
+      return (
+        <span className="update-status available">
+          Build {update.offer.build} ist da ·{' '}
+          <button className="btn primary small-btn" onClick={onInstall} title={update.offer.file}>
+            Jetzt aktualisieren
+          </button>
+        </span>
+      )
+    case 'installing':
+      return <span className="update-status">Build {update.offer.build} wird installiert – C2UI startet gleich neu …</span>
+    case 'failed':
+      return <span className="update-status failed">{update.message}</span>
+    default:
+      return null
+  }
 }

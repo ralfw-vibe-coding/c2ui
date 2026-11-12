@@ -9,6 +9,7 @@ import { formatDate } from './EmptyCell'
 import { Icon } from './Icon'
 
 export function Sidebar() {
+  const updateReady = useStore((s) => s.update.state === 'available')
   const chats = useStore((s) => s.chats)
   const root = useStore((s) => s.layout.root)
   const selectedCellId = useStore((s) => s.layout.selectedCellId)
@@ -47,6 +48,7 @@ export function Sidebar() {
       <div className="sidebar-bottom">
         <button className="icon-btn" title="Einstellungen" onClick={() => useStore.getState().setSettingsOpen(true)}>
           <Icon name="gear" /> <span>Einstellungen</span>
+          {updateReady && <span className="update-dot" title="Neue Version verfügbar" />}
         </button>
       </div>
     </aside>

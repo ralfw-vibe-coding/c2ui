@@ -4,6 +4,7 @@ import { setComposites, type CompositeDef } from '@shared/a2ui-composites'
 import { setDraft } from './drafts'
 import * as L from '@shared/layout'
 import { composeMessage, forkTitle, type QuoteRef } from '@shared/quotes'
+import { parseUpdateState, type UpdateState } from '@shared/update'
 import { applyEvent } from '@shared/transcript'
 import type { AgentEvent, AgentKind, Attachment, Chat, LayoutState, Settings, Transcript } from '@shared/types'
 
@@ -29,6 +30,8 @@ interface State {
   pendingAttachments: Record<string, Attachment[] | undefined>
   /** Gesammelte Bezüge (Zitat + Anmerkung) je Chat, noch nicht gesendet. */
   pendingRefs: Record<string, QuoteRef[] | undefined>
+  /** Selbst-Aktualisierung aus einem Ordner (Einstellungen → Aktualisierung). */
+  update: UpdateState
 }
 
 interface Actions {
@@ -127,6 +130,7 @@ export const useStore = create<State & Actions>((set, get) => {
     componentsVersion: 0,
     pendingAttachments: {},
     pendingRefs: {},
+    update: { state: 'unavailable' },
 
     async init() {
       // Eigene Komponenten zuerst – sie werden beim Anzeigen der Screens aufgelöst.
@@ -152,6 +156,8 @@ export const useStore = create<State & Actions>((set, get) => {
       window.api.onAgentEvent(onAgentEvent)
       window.api.onBusy((id, b) => set((st) => ({ busy: { ...st.busy, [id]: b } })))
       window.api.onChatsChanged((chats) => set({ chats }))
+      window.api.onUpdate((u) => set({ update: parseUpdateState(u) }))
+      void window.api.updateState().then((u) => set({ update: parseUpdateState(u) }))
       // openUrl aus A2UI-Screens (auch mailto:/tel:) über das System öffnen.
       // Button-Aktionen aus A2UI-Screens gehen als Nutzernachricht an den Chat (gesperrt, solange er arbeitet).
       setA2uiActionHandler((chatId, text) => {

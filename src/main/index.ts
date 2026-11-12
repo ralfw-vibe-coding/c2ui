@@ -9,6 +9,8 @@ import { existsSync, watch } from 'node:fs'
 import { listModels } from './models'
 import { resolveLoginPath } from './env'
 import { Storage } from './storage'
+import { Updater, type BuildInfo } from './updater'
+import { currentBuild, realUpdaterTools } from './updaterSetup'
 
 app.setName('C2UI')
 // Für Tests: eigenes Datenverzeichnis per Umgebungsvariable.
@@ -90,6 +92,9 @@ und Telefon (tel:) öffnen. Fehlt ein eingebetteter Wert, entfällt die ganze Ko
 (Kommentare mit // sind nur zur Erklärung – in echten JSON-Dateien nicht erlaubt.)
 `
 let quitting = false
+let updater: Updater | null = null
+let buildInfo: BuildInfo | null = null
+const UPDATE_CHECK_MS = 30 * 60 * 1000
 
 function send(channel: string, ...args: unknown[]): void {
   if (win && !win.isDestroyed()) win.webContents.send(channel, ...args)
@@ -158,6 +163,12 @@ function registerIpc(): void {
     busy: manager.busyIds(),
     home: app.getPath('home')
   }))
+  // Selbst-Aktualisierung aus einem Ordner
+  ipcMain.handle('update:state', () => updater?.state ?? { state: 'unavailable' })
+  ipcMain.handle('update:current', () => buildInfo)
+  ipcMain.handle('update:folder', (_e, folder: string | undefined) => updater?.setFolder(typeof folder === 'string' ? folder : undefined))
+  ipcMain.handle('update:check', () => updater?.check())
+  ipcMain.handle('update:install', () => updater?.install())
   ipcMain.handle('settings:set', (_e, patch: Partial<Settings>) => manager.setSettings(patch))
   ipcMain.handle('layout:set', (_e, l: LayoutState) => manager.setLayout(l))
   ipcMain.handle('chats:create', (_e, cwd: string, agent: AgentKind, mode?: PermissionMode) =>
@@ -266,6 +277,20 @@ app.whenReady().then(() => {
   registerIpc()
   registerLocalFileProtocol()
   createWindow()
+
+  // Erst nach app.setName: userData hängt vom Namen ab.
+  buildInfo = currentBuild()
+  updater = new Updater({
+    tools: realUpdaterTools(),
+    current: buildInfo,
+    exe: app.getPath('exe'),
+    pid: process.pid,
+    appName: 'C2UI',
+    configFile: join(app.getPath('userData'), 'update.json'),
+    onChange: (s) => send('update', s)
+  })
+  void updater.init()
+  if (buildInfo) setInterval(() => void updater?.check(), UPDATE_CHECK_MS).unref()
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {

@@ -54,6 +54,12 @@ const api = {
     ipcRenderer.invoke('dialog:confirmBusy', title, action),
   confirm: (message: string, detail: string, ok: string): Promise<boolean> =>
     ipcRenderer.invoke('dialog:confirm', message, detail, ok),
+  updateState: (): Promise<unknown> => ipcRenderer.invoke('update:state'),
+  updateCurrent: (): Promise<unknown> => ipcRenderer.invoke('update:current'),
+  updateFolder: (folder: string | undefined): Promise<unknown> => ipcRenderer.invoke('update:folder', folder),
+  updateCheck: (): Promise<unknown> => ipcRenderer.invoke('update:check'),
+  updateInstall: (): Promise<unknown> => ipcRenderer.invoke('update:install'),
+  onUpdate: (cb: (state: unknown) => void) => on('update', cb),
   onAgentEvent: (cb: (chatId: string, e: AgentEvent) => void) => on('agent:event', cb),
   onBusy: (cb: (chatId: string, busy: boolean) => void) => on('agent:busy', cb),
   onChatsChanged: (cb: (chats: Chat[]) => void) => on('chats:changed', cb)

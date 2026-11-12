@@ -1977,3 +1977,27 @@ button.a2ui-update:hover {
   color: var(--text-muted);
   font-style: italic;
 }
+
+/* ---------- Aktualisierung ---------- */
+.update-status {
+  font-size: 13px;
+}
+.update-status.available {
+  color: var(--accent);
+  font-weight: 600;
+}
+.update-status.failed {
+  color: var(--danger);
+}
+.update-folder {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.update-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  margin-left: 4px;
+}
