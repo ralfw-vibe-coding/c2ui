@@ -14,6 +14,7 @@ const paths: Record<string, string> = {
   check: 'M5 12l5 5 9-10',
   sidebar: 'M4 5h16v14H4zM9.5 5v14',
   pencil: 'M4 20h4L19 9l-4-4L4 16zM14 6l4 4',
+  info: 'M12 3a9 9 0 100 18 9 9 0 000-18zM12 11v6M12 7.5v.5',
   alert: 'M12 4l9 16H3zM12 10v4M12 17v.5'
 }
 

@@ -26,12 +26,19 @@ export const TranscriptItemView = memo(function TranscriptItemView({ item }: { i
           <Icon name="alert" /> <span>{item.text}</span>
         </div>
       )
+    case 'notice':
+      return (
+        <div className="msg msg-notice">
+          <Icon name="info" size={14} /> <span>{item.text}</span>
+        </div>
+      )
     case 'turn':
       return (
         <div className="msg-turn">
           {(item.durationMs / 1000).toLocaleString('de-DE', { maximumFractionDigits: 1 })} s
           {item.costUsd !== undefined &&
             ` · ${item.costUsd.toLocaleString('de-DE', { style: 'currency', currency: 'USD', maximumFractionDigits: 3 })}`}
+          {item.model && ` · ${item.model}`}
         </div>
       )
   }

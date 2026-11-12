@@ -64,12 +64,32 @@ export function applyEvent(t: Transcript, e: AgentEvent): Transcript {
     case 'turn-end': {
       const next: Transcript = [...t]
       if (e.isError && e.errorText) next.push({ type: 'error', id: e.id + '-err', text: e.errorText })
-      next.push({ type: 'turn', id: e.id, durationMs: e.durationMs, costUsd: e.costUsd, isError: e.isError })
+      let costUsd = e.costUsd
+      if (e.costTotalUsd !== undefined) {
+        // Claude meldet die Summe der Session (auch über --resume hinweg) → Differenz zum letzten Turn.
+        const prev = [...t].reverse().find((i) => i.type === 'turn' && i.costTotalUsd !== undefined) as
+          | { costTotalUsd?: number }
+          | undefined
+        const p = prev?.costTotalUsd
+        costUsd = p !== undefined && e.costTotalUsd >= p ? e.costTotalUsd - p : e.costTotalUsd
+      }
+      next.push({
+        type: 'turn',
+        id: e.id,
+        durationMs: e.durationMs,
+        costUsd,
+        costTotalUsd: e.costTotalUsd,
+        isError: e.isError,
+        model: e.model
+      })
       return next
     }
 
     case 'error':
       return [...t, { type: 'error', id: e.id, text: e.text }]
+
+    case 'notice':
+      return [...t, { type: 'notice', id: e.id, text: e.text }]
 
     case 'session':
       return t

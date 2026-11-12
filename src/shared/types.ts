@@ -47,6 +47,8 @@ export interface Chat {
   cwd: string
   agent: AgentKind
   permissionMode: PermissionMode
+  /** Modell dieses Chats; leer = Standard der CLI. Fehlt bei alten Chats (dann Einstellung). */
+  model?: string
   /** Session-ID der CLI (Claude: vorab vergeben; Codex: Thread-ID nach dem ersten Turn). */
   sessionId: string
   /** true, sobald die CLI-Session existiert (dann wird fortgesetzt statt neu begonnen). */
@@ -61,6 +63,14 @@ export interface ModelList {
   /** Modell, das die CLI ohne Angabe nutzt (aus deren Konfiguration), falls bekannt. */
   cliDefault?: string
   error?: string
+}
+
+/** Felder eines Chats, die die Oberfläche ändern darf. */
+export type ChatPatch = Partial<Pick<Chat, 'title' | 'permissionMode' | 'model'>>
+
+/** Wirksames Modell eines Chats (alte Chats ohne eigenes Modell nutzen die Einstellung). */
+export function chatModel(chat: Chat, settings: Settings): string {
+  return chat.model ?? settings.agents[chat.agent].model
 }
 
 export interface AgentSettings {
@@ -122,7 +132,16 @@ export type TranscriptItem =
   | { type: 'user'; id: string; text: string; ts: number }
   | { type: 'assistant'; id: string; blocks: Block[] }
   | { type: 'error'; id: string; text: string }
-  | { type: 'turn'; id: string; durationMs: number; costUsd?: number; isError: boolean }
+  | { type: 'notice'; id: string; text: string }
+  | {
+      type: 'turn'
+      id: string
+      durationMs: number
+      costUsd?: number
+      costTotalUsd?: number
+      isError: boolean
+      model?: string
+    }
 
 export type Transcript = TranscriptItem[]
 
@@ -132,8 +151,20 @@ export type AgentEvent =
   | { kind: 'text-delta'; msgId: string; index: number; text: string; blockType: 'text' | 'thinking' }
   | { kind: 'assistant'; msgId: string; blocks: Block[]; /** Position des ersten Blocks in der Nachricht; fehlt = anhängen */ index?: number }
   | { kind: 'tool-result'; toolUseId: string; content: string; isError: boolean }
-  | { kind: 'turn-end'; id: string; durationMs: number; costUsd?: number; isError: boolean; errorText?: string }
+  | {
+      kind: 'turn-end'
+      id: string
+      durationMs: number
+      costUsd?: number
+      /** Kumulierte Kosten der Session (Claude); der Reducer rechnet daraus die Kosten des Turns. */
+      costTotalUsd?: number
+      isError: boolean
+      errorText?: string
+      /** Modell, das den Turn beantwortet hat (soweit bekannt). */
+      model?: string
+    }
   | { kind: 'error'; id: string; text: string }
+  | { kind: 'notice'; id: string; text: string }
   | { kind: 'session'; sessionId: string }
 
 // ---------- Layout ----------

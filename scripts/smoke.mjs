@@ -61,6 +61,31 @@ await sendAndWait(page, page.locator('.cell').nth(1), 'Welches Wort hast du eben
 log('Antwort 2b (Codex, resume):', (await page.locator('.cell').nth(1).locator('.msg-assistant').last().innerText()).trim())
 log('Codex-Modus:', await page.locator('.cell').nth(1).locator('.mode-select').inputValue())
 
+// Modellwechsel mitten im Chat
+const lastTurn = async (cell) => (await cell.locator('.msg-turn').last().innerText()).trim()
+const c1 = page.locator('.cell').nth(0)
+const c2 = page.locator('.cell').nth(1)
+log('Chat 1 Modell vorher:', await c1.locator('.model-chip-text').innerText(), '|', await lastTurn(c1))
+await c1.locator('.model-chip select').selectOption('sonnet')
+await sendAndWait(page, c1, 'Antworte nur mit: ok')
+log('Chat 1 nach Wechsel auf Sonnet:', await c1.locator('.model-chip-text').innerText(), '|', await lastTurn(c1))
+// Wechsel während eines laufenden Turns: gilt ab dem nächsten
+const n = await c1.locator('.msg-turn').count()
+await c1.locator('textarea').fill('Zähle von 1 bis 30, durch Kommas getrennt.')
+await c1.locator('textarea').press('Enter')
+await page.waitForTimeout(300)
+await c1.locator('.model-chip select').selectOption('haiku')
+await c1.locator('.msg-turn').nth(n).waitFor({ timeout: 120_000 })
+log('Turn während Wechsel:', await lastTurn(c1))
+await sendAndWait(page, c1, 'Antworte nur mit: ok')
+log('Turn danach:', await lastTurn(c1))
+// Codex
+log('Chat 2 Modell vorher:', await c2.locator('.model-chip-text').innerText(), '|', await lastTurn(c2))
+await c2.locator('.model-chip select').selectOption('gpt-5.6-luna')
+await sendAndWait(page, c2, 'Antworte nur mit: ok')
+log('Chat 2 nach Wechsel auf Luna:', await c2.locator('.model-chip-text').innerText(), '|', await lastTurn(c2))
+await page.screenshot({ path: join(out, '02b-modelle.png') })
+
 // Unten teilen in Zelle 2 -> leere dritte Zelle
 await page.locator('.cell').nth(1).locator('[title="Unten teilen"]').click()
 await page.screenshot({ path: join(out, '02-drei-zellen.png') })

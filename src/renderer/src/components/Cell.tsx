@@ -3,6 +3,7 @@ import type { DropZone } from '@shared/layout'
 import { AGENTS } from '@shared/types'
 import { baseName, CHAT_MIME, shortPath, useChat, useStore } from '../store'
 import { AgentLogo } from './AgentLogo'
+import { ChatModelSelect } from './ChatModelSelect'
 import { ChatPanel } from './ChatPanel'
 import { EditableTitle } from './EditableTitle'
 import { EmptyCell } from './EmptyCell'
@@ -53,9 +54,12 @@ export function Cell({ cellId, chatId }: { cellId: string; chatId: string | null
               </button>
             )}
           </div>
-        ) : (
+        ) : null}
+        {chat && <ChatModelSelect chat={chat} />}
+        {!chat && (
           <div className="cell-title muted" />
         )}
+        <div className="cell-spacer" />
         <div className="cell-actions">
           {chat && (
             <select

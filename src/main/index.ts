@@ -1,6 +1,6 @@
 import { join } from 'node:path'
 import { app, BrowserWindow, dialog, ipcMain, nativeImage, shell } from 'electron'
-import type { AgentKind, Chat, LayoutState, PermissionMode, Settings } from '@shared/types'
+import type { AgentKind, ChatPatch, LayoutState, PermissionMode, Settings } from '@shared/types'
 import { ChatManager } from './chats'
 import { listModels } from './models'
 import { resolveLoginPath } from './env'
@@ -89,9 +89,7 @@ function registerIpc(): void {
   ipcMain.handle('chats:create', (_e, cwd: string, agent: AgentKind, mode?: PermissionMode) =>
     manager.create(cwd, agent, mode)
   )
-  ipcMain.handle('chats:update', (_e, id: string, patch: Partial<Pick<Chat, 'title' | 'permissionMode'>>) =>
-    manager.update(id, patch)
-  )
+  ipcMain.handle('chats:update', (_e, id: string, patch: ChatPatch) => manager.update(id, patch))
   ipcMain.handle('chats:delete', (_e, id: string) => manager.delete(id))
   ipcMain.handle('transcript:get', (_e, id: string) => manager.transcript(id))
   ipcMain.handle('agent:send', (_e, id: string, text: string) => manager.send(id, text))

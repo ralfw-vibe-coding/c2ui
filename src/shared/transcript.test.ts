@@ -36,4 +36,17 @@ describe('transcript', () => {
     })
     expect(t.map((i) => i.type)).toEqual(['assistant', 'assistant', 'turn'])
   })
+
+  it('rechnet Kosten pro Turn aus der Sessionsumme (auch über Neustarts hinweg)', () => {
+    const t = run([
+      { kind: 'turn-end', id: 'a', durationMs: 1, isError: false, costTotalUsd: 0.01 },
+      { kind: 'turn-end', id: 'b', durationMs: 1, isError: false, costTotalUsd: 0.04 },
+      { kind: 'notice', id: 'n', text: 'Hinweis' },
+      { kind: 'turn-end', id: 'c', durationMs: 1, isError: false, costTotalUsd: 0.05, model: 'm' }
+    ])
+    const costs = t.filter((i) => i.type === 'turn').map((i) => Number((i as { costUsd?: number }).costUsd?.toFixed(4)))
+    expect(costs).toEqual([0.01, 0.03, 0.01])
+    expect(t[2]).toEqual({ type: 'notice', id: 'n', text: 'Hinweis' })
+    expect((t[3] as { model?: string }).model).toBe('m')
+  })
 })

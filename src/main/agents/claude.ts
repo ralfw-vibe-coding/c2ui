@@ -1,6 +1,6 @@
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
-import type { Block } from '@shared/types'
+import { chatModel, type Block } from '@shared/types'
 import { childEnv } from '../env'
 import type { AgentCallbacks, AgentContext, AgentFactory, AgentSession } from './types'
 
@@ -23,6 +23,8 @@ class ClaudeSession implements AgentSession {
   // Streaming-Zustand der aktuellen API-Nachricht
   private curMsgId = ''
   private curIndex = 0
+  /** Modell laut letzter Assistant-Nachricht (exakte ID von der API). */
+  private lastModel: string | undefined
 
   constructor(
     private readonly ctx: AgentContext,
@@ -83,7 +85,8 @@ class ClaudeSession implements AgentSession {
       '--permission-mode', chat.permissionMode
     ]
     const cfg = settings.agents.claude
-    if (cfg.model) args.push('--model', cfg.model)
+    const model = chatModel(chat, settings)
+    if (model) args.push('--model', model)
     if (chat.sessionStarted) args.push('--resume', chat.sessionId)
     else args.push('--session-id', chat.sessionId)
 
@@ -171,6 +174,7 @@ class ClaudeSession implements AgentSession {
 
       case 'assistant': {
         const msgId: string = m.message?.id ?? randomUUID()
+        if (typeof m.message?.model === 'string') this.lastModel = m.message.model
         const blocks = (m.message?.content ?? []).map(toBlock).filter(Boolean) as Block[]
         if (blocks.length === 0) return
         const index = msgId === this.curMsgId ? this.curIndex : undefined
@@ -198,7 +202,7 @@ class ClaudeSession implements AgentSession {
         this.endTurn({
           isError,
           errorText: isError ? String(m.result ?? m.subtype ?? 'Fehler') : undefined,
-          costUsd: typeof m.total_cost_usd === 'number' ? m.total_cost_usd : undefined,
+          costTotalUsd: typeof m.total_cost_usd === 'number' ? m.total_cost_usd : undefined,
           durationMs: m.duration_ms
         })
         return
@@ -206,16 +210,18 @@ class ClaudeSession implements AgentSession {
     }
   }
 
-  private endTurn(r: { isError: boolean; errorText?: string; costUsd?: number; durationMs?: number }): void {
+  private endTurn(r: { isError: boolean; errorText?: string; costTotalUsd?: number; durationMs?: number }): void {
     if (!this._busy) return
     this.cb.onEvent({
       kind: 'turn-end',
       id: randomUUID(),
       durationMs: r.durationMs ?? Date.now() - this.turnStartedAt,
-      costUsd: r.costUsd,
+      costTotalUsd: r.costTotalUsd,
       isError: r.isError,
-      errorText: r.errorText
+      errorText: r.errorText,
+      model: this.lastModel
     })
+    this.lastModel = undefined
     this.setBusy(false)
     this.armIdle()
   }

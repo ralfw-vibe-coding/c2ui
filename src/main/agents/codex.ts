@@ -1,6 +1,7 @@
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
-import type { Block } from '@shared/types'
+import { chatModel, type Block } from '@shared/types'
+import { codexConfigDefaultModel } from '../models'
 import { childEnv } from '../env'
 import type { AgentCallbacks, AgentContext, AgentFactory, AgentSession } from './types'
 
@@ -23,6 +24,15 @@ class CodexSession implements AgentSession {
   /** Alle Items eines Turns landen in einer Assistant-Nachricht. */
   private msgId = ''
   private seenTools = new Set<string>()
+  private turnModel: string | undefined
+  /**
+   * Ergebnis aus turn.completed/turn.failed. Der Turn gilt erst als beendet, wenn der Prozess
+   * sich beendet hat: Codex räumt danach noch auf und hält so lange die Session. Ein sofort
+   * gestarteter `resume` würde sonst ohne Ausgabe abbrechen.
+   */
+  private pendingEnd: { isError: boolean; errorText?: string } | null = null
+  private closeTimer: NodeJS.Timeout | null = null
+  private lastNotice = ''
 
   constructor(
     private readonly ctx: AgentContext,
@@ -41,6 +51,8 @@ class CodexSession implements AgentSession {
     this.turnStartedAt = Date.now()
     this.msgId = 'codex-' + randomUUID()
     this.seenTools.clear()
+    this.pendingEnd = null
+    this.lastNotice = ''
     try {
       const p = this.spawn()
       p.stdin.end(text)
@@ -79,7 +91,9 @@ class CodexSession implements AgentSession {
       '-c', `sandbox_mode="${chat.permissionMode}"`,
       '-c', 'approval_policy="never"'
     ]
-    if (cfg.model) common.push('-m', cfg.model)
+    const model = chatModel(chat, this.ctx.settings())
+    if (model) common.push('-m', model)
+    this.turnModel = model || codexConfigDefaultModel()
     const args = chat.sessionStarted
       ? ['exec', 'resume', ...common, chat.sessionId, '-']
       : ['exec', ...common, '-']
@@ -108,10 +122,13 @@ class CodexSession implements AgentSession {
     p.on('close', (code, signal) => {
       if (this.buf.trim()) this.onData('\n')
       if (this.proc === p) this.proc = null
+      if (this.closeTimer) clearTimeout(this.closeTimer)
+      this.closeTimer = null
       if (this.turnEnded) return
-      if (this.interrupted) this.endTurn(true, 'Abgebrochen.')
+      if (this.pendingEnd) this.endTurn(this.pendingEnd.isError, this.pendingEnd.errorText)
+      else if (this.interrupted) this.endTurn(true, 'Abgebrochen.')
       else {
-        const detail = lastErrorLines(this.stderrTail) || `Exit-Code ${code ?? signal}`
+        const detail = this.lastNotice || lastErrorLines(this.stderrTail) || `Exit-Code ${code ?? signal}`
         this.endTurn(true, `Codex CLI wurde ohne Abschluss beendet: ${detail}`)
       }
     })
@@ -144,13 +161,15 @@ class CodexSession implements AgentSession {
         this.handleItem(m.item, m.type === 'item.completed')
         return
       case 'turn.completed':
-        this.endTurn(false)
+        this.finishAfterExit({ isError: false })
         return
       case 'turn.failed':
-        this.endTurn(true, m.error?.message ?? 'Turn fehlgeschlagen')
+        this.finishAfterExit({ isError: true, errorText: m.error?.message ?? 'Turn fehlgeschlagen' })
         return
       case 'error':
-        this.cb.onEvent({ kind: 'error', id: randomUUID(), text: String(m.message ?? 'Fehler') })
+        // Codex meldet auch Warnungen so (z. B. Modellwechsel beim Fortsetzen). Ob es ein echter
+        // Fehler war, zeigt erst turn.failed bzw. ein Abbruch ohne turn.completed.
+        this.notice(String(m.message ?? 'Fehler'))
         return
     }
   }
@@ -166,7 +185,7 @@ class CodexSession implements AgentSession {
         if (completed && item.text) this.addBlocks([{ type: 'thinking', text: item.text }])
         return
       case 'error':
-        if (completed) this.cb.onEvent({ kind: 'error', id, text: String(item.message ?? 'Fehler') })
+        if (completed) this.notice(String(item.message ?? 'Fehler'), id)
         return
       default: {
         const tool = toolOf(item)
@@ -182,6 +201,21 @@ class CodexSession implements AgentSession {
     }
   }
 
+  private notice(text: string, id: string = randomUUID()): void {
+    this.lastNotice = text
+    this.cb.onEvent({ kind: 'notice', id, text })
+  }
+
+  private finishAfterExit(end: { isError: boolean; errorText?: string }): void {
+    this.pendingEnd = end
+    const p = this.proc
+    if (!p) return this.endTurn(end.isError, end.errorText)
+    // Sicherheitsnetz, falls Codex nach dem Turn nicht von selbst endet.
+    this.closeTimer = setTimeout(() => {
+      if (p.exitCode === null && p.signalCode === null) p.kill('SIGTERM')
+    }, 5000)
+  }
+
   private addBlocks(blocks: Block[]): void {
     this.cb.onEvent({ kind: 'assistant', msgId: this.msgId, blocks })
   }
@@ -194,7 +228,8 @@ class CodexSession implements AgentSession {
       id: randomUUID(),
       durationMs: Date.now() - this.turnStartedAt,
       isError,
-      errorText
+      errorText,
+      model: this.turnModel
     })
     this.setBusy(false)
   }

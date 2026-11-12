@@ -430,7 +430,7 @@ body.resizing-row * {
   align-items: center;
   gap: 6px;
   min-width: 0;
-  flex: 1;
+  flex: 0 1 auto;
   cursor: grab;
   font-weight: 500;
 }
@@ -449,6 +449,42 @@ body.resizing-row * {
   font-size: 12px;
   white-space: nowrap;
   flex-shrink: 0;
+}
+.cell-spacer {
+  flex: 1;
+}
+/* Modell im Kopf: wirkt wie Text, darüber liegt unsichtbar ein Dropdown. */
+.model-chip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  font-size: 12px;
+  color: var(--text-muted);
+  padding: 1px 6px;
+  border-radius: 5px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.model-chip::before {
+  content: '·';
+  margin-right: 6px;
+}
+.model-chip:hover {
+  background: var(--bg-sunken);
+  color: var(--text);
+}
+.model-chip-text::after {
+  content: ' ▾';
+  font-size: 9px;
+  opacity: 0.6;
+}
+.model-chip select {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  width: 100%;
 }
 .cell-actions {
   display: flex;
@@ -658,6 +694,15 @@ body.resizing-row * {
   border-radius: 6px;
   padding: 8px 10px;
   white-space: pre-wrap;
+}
+.msg-notice {
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+  color: var(--text-muted);
+  font-size: 12px;
+  border-left: 2px solid var(--border-strong);
+  padding: 2px 0 2px 8px;
 }
 .msg-turn {
   font-size: 11px;

@@ -1,4 +1,5 @@
 import { execFile } from 'node:child_process'
+import { readFileSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
@@ -14,6 +15,16 @@ const CLAUDE_ALIASES = [
 ]
 
 const cache = new Map<AgentKind, Promise<ModelList>>()
+
+/** Standardmodell aus ~/.codex/config.toml (für die Anzeige, welches Modell geantwortet hat). */
+export function codexConfigDefaultModel(): string | undefined {
+  try {
+    const toml = readFileSync(join(process.env.CODEX_HOME || join(homedir(), '.codex'), 'config.toml'), 'utf8')
+    return toml.match(/^\s*model\s*=\s*"([^"]+)"/m)?.[1]
+  } catch {
+    return undefined
+  }
+}
 
 export function listModels(agent: AgentKind, binPath: string, path: string): Promise<ModelList> {
   let p = cache.get(agent)

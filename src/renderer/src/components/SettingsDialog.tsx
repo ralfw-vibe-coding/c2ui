@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react'
-import { AGENT_KINDS, AGENTS, type AgentKind, type AgentSettings, type ModelList, type Settings } from '@shared/types'
+import { useState } from 'react'
+import { AGENT_KINDS, AGENTS, type AgentKind, type AgentSettings, type Settings } from '@shared/types'
+import { useModelList } from '../models'
 import { useStore } from '../store'
 import { AgentLogo } from './AgentLogo'
 
@@ -79,16 +80,8 @@ const CUSTOM = '__custom__'
 
 /** Dropdown mit den bekannten Modellen der CLI, „Standard der CLI“ und freier Eingabe. */
 function ModelSelect({ agent, value, onChange }: { agent: AgentKind; value: string; onChange: (v: string) => void }) {
-  const [list, setList] = useState<ModelList | null>(null)
+  const list = useModelList(agent)
   const [custom, setCustom] = useState(false)
-
-  useEffect(() => {
-    let alive = true
-    window.api.listModels(agent).then((l) => alive && setList(l))
-    return () => {
-      alive = false
-    }
-  }, [agent])
 
   const known = list?.options ?? []
   const isKnown = value === '' || known.some((o) => o.value === value)

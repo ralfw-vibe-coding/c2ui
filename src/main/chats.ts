@@ -2,9 +2,11 @@ import { randomUUID } from 'node:crypto'
 import { basename } from 'node:path'
 import { applyEvent } from '@shared/transcript'
 import {
+  chatModel,
   migrateSettings,
   type AgentEvent,
   type AgentKind,
+  type ChatPatch,
   type Chat,
   type LayoutState,
   type PermissionMode,
@@ -34,6 +36,8 @@ export class ChatManager {
   private chats = new Map<string, Chat>()
   private transcripts = new Map<string, Transcript>()
   private sessions = new Map<string, AgentSession>()
+  /** Chats, deren CLI-Prozess nach dem laufenden Turn neu starten muss (Modus/Modell geändert). */
+  private restartAfterTurn = new Set<string>()
   private settings: Settings
 
   constructor(
@@ -79,6 +83,7 @@ export class ChatManager {
       cwd,
       agent,
       permissionMode: permissionMode ?? this.settings.agents[agent].defaultMode,
+      model: this.settings.agents[agent].model,
       sessionId: randomUUID(),
       sessionStarted: false,
       createdAt: now,
@@ -90,21 +95,30 @@ export class ChatManager {
     return chat
   }
 
-  update(id: string, patch: Partial<Pick<Chat, 'title' | 'permissionMode'>>): Chat | undefined {
+  update(id: string, patch: ChatPatch): Chat | undefined {
     const chat = this.chats.get(id)
     if (!chat) return undefined
     const next = { ...chat, ...patch }
     this.chats.set(id, next)
-    // Ein geänderter Berechtigungsmodus gilt ab dem nächsten Prozessstart.
-    if (patch.permissionMode && patch.permissionMode !== chat.permissionMode) {
-      const s = this.sessions.get(id)
-      if (s && !s.busy) {
-        s.dispose()
-        this.sessions.delete(id)
-      }
-    }
+    // Modus und Modell gelten ab dem nächsten Prozessstart. Die Session (Verlauf) bleibt,
+    // der neue Prozess setzt sie fort. Läuft gerade ein Turn, wird danach neu gestartet.
+    const changed =
+      (patch.permissionMode !== undefined && patch.permissionMode !== chat.permissionMode) ||
+      (patch.model !== undefined && patch.model !== chatModel(chat, this.settings))
+    if (changed) this.restartSession(id)
     this.saveChats()
     return next
+  }
+
+  private restartSession(id: string): void {
+    const s = this.sessions.get(id)
+    if (!s) return
+    if (s.busy) {
+      this.restartAfterTurn.add(id)
+      return
+    }
+    s.dispose()
+    this.sessions.delete(id)
   }
 
   delete(id: string): void {
@@ -170,7 +184,10 @@ export class ChatManager {
       { chat: () => this.chats.get(chat.id) ?? chat, settings: () => this.settings, path: this.path },
       {
         onEvent: (e) => this.emit(chat.id, e),
-        onBusy: (b) => this.events.busy(chat.id, b)
+        onBusy: (b) => {
+          this.events.busy(chat.id, b)
+          if (!b && this.restartAfterTurn.delete(chat.id)) this.restartSession(chat.id)
+        }
       }
     )
     this.sessions.set(chat.id, s)

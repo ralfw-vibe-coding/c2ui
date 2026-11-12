@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer, webFrame, type IpcRendererEvent } from 'electron'
-import type { AgentEvent, AgentKind, Chat, LayoutState, ModelList, PermissionMode, Settings, Transcript } from '@shared/types'
+import type { AgentEvent, AgentKind, Chat, ChatPatch, LayoutState, ModelList, PermissionMode, Settings, Transcript } from '@shared/types'
 
 export interface InitState {
   settings: Settings
@@ -21,7 +21,7 @@ const api = {
   setLayout: (l: LayoutState): Promise<void> => ipcRenderer.invoke('layout:set', l),
   createChat: (cwd: string, agent: AgentKind, mode?: PermissionMode): Promise<Chat> =>
     ipcRenderer.invoke('chats:create', cwd, agent, mode),
-  updateChat: (id: string, patch: Partial<Pick<Chat, 'title' | 'permissionMode'>>): Promise<Chat> =>
+  updateChat: (id: string, patch: ChatPatch): Promise<Chat> =>
     ipcRenderer.invoke('chats:update', id, patch),
   deleteChat: (id: string): Promise<void> => ipcRenderer.invoke('chats:delete', id),
   transcript: (id: string): Promise<Transcript> => ipcRenderer.invoke('transcript:get', id),
