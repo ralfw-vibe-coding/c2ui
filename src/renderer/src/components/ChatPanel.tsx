@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { chatSurfaces } from '../a2ui/chatSurfaces'
 import { scrollToSurface } from '../a2ui/A2uiBlock'
+import { ScreenStrip } from '../a2ui/ScreenStrip'
 import { AGENTS } from '@shared/types'
 import { useChat, useStore } from '../store'
 import { Icon } from './Icon'
@@ -20,6 +21,7 @@ export function ChatPanel({ chatId, active }: { chatId: string; active: boolean 
 
   // A2UI: neue render_ui-Aufrufe anwenden, bevor die Nachrichten gerendert werden.
   const freshA2ui = useMemo(() => (transcript ? chatSurfaces(chatId).sync(transcript) : []), [chatId, transcript])
+  const activeSurfaces = useMemo(() => chatSurfaces(chatId).activeSurfaces(), [chatId, freshA2ui]) // eslint-disable-line react-hooks/exhaustive-deps
   const a2uiReady = useRef(false)
   useEffect(() => {
     if (!transcript) return
@@ -36,10 +38,18 @@ export function ChatPanel({ chatId, active }: { chatId: string; active: boolean 
     }
   }, [freshA2ui, chatId, transcript])
 
+  // Scroll-Ereignisse kommen asynchron. Folgt eines kurz auf einen eigenen Sprung ans Ende,
+  // ist der Inhalt evtl. inzwischen gewachsen – das ist kein Wegscrollen des Nutzers.
+  const programmaticUntil = useRef(0)
+
   function onScroll(): void {
     const el = scrollRef.current
     if (!el) return
     const near = el.scrollHeight - el.scrollTop - el.clientHeight < NEAR_BOTTOM_PX
+    if (!near && stickRef.current && performance.now() < programmaticUntil.current) {
+      scrollToEnd()
+      return
+    }
     stickRef.current = near
     setAtBottom(near)
   }
@@ -47,6 +57,7 @@ export function ChatPanel({ chatId, active }: { chatId: string; active: boolean 
   function scrollToEnd(smooth = false): void {
     const el = scrollRef.current
     if (!el) return
+    programmaticUntil.current = performance.now() + (smooth ? 900 : 200)
     el.scrollTo({ top: el.scrollHeight, behavior: smooth ? 'smooth' : 'auto' })
     stickRef.current = true
     setAtBottom(true)
@@ -57,9 +68,26 @@ export function ChatPanel({ chatId, active }: { chatId: string; active: boolean 
     if (stickRef.current) scrollToEnd()
   }, [transcript, busy])
 
+  // Screens und Charts wachsen erst nach dem ersten Layout (Web Components, Messung der Charts).
+  // Wächst der Inhalt und man klebt am Ende, bleibt man dort.
+  const innerRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const el = innerRef.current
+    if (!el) return
+    const ro = new ResizeObserver(() => {
+      if (stickRef.current) scrollToEnd()
+    })
+    ro.observe(el)
+    // Auch der sichtbare Bereich kann schrumpfen (z. B. wenn die Screen-Leiste erscheint).
+    if (scrollRef.current) ro.observe(scrollRef.current)
+    return () => ro.disconnect()
+  }, [])
+
   return (
     <div className="chat-panel" data-chat-id={chatId}>
+      <ScreenStrip chatId={chatId} surfaceIds={activeSurfaces} />
       <div className="transcript" ref={scrollRef} onScroll={onScroll}>
+        <div className="transcript-inner" ref={innerRef}>
         {!transcript ? (
           <div className="muted center-hint">Lade …</div>
         ) : transcript.length === 0 ? (
@@ -72,6 +100,7 @@ export function ChatPanel({ chatId, active }: { chatId: string; active: boolean 
             <span className="spinner" /> {agentLabel} arbeitet …
           </div>
         )}
+        </div>
       </div>
       {!atBottom && (
         <button className="to-bottom" onClick={() => scrollToEnd(true)} title="Zum Ende">

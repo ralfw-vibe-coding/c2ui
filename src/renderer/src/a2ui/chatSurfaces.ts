@@ -51,6 +51,19 @@ export class ChatSurfaces {
     return this.processor.model.surfacesMap.get(id)
   }
 
+  /** Aktive (angelegte, nicht entfernte) Screens in der Reihenfolge ihrer Entstehung. */
+  activeSurfaces(): string[] {
+    const ids: string[] = []
+    for (const eff of this.effects.values()) {
+      for (const sid of eff.created) if (!ids.includes(sid)) ids.push(sid)
+      for (const sid of eff.deleted) {
+        const i = ids.indexOf(sid)
+        if (i >= 0) ids.splice(i, 1)
+      }
+    }
+    return ids.filter((id) => this.processor.model.surfacesMap.has(id))
+  }
+
   /** Wendet neue, erfolgreiche Aufrufe an. Liefert die IDs der dabei neu angewendeten Blöcke. */
   sync(t: Transcript): string[] {
     const fresh: string[] = []

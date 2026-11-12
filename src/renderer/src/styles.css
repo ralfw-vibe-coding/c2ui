@@ -674,7 +674,12 @@ body.resizing-row * {
   padding: 14px 16px 8px;
   display: flex;
   flex-direction: column;
+}
+.transcript-inner {
+  display: flex;
+  flex-direction: column;
   gap: 10px;
+  flex: 1 0 auto;
 }
 .center-hint {
   margin: auto;
@@ -1459,4 +1464,92 @@ button.a2ui-update:hover {
   .hljs-class .hljs-title {
     color: #7fd0de;
   }
+}
+
+/* Übersicht aktiver Screens */
+.screen-strip {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-sunken);
+  flex-shrink: 0;
+  min-width: 0;
+}
+.screen-strip.collapsed {
+  padding-top: 3px;
+  padding-bottom: 3px;
+}
+.screen-strip-toggle {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  font-size: 11.5px;
+  cursor: pointer;
+  padding: 0 4px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.screen-strip-toggle:hover {
+  color: var(--text);
+}
+.screen-strip-chevron {
+  font-size: 10px;
+}
+.screen-strip-items {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  min-width: 0;
+  padding-bottom: 2px;
+}
+.screen-thumb {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--bg-elev);
+  cursor: pointer;
+  text-align: left;
+}
+.screen-thumb:hover {
+  border-color: var(--accent);
+}
+.screen-thumb.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+.screen-thumb-view {
+  width: 112px;
+  height: 68px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: var(--bg);
+  pointer-events: none;
+  position: relative;
+}
+.screen-thumb-scale {
+  transform-origin: top left;
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+.screen-thumb-label {
+  font-size: 10.5px;
+  color: var(--text-muted);
+  max-width: 112px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0 2px;
+}
+.screen-thumb.active .screen-thumb-label {
+  color: var(--accent);
 }

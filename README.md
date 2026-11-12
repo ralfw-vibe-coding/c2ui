@@ -38,7 +38,13 @@ Ohne ausdrücklichen Wunsch antwortet Claude wie gewohnt mit Text.
 - **Rendering** mit `@a2ui/react`: Ein Screen erscheint dort, wo er angelegt wurde; Updates mit derselben
   `surfaceId` ändern ihn in-place (die App scrollt hin). Button-Aktionen gehen als Nachricht
   `A2UI-Aktion: {…}` an Claude; solange Claude arbeitet, sind Screens gesperrt.
-- Noch nicht: lokale Eingaben ohne Aktion überleben keinen Neustart; Codex hat noch kein A2UI; eigene Komponenten.
+- **Eigener Katalog** (`src/shared/a2ui-catalog.ts`): Basic Catalog + LineChart, BarChart, PieChart, ScatterChart,
+  Table, Metric, Progress, Alert, Badge, CodeBlock und ein Image, das lokale Dateien über `c2ui-file://` lädt
+  (nur Bilddateien). Neue Komponente = Schema dort + React-Implementierung (`src/renderer/src/a2ui/`) + Doku in
+  `resources/a2ui-plugin/skills/a2ui/extra-components.md` (ein Test prüft, dass jede Eigenschaft beschrieben ist).
+- **Screen-Übersicht**: Leiste mit Live-Miniaturen aller aktiven Screens eines Chats; Klick springt hin,
+  sichtbare Screens sind markiert, einklappbar.
+- Noch nicht: lokale Eingaben ohne Aktion überleben keinen Neustart; Codex hat noch kein A2UI.
 - Testansicht der Komponenten: Fenster mit `#a2ui-test` laden (`location.hash`).
 
 ## Entwicklung
@@ -50,6 +56,8 @@ npm test           # Unit-Tests (Layout, Transkript)
 npm run typecheck
 npm run smoke      # E2E gegen echte Claude CLI (Modell haiku, eigenes Datenverzeichnis)
 node scripts/a2ui-e2e.mjs   # A2UI-E2E mit Claude Sonnet (nach npm run build)
+node scripts/a2ui-charts-e2e.mjs; node scripts/a2ui-widgets-e2e.mjs   # Charts/Widgets mit Claude
+node scripts/screens-strip-check.mjs   # Screen-Übersicht ohne Modellaufruf
 ```
 
 Daten liegen unter `~/Library/Application Support/Claude2UI/` (`chats.json`, `layout.json`, `settings.json`, `transcripts/`).
