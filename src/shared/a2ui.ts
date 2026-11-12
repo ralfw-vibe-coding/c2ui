@@ -1,0 +1,77 @@
+import type { Block, Transcript } from './types'
+
+// Gemeinsame A2UI-Bausteine für Main-Prozess, MCP-Server und Renderer.
+
+export const A2UI_SERVER = 'a2ui'
+export const A2UI_TOOL = 'render_ui'
+/** So heißt das Tool in den Tool-Aufrufen der Claude CLI. */
+export const A2UI_TOOL_FULL = `mcp__${A2UI_SERVER}__${A2UI_TOOL}`
+export const A2UI_VERSION = '1.0'
+export const BASIC_CATALOG_ID = 'https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json'
+/** Präfix der Nutzernachricht, mit der eine Button-Aktion an den Agenten geht. */
+export const A2UI_ACTION_PREFIX = 'A2UI-Aktion: '
+
+export type A2uiMessage = Record<string, any>
+
+export function isA2uiCall(b: Block): boolean {
+  return b.type === 'tool_use' && (b.name === A2UI_TOOL_FULL || b.name.endsWith(`__${A2UI_TOOL}`))
+}
+
+/** Nachrichten eines render_ui-Aufrufs, vereinheitlicht (Version/Katalog ergänzt). */
+export function callMessages(input: unknown): A2uiMessage[] {
+  const raw = (input as { messages?: unknown })?.messages
+  const list = typeof raw === 'string' ? safeParse(raw) : raw
+  return Array.isArray(list) ? list.filter((m) => m && typeof m === 'object').map(normalizeMessage) : []
+}
+
+export function normalizeMessage(m: A2uiMessage): A2uiMessage {
+  const out: A2uiMessage = { ...m, version: m.version ?? A2UI_VERSION }
+  if (out.createSurface && !out.createSurface.catalogId) {
+    out.createSurface = { ...out.createSurface, catalogId: BASIC_CATALOG_ID }
+  }
+  return out
+}
+
+/** Alle erfolgreich angewendeten A2UI-Nachrichten eines Transkripts, in Reihenfolge. */
+export function acceptedMessages(t: Transcript): A2uiMessage[] {
+  const out: A2uiMessage[] = []
+  for (const item of t) {
+    if (item.type !== 'assistant') continue
+    for (const b of item.blocks) {
+      if (b.type === 'tool_use' && isA2uiCall(b) && b.result && !b.result.isError) out.push(...callMessages(b.input))
+    }
+  }
+  return out
+}
+
+export function surfaceIdOf(m: A2uiMessage): string | undefined {
+  const body = m.createSurface ?? m.updateComponents ?? m.updateDataModel ?? m.deleteSurface
+  return typeof body?.surfaceId === 'string' ? body.surfaceId : undefined
+}
+
+/** Prüft, ob alle per ID referenzierten Kinder existieren (der Processor tut das nicht). */
+export function danglingRefs(components: Map<string, { properties?: any }> | Record<string, any>): string[] {
+  const entries: [string, any][] =
+    components instanceof Map ? [...components.entries()] : Object.entries(components)
+  const ids = new Set(entries.map(([id]) => id))
+  const missing: string[] = []
+  const check = (from: string, ref: unknown): void => {
+    if (typeof ref === 'string' && !ids.has(ref)) missing.push(`„${from}“ verweist auf fehlende Komponente „${ref}“`)
+  }
+  for (const [id, c] of entries) {
+    const p = c?.properties ?? c ?? {}
+    for (const key of ['child', 'trigger', 'content']) check(id, p[key])
+    if (Array.isArray(p.children)) p.children.forEach((r: unknown) => check(id, r))
+    else if (p.children && typeof p.children === 'object') check(id, p.children.componentId)
+    if (Array.isArray(p.tabs)) p.tabs.forEach((t: any) => check(id, t?.child))
+  }
+  return missing
+}
+
+function safeParse(s: string): unknown {
+  try {
+    return JSON.parse(s)
+  } catch {
+    return undefined
+  }
+}

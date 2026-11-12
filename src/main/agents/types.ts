@@ -24,6 +24,8 @@ export interface AgentContext {
   chat(): Chat
   settings(): Settings
   path: string
+  /** Zusätzliche CLI-Argumente für A2UI (Plugin, MCP-Server); wird direkt vor dem Start aufgerufen. */
+  a2uiArgs?(): string[]
 }
 
 export type AgentFactory = (ctx: AgentContext, cb: AgentCallbacks) => AgentSession

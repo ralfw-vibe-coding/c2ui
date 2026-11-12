@@ -1,4 +1,7 @@
 import { randomUUID } from 'node:crypto'
+import { mkdirSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { A2UI_SERVER, A2UI_TOOL_FULL, acceptedMessages } from '@shared/a2ui'
 import { basename } from 'node:path'
 import { applyEvent } from '@shared/transcript'
 import {
@@ -19,6 +22,15 @@ import type { AgentFactory, AgentSession } from './agents/types'
 import type { Storage } from './storage'
 
 const DEFAULT_TITLE = 'Neuer Chat'
+
+/** Wo die App ihr A2UI-Plugin und den MCP-Server findet. */
+export interface A2uiPaths {
+  pluginDir: string
+  serverScript: string
+  /** Programm, das den Server ausführt (Electron als Node). */
+  execPath: string
+  stateDir: string
+}
 
 export interface ChatManagerEvents {
   agentEvent(chatId: string, e: AgentEvent): void
@@ -43,7 +55,8 @@ export class ChatManager {
   constructor(
     private readonly storage: Storage,
     private readonly path: string,
-    private readonly events: ChatManagerEvents
+    private readonly events: ChatManagerEvents,
+    private readonly a2ui?: A2uiPaths
   ) {
     this.settings = migrateSettings(storage.read<unknown>('settings', {}))
     for (const c of storage.read<Chat[]>('chats', [])) this.chats.set(c.id, c)
@@ -181,7 +194,12 @@ export class ChatManager {
     const factory = factories[chat.agent]
     if (!factory) throw new Error(`Unbekannter Agent „${chat.agent}“`)
     s = factory(
-      { chat: () => this.chats.get(chat.id) ?? chat, settings: () => this.settings, path: this.path },
+      {
+        chat: () => this.chats.get(chat.id) ?? chat,
+        settings: () => this.settings,
+        path: this.path,
+        a2uiArgs: () => this.a2uiArgs(chat.id)
+      },
       {
         onEvent: (e) => this.emit(chat.id, e),
         onBusy: (b) => {
@@ -192,6 +210,35 @@ export class ChatManager {
     )
     this.sessions.set(chat.id, s)
     return s
+  }
+
+  /**
+   * Argumente, die A2UI für einen Claude-Prozess einschalten: Skill per --plugin-dir, MCP-Server
+   * per --mcp-config. Vorher wird der bisherige A2UI-Stand des Chats für den Server abgelegt.
+   */
+  private a2uiArgs(chatId: string): string[] {
+    if (!this.a2ui) return []
+    const { pluginDir, serverScript, execPath, stateDir } = this.a2ui
+    mkdirSync(stateDir, { recursive: true })
+    const stateFile = join(stateDir, `${chatId}.json`)
+    writeFileSync(stateFile, JSON.stringify(acceptedMessages(this.transcript(chatId))))
+    const mcp = {
+      mcpServers: {
+        [A2UI_SERVER]: {
+          type: 'stdio',
+          command: execPath,
+          args: [serverScript],
+          env: { ELECTRON_RUN_AS_NODE: '1', A2UI_STATE_FILE: stateFile }
+        }
+      }
+    }
+    return [
+      '--plugin-dir', pluginDir,
+      // Damit Claude die Referenz des Skills lesen darf, obwohl sie außerhalb des Arbeitsverzeichnisses liegt.
+      '--add-dir', join(pluginDir, 'skills'),
+      '--mcp-config', JSON.stringify(mcp),
+      '--allowedTools', A2UI_TOOL_FULL
+    ]
   }
 
   private emit(id: string, e: AgentEvent): void {

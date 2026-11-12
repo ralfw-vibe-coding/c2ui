@@ -6,7 +6,17 @@ const shared = { '@shared': resolve(__dirname, 'src/shared') }
 
 export default defineConfig({
   main: {
-    resolve: { alias: shared }
+    resolve: { alias: shared },
+    build: {
+      // web_core ist reines ESM; in den CJS-Build des MCP-Servers wird es eingebunden.
+      externalizeDeps: { exclude: ['@a2ui/web_core'] },
+      rollupOptions: {
+        input: {
+          index: resolve(__dirname, 'src/main/index.ts'),
+          'a2ui-mcp': resolve(__dirname, 'src/mcp/a2ui-server.ts')
+        }
+      }
+    }
   },
   preload: {
     resolve: { alias: shared }

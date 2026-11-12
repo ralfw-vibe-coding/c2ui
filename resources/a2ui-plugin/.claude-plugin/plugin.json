@@ -1,0 +1,5 @@
+{
+  "name": "claude2ui",
+  "version": "0.1.0",
+  "description": "A2UI-Oberflächen im Chat der Desktop-App Claude2UI rendern (Skill + Anleitung zum Tool render_ui)."
+}

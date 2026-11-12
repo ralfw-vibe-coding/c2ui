@@ -87,6 +87,7 @@ class ClaudeSession implements AgentSession {
     const cfg = settings.agents.claude
     const model = chatModel(chat, settings)
     if (model) args.push('--model', model)
+    args.push(...(this.ctx.a2uiArgs?.() ?? []))
     if (chat.sessionStarted) args.push('--resume', chat.sessionId)
     else args.push('--session-id', chat.sessionId)
 

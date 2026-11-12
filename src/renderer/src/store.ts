@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { disposeChatSurfaces, setA2uiActionHandler } from './a2ui/chatSurfaces'
 import * as L from '@shared/layout'
 import { applyEvent } from '@shared/transcript'
 import type { AgentEvent, AgentKind, Chat, LayoutState, Settings, Transcript } from '@shared/types'
@@ -113,6 +114,11 @@ export const useStore = create<State & Actions>((set, get) => {
       window.api.onAgentEvent(onAgentEvent)
       window.api.onBusy((id, b) => set((st) => ({ busy: { ...st.busy, [id]: b } })))
       window.api.onChatsChanged((chats) => set({ chats }))
+      // Button-Aktionen aus A2UI-Screens gehen als Nutzernachricht an den Chat (gesperrt, solange er arbeitet).
+      setA2uiActionHandler((chatId, text) => {
+        if (get().busy[chatId]) return
+        void get().send(chatId, text)
+      })
       for (const l of L.leaves(layout.root)) if (l.chatId) void loadTranscript(l.chatId)
     },
 
@@ -200,6 +206,7 @@ export const useStore = create<State & Actions>((set, get) => {
       const cell = L.findCellOfChat(get().layout.root, chatId)
       if (cell) get().setLayout({ ...get().layout, root: L.setChat(get().layout.root, cell.id, null) })
       await window.api.deleteChat(chatId)
+      disposeChatSurfaces(chatId)
       set((s) => {
         const transcripts = { ...s.transcripts }
         delete transcripts[chatId]

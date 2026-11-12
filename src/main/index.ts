@@ -135,11 +135,21 @@ app.whenReady().then(() => {
   if (process.platform === 'darwin' && !app.isPackaged) app.dock?.setIcon(nativeImage.createFromPath(iconPath))
   const storage = new Storage(app.getPath('userData'))
   loginPath = resolveLoginPath()
-  manager = new ChatManager(storage, loginPath, {
-    agentEvent: (id, e) => send('agent:event', id, e),
-    busy: (id, b) => send('agent:busy', id, b),
-    chatsChanged: (chats) => send('chats:changed', chats)
-  })
+  manager = new ChatManager(
+    storage,
+    loginPath,
+    {
+      agentEvent: (id, e) => send('agent:event', id, e),
+      busy: (id, b) => send('agent:busy', id, b),
+      chatsChanged: (chats) => send('chats:changed', chats)
+    },
+    {
+      pluginDir: join(app.getAppPath(), 'resources', 'a2ui-plugin'),
+      serverScript: join(__dirname, 'a2ui-mcp.js'),
+      execPath: process.execPath,
+      stateDir: join(app.getPath('userData'), 'a2ui-state')
+    }
+  )
   registerIpc()
   createWindow()
 

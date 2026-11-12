@@ -18,6 +18,22 @@
   --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', system-ui, sans-serif;
   --mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
   color-scheme: light;
+
+  /* A2UI-Komponenten an die App-Farben anpassen */
+  --a2ui-color-primary: var(--accent);
+  --a2ui-color-primary-hover: color-mix(in srgb, var(--accent) 85%, black);
+  --a2ui-color-primary-dark: color-mix(in srgb, var(--accent) 75%, black);
+  --a2ui-color-primary-light: var(--accent-soft);
+  --a2ui-color-on-primary: #ffffff;
+  --a2ui-color-background: var(--bg-elev);
+  --a2ui-color-on-background: var(--text);
+  --a2ui-color-surface: var(--bg);
+  --a2ui-color-on-surface: var(--text);
+  --a2ui-color-input: var(--bg-elev);
+  --a2ui-color-on-input: var(--text);
+  --a2ui-color-border: var(--border-strong);
+  --a2ui-text-color-text: var(--text);
+  --a2ui-text-caption-color: var(--text-muted);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -988,4 +1004,76 @@ body.resizing-row * {
   justify-content: flex-end;
   gap: 8px;
   margin-top: 4px;
+}
+
+/* ---------- A2UI ---------- */
+
+.a2ui-frame {
+  accent-color: var(--accent);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+  padding: 4px;
+  transition: opacity 0.15s, box-shadow 0.3s;
+}
+.a2ui-locked {
+  opacity: 0.6;
+  pointer-events: none;
+}
+.a2ui-flash {
+  animation: a2ui-flash 1.2s ease-out;
+}
+@keyframes a2ui-flash {
+  0% {
+    box-shadow: 0 0 0 3px var(--accent);
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+.a2ui-md p {
+  margin: 0.2em 0;
+}
+.a2ui-pending,
+.a2ui-update {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  font-size: 12px;
+  color: var(--text-muted);
+  background: none;
+  border: 1px dashed var(--border-strong);
+  border-radius: 6px;
+  padding: 3px 8px;
+}
+button.a2ui-update {
+  cursor: pointer;
+}
+button.a2ui-update:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.a2ui-action {
+  background: var(--user-bubble);
+  border-radius: 12px 12px 4px 12px;
+  padding: 6px 12px;
+  max-width: 85%;
+  font-size: 12.5px;
+}
+.a2ui-action summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  list-style: none;
+}
+.a2ui-action summary::-webkit-details-marker {
+  display: none;
+}
+.a2ui-action pre {
+  font-family: var(--mono);
+  font-size: 11px;
+  white-space: pre-wrap;
+  margin: 6px 0 0;
 }

@@ -1,4 +1,6 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { chatSurfaces } from '../a2ui/chatSurfaces'
+import { scrollToSurface } from '../a2ui/A2uiBlock'
 import { AGENTS } from '@shared/types'
 import { useChat, useStore } from '../store'
 import { Icon } from './Icon'
@@ -15,6 +17,24 @@ export function ChatPanel({ chatId, active }: { chatId: string; active: boolean 
   const scrollRef = useRef<HTMLDivElement>(null)
   const stickRef = useRef(true)
   const [atBottom, setAtBottom] = useState(true)
+
+  // A2UI: neue render_ui-Aufrufe anwenden, bevor die Nachrichten gerendert werden.
+  const freshA2ui = useMemo(() => (transcript ? chatSurfaces(chatId).sync(transcript) : []), [chatId, transcript])
+  const a2uiReady = useRef(false)
+  useEffect(() => {
+    if (!transcript) return
+    // Beim ersten Laden nicht springen, nur bei neuen Updates während der Sitzung.
+    if (!a2uiReady.current) {
+      a2uiReady.current = true
+      return
+    }
+    const cs = chatSurfaces(chatId)
+    const updated = freshA2ui.flatMap((id) => cs.effect(id)?.updated ?? [])
+    if (updated.length) {
+      stickRef.current = false
+      requestAnimationFrame(() => scrollToSurface(chatId, updated[updated.length - 1]))
+    }
+  }, [freshA2ui, chatId, transcript])
 
   function onScroll(): void {
     const el = scrollRef.current
@@ -38,14 +58,14 @@ export function ChatPanel({ chatId, active }: { chatId: string; active: boolean 
   }, [transcript, busy])
 
   return (
-    <div className="chat-panel">
+    <div className="chat-panel" data-chat-id={chatId}>
       <div className="transcript" ref={scrollRef} onScroll={onScroll}>
         {!transcript ? (
           <div className="muted center-hint">Lade …</div>
         ) : transcript.length === 0 ? (
           <div className="muted center-hint">Schreib die erste Nachricht.</div>
         ) : (
-          transcript.map((item) => <TranscriptItemView key={item.id} item={item} />)
+          transcript.map((item) => <TranscriptItemView key={item.id} item={item} chatId={chatId} />)
         )}
         {busy && (
           <div className="working">

@@ -25,6 +25,22 @@ Pro Turn ein `codex exec --json`-Prozess im Arbeitsverzeichnis, ab dem zweiten T
 Der Sandbox-Modus geht als `-c sandbox_mode=…` mit, Rückfragen sind aus (`approval_policy="never"`),
 `--skip-git-repo-check` erlaubt Ordner ohne Git. Beide Adapter implementieren `src/main/agents/types.ts`.
 
+## A2UI (Inkrement 2, erster Stand)
+
+Claude kann auf Wunsch interaktive Oberflächen im Chat anzeigen (A2UI v1.0, Basic Catalog).
+Ohne ausdrücklichen Wunsch antwortet Claude wie gewohnt mit Text.
+
+- **Plugin** `resources/a2ui-plugin/` wird jedem Claude-Prozess per `--plugin-dir` mitgegeben: Skill `a2ui`
+  (Anleitung + `reference.md`, erzeugt von `scripts/gen-a2ui-reference.mjs` aus dem offiziellen Katalog).
+- **MCP-Server** `src/mcp/a2ui-server.ts` (Build: `out/main/a2ui-mcp.js`, läuft mit Electron als Node) stellt das
+  Tool `render_ui` bereit und prüft jede Nachricht mit `@a2ui/web_core` gegen den Katalog. Fehler gehen an das
+  Modell zurück, das dann korrigiert. Den bisherigen Stand eines Chats bekommt er über `A2UI_STATE_FILE`.
+- **Rendering** mit `@a2ui/react`: Ein Screen erscheint dort, wo er angelegt wurde; Updates mit derselben
+  `surfaceId` ändern ihn in-place (die App scrollt hin). Button-Aktionen gehen als Nachricht
+  `A2UI-Aktion: {…}` an Claude; solange Claude arbeitet, sind Screens gesperrt.
+- Noch nicht: lokale Eingaben ohne Aktion überleben keinen Neustart; Codex hat noch kein A2UI; eigene Komponenten.
+- Testansicht der Komponenten: Fenster mit `#a2ui-test` laden (`location.hash`).
+
 ## Entwicklung
 
 ```bash
@@ -33,6 +49,7 @@ npm run dev        # App mit Hot Reload
 npm test           # Unit-Tests (Layout, Transkript)
 npm run typecheck
 npm run smoke      # E2E gegen echte Claude CLI (Modell haiku, eigenes Datenverzeichnis)
+node scripts/a2ui-e2e.mjs   # A2UI-E2E mit Claude Sonnet (nach npm run build)
 ```
 
 Daten liegen unter `~/Library/Application Support/Claude2UI/` (`chats.json`, `layout.json`, `settings.json`, `transcripts/`).

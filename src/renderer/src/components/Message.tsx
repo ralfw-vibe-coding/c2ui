@@ -2,11 +2,14 @@ import { memo } from 'react'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import type { Block, TranscriptItem } from '@shared/types'
+import { A2UI_ACTION_PREFIX, isA2uiCall } from '@shared/a2ui'
+import { A2uiBlock, ActionMessage } from '../a2ui/A2uiBlock'
 import { Icon } from './Icon'
 
-export const TranscriptItemView = memo(function TranscriptItemView({ item }: { item: TranscriptItem }) {
+export const TranscriptItemView = memo(function TranscriptItemView({ item, chatId }: { item: TranscriptItem; chatId: string }) {
   switch (item.type) {
     case 'user':
+      if (item.text.startsWith(A2UI_ACTION_PREFIX)) return <ActionMessage text={item.text} />
       return (
         <div className="msg msg-user">
           <div className="bubble">{item.text}</div>
@@ -16,7 +19,7 @@ export const TranscriptItemView = memo(function TranscriptItemView({ item }: { i
       return (
         <div className="msg msg-assistant">
           {item.blocks.map((b, i) => (
-            <BlockView key={i} block={b} />
+            <BlockView key={i} block={b} chatId={chatId} />
           ))}
         </div>
       )
@@ -44,7 +47,7 @@ export const TranscriptItemView = memo(function TranscriptItemView({ item }: { i
   }
 })
 
-function BlockView({ block }: { block: Block }) {
+function BlockView({ block, chatId }: { block: Block; chatId: string }) {
   switch (block.type) {
     case 'text':
       if (!block.text) return null
@@ -62,6 +65,7 @@ function BlockView({ block }: { block: Block }) {
         </details>
       )
     case 'tool_use': {
+      if (isA2uiCall(block)) return <A2uiBlock chatId={chatId} block={block} />
       const status = !block.result ? 'pending' : block.result.isError ? 'error' : 'ok'
       return (
         <details className={`tool tool-${status}`}>
