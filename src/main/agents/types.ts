@@ -27,6 +27,8 @@ export interface AgentContext {
   path: string
   /** A2UI-Einrichtung für diesen Chat; wird direkt vor jedem Prozessstart aufgerufen. */
   a2ui?(): A2uiSetup | null
+  /** Bisheriger Verlauf als Text (für einen Neustart ohne resume), ohne die aktuelle Nachricht. */
+  history?(): string
 }
 
 export type AgentFactory = (ctx: AgentContext, cb: AgentCallbacks) => AgentSession

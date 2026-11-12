@@ -1,10 +1,9 @@
 import { memo } from 'react'
-import Markdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
 import type { Block, TranscriptItem } from '@shared/types'
 import { A2UI_ACTION_PREFIX, isA2uiCall } from '@shared/a2ui'
 import { A2uiBlock, ActionMessage } from '../a2ui/A2uiBlock'
 import { Icon } from './Icon'
+import { ChatMarkdown, LocalImage } from './LocalImage'
 
 export const TranscriptItemView = memo(function TranscriptItemView({ item, chatId }: { item: TranscriptItem; chatId: string }) {
   switch (item.type) {
@@ -53,9 +52,11 @@ function BlockView({ block, chatId }: { block: Block; chatId: string }) {
       if (!block.text) return null
       return (
         <div className="md">
-          <Markdown remarkPlugins={[remarkGfm]}>{block.text}</Markdown>
+          <ChatMarkdown chatId={chatId} text={block.text} />
         </div>
       )
+    case 'image':
+      return <LocalImage chatId={chatId} path={block.path} />
     case 'thinking':
       if (!block.text.trim()) return null
       return (

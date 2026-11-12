@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { acceptedMessages } from '@shared/a2ui'
+import { acceptedMessages, callMessages, isA2uiCall, surfaceIdOf } from '@shared/a2ui'
 import type { A2uiSetup } from './agents/a2ui'
 import { basename } from 'node:path'
 import { applyEvent } from '@shared/transcript'
@@ -201,7 +201,8 @@ export class ChatManager {
         chat: () => this.chats.get(chat.id) ?? chat,
         settings: () => this.settings,
         path: this.path,
-        a2ui: () => this.a2uiSetup(chat.id)
+        a2ui: () => this.a2uiSetup(chat.id),
+        history: () => this.historyText(chat.id)
       },
       {
         onEvent: (e) => this.emit(chat.id, e),
@@ -213,6 +214,38 @@ export class ChatManager {
     )
     this.sessions.set(chat.id, s)
     return s
+  }
+
+  /**
+   * Verlauf als Text für einen Neustart ohne resume: Nutzer- und Antworttexte sowie angezeigte
+   * A2UI-Screens, ohne die gerade gesendete Nachricht. Gekürzt wird vorne (das Neueste bleibt).
+   */
+  private historyText(chatId: string, maxChars = 40_000): string {
+    const t = [...this.transcript(chatId)]
+    while (t.length && t[t.length - 1].type !== 'user') t.pop()
+    t.pop() // aktuelle Nachricht
+    const lines: string[] = []
+    const screens = new Set<string>()
+    for (const item of t) {
+      if (item.type === 'user') lines.push(`Nutzer: ${item.text}`)
+      else if (item.type === 'assistant') {
+        for (const b of item.blocks) {
+          if (b.type === 'text' && b.text.trim()) lines.push(`Assistent: ${b.text}`)
+          else if (b.type === 'image') lines.push(`[Bild erzeugt: ${b.path}]`)
+          else if (b.type === 'tool_use' && isA2uiCall(b) && b.result && !b.result.isError) {
+            const ids = callMessages(b.input).map(surfaceIdOf).filter(Boolean) as string[]
+            ids.forEach((id) => screens.add(id))
+            lines.push(`[A2UI-Screen angezeigt/aktualisiert: ${[...new Set(ids)].join(', ')}]`)
+          }
+        }
+      }
+    }
+    if (screens.size) {
+      lines.push(`Bestehende A2UI-Screens (weiter per updateComponents/updateDataModel änderbar): ${[...screens].join(', ')}`)
+    }
+    let text = lines.join('\n\n')
+    if (text.length > maxChars) text = '…(ältere Teile gekürzt)…\n\n' + text.slice(text.length - maxChars)
+    return text
   }
 
   /** A2UI-Einrichtung für einen Prozessstart; legt vorher den bisherigen A2UI-Stand des Chats ab. */

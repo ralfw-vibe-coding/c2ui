@@ -120,6 +120,7 @@ export function migrateSettings(raw: any): Settings {
 export type Block =
   | { type: 'text'; text: string }
   | { type: 'thinking'; text: string }
+  | { type: 'image'; path: string }
   | {
       type: 'tool_use'
       id: string

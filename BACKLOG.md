@@ -19,6 +19,11 @@
 - **Lokale Eingaben in A2UI-Screens speichern**, die ohne Button-Aktion gemacht wurden (überleben derzeit keinen Neustart).
 - **Weitere Widgets** nach Bedarf (z. B. Timeline, Kalender, Karte, Kanban); Muster: Schema in
   `src/shared/a2ui-catalog.ts`, React in `src/renderer/src/a2ui/`, Doku in `extra-components.md`.
+- **Codex über `codex app-server`** statt `codex exec`: Codex stellt Threads im Hintergrund auf ein
+  „paginated“-Format um, das `codex exec resume` nicht fortsetzen kann („paginated_threads is not supported yet“).
+  Derzeit fängt die App das ab und startet einen neuen Thread mit dem Verlauf aus ihrem Transkript (verliert
+  Detailkontext wie Befehlsausgaben). Der app-server (JSON-RPC, von der Codex-App genutzt) könnte das sauber lösen
+  und brächte auch Streaming, Bild-Events und Freigaben.
 - **Codex**: Antworten streamen (derzeit nur ganze Absätze), Kosten anzeigen.
 - **Paketierung**: DMG/Zip und Notarisierung für die Weitergabe (lokal läuft `npm run dist` bereits).
 - **Freigaben im UI** statt nur fester Berechtigungsmodi (Claude `--permission-prompt-tool`).

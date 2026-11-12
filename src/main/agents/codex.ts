@@ -1,4 +1,7 @@
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
+import { readdirSync, statSync } from 'node:fs'
+import { homedir } from 'node:os'
+import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { chatModel, type Block } from '@shared/types'
 import { codexConfigDefaultModel } from '../models'
@@ -7,6 +10,7 @@ import { codexA2uiLaunch } from './a2ui'
 import type { AgentCallbacks, AgentContext, AgentFactory, AgentSession } from './types'
 
 const MAX_TOOL_RESULT = 20_000
+const RESUME_UNSUPPORTED = /thread\/resume failed|paginated_threads is not supported/i
 
 /**
  * Codex-CLI-Adapter.
@@ -34,6 +38,11 @@ class CodexSession implements AgentSession {
   private pendingEnd: { isError: boolean; errorText?: string } | null = null
   private closeTimer: NodeJS.Timeout | null = null
   private lastNotice = ''
+  /** Text des laufenden Turns (für den Neustart ohne resume). */
+  private turnText = ''
+  /** Der laufende Prozess setzt eine bestehende Session fort. */
+  private resuming = false
+  private retried = false
 
   constructor(
     private readonly ctx: AgentContext,
@@ -54,8 +63,10 @@ class CodexSession implements AgentSession {
     this.seenTools.clear()
     this.pendingEnd = null
     this.lastNotice = ''
+    this.turnText = text
+    this.retried = false
     try {
-      const p = this.spawn()
+      const p = this.spawn(false)
       p.stdin.end(text)
     } catch (err) {
       this.endTurn(true, String((err as Error).message ?? err))
@@ -83,7 +94,8 @@ class CodexSession implements AgentSession {
 
   // ---------------------------------------------------------------------------
 
-  private spawn(): ChildProcessWithoutNullStreams {
+  /** @param fresh true = neue Session starten, auch wenn der Chat schon eine hat. */
+  private spawn(fresh: boolean): ChildProcessWithoutNullStreams {
     const chat = this.ctx.chat()
     const cfg = this.ctx.settings().agents.codex
     const common = [
@@ -99,7 +111,8 @@ class CodexSession implements AgentSession {
     const a2ui = this.ctx.a2ui?.()
     const launch = a2ui ? codexA2uiLaunch(a2ui) : { args: [], env: {} }
     common.push(...launch.args)
-    const args = chat.sessionStarted
+    this.resuming = chat.sessionStarted && !fresh
+    const args = this.resuming
       ? ['exec', 'resume', ...common, chat.sessionId, '-']
       : ['exec', ...common, '-']
 
@@ -130,7 +143,14 @@ class CodexSession implements AgentSession {
       if (this.closeTimer) clearTimeout(this.closeTimer)
       this.closeTimer = null
       if (this.turnEnded) return
-      if (this.pendingEnd) this.endTurn(this.pendingEnd.isError, this.pendingEnd.errorText)
+      if (!this.pendingEnd && !this.interrupted && this.resuming && !this.retried && RESUME_UNSUPPORTED.test(this.stderrTail)) {
+        this.restartWithHistory()
+        return
+      }
+      if (this.pendingEnd) {
+        this.emitGeneratedImages()
+        this.endTurn(this.pendingEnd.isError, this.pendingEnd.errorText)
+      }
       else if (this.interrupted) this.endTurn(true, 'Abgebrochen.')
       else {
         const detail = this.lastNotice || lastErrorLines(this.stderrTail) || `Exit-Code ${code ?? signal}`
@@ -138,6 +158,54 @@ class CodexSession implements AgentSession {
       }
     })
     return p
+  }
+
+  /**
+   * Codex kann manche Threads nicht per `exec resume` fortsetzen („paginated_threads is not
+   * supported yet“ – Codex stellt ältere Threads im Hintergrund auf ein neues Format um).
+   * Dann startet ein neuer Thread, der den bisherigen Verlauf aus dem Transkript der App erhält.
+   */
+  private restartWithHistory(): void {
+    this.retried = true
+    this.cb.onEvent({
+      kind: 'notice',
+      id: randomUUID(),
+      text:
+        'Codex kann diese Session nicht fortsetzen (Codex hat sie in ein Format überführt, das „codex exec resume“ noch nicht unterstützt). ' +
+        'Der Chat geht in einer neuen Codex-Session weiter, die den bisherigen Verlauf als Kontext bekommt.'
+    })
+    const history = this.ctx.history?.() ?? ''
+    const prompt = history
+      ? `Dies ist die Fortsetzung eines früheren Gesprächs, dessen Codex-Session nicht fortgesetzt werden konnte.\n` +
+        `Bisheriger Verlauf (vom Client mitgeschrieben, ggf. gekürzt):\n<verlauf>\n${history}\n</verlauf>\n\n` +
+        `Aktuelle Nachricht des Nutzers:\n${this.turnText}`
+      : this.turnText
+    try {
+      const p = this.spawn(true)
+      p.stdin.end(prompt)
+    } catch (err) {
+      this.endTurn(true, String((err as Error).message ?? err))
+    }
+  }
+
+  /**
+   * Die Bildgenerierung von Codex taucht nicht als eigenes Ereignis auf; Codex legt die Bilder
+   * unter $CODEX_HOME/generated_images/<thread>/ ab. Neue Bilder dieses Turns werden angezeigt.
+   */
+  private emitGeneratedImages(): void {
+    const thread = this.ctx.chat().sessionId
+    const dir = join(process.env.CODEX_HOME || join(homedir(), '.codex'), 'generated_images', thread)
+    let files: string[] = []
+    try {
+      files = readdirSync(dir)
+        .filter((f) => /\.(png|jpe?g|webp|gif)$/i.test(f))
+        .map((f) => join(dir, f))
+        .filter((f) => statSync(f).mtimeMs >= this.turnStartedAt - 1000)
+        .sort((a, b) => statSync(a).mtimeMs - statSync(b).mtimeMs)
+    } catch {
+      return
+    }
+    if (files.length) this.addBlocks(files.map((path) => ({ type: 'image' as const, path })))
   }
 
   private onData(d: string): void {

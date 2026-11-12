@@ -1569,3 +1569,23 @@ button.a2ui-update:hover {
   font-size: 13px;
   line-height: 1;
 }
+
+/* Lokale Bilder in Antworten (z. B. Bildgenerierung) */
+.msg-image {
+  display: block;
+  align-self: flex-start;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0;
+  margin: 4px 0;
+  background: var(--bg);
+  cursor: zoom-in;
+  overflow: hidden;
+  max-width: min(100%, 520px);
+}
+.msg-image img {
+  display: block;
+  max-width: 100%;
+  max-height: 520px;
+  object-fit: contain;
+}
