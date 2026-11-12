@@ -1,11 +1,11 @@
 ---
 name: a2ui
-description: Zeigt interaktive Oberflächen (Formulare, Tabellen, Kennzahlen/KPIs, Diagramme/Charts, Fortschrittsbalken, Hinweise, Code, Bilder auch aus lokalen Dateien, Dashboards) direkt im Chat der App Claude2UI an, über das MCP-Tool render_ui im A2UI-Format v1.0. Verwenden, wenn der Nutzer ausdrücklich eine Oberfläche, einen Screen, ein Formular, „A2UI“ o. Ä. wünscht, oder wenn eine Nachricht mit „A2UI-Aktion:“ beginnt (Interaktion mit einem bereits angezeigten Screen).
+description: Zeigt interaktive Oberflächen (Formulare, Tabellen, Kennzahlen/KPIs, Diagramme/Charts, Fortschrittsbalken, Hinweise, Code, Bilder auch aus lokalen Dateien, Dashboards) direkt im Chat der App C2UI an, über das MCP-Tool render_ui im A2UI-Format v1.0. Verwenden, wenn der Nutzer ausdrücklich eine Oberfläche, einen Screen, ein Formular, „A2UI“ o. Ä. wünscht, oder wenn eine Nachricht mit „A2UI-Aktion:“ beginnt (Interaktion mit einem bereits angezeigten Screen).
 ---
 
 # A2UI-Screens im Chat rendern
 
-Die App Claude2UI kann A2UI-Oberflächen (Protokoll v1.0) direkt im Chat anzeigen. Ihr Katalog enthält alle
+Die App C2UI kann A2UI-Oberflächen (Protokoll v1.0) direkt im Chat anzeigen. Ihr Katalog enthält alle
 Komponenten des A2UI-Basic-Catalog **plus**:
 - Diagramme: **LineChart, BarChart, PieChart, ScatterChart**
 - **Table** (sortierbar, Zeilen auswählbar), **Metric** (KPI-Kachel mit Veränderung und Verlauf), **Progress**,
@@ -40,7 +40,7 @@ Bestehende Screens zeichnet die App nach Änderungen an Komponenten automatisch 
 Jede Nachricht hat `"version": "1.0"` und genau einen dieser Schlüssel:
 
 - **`createSurface`** – neuer Screen: `surfaceId` (eindeutig und sprechend, z. B. `"bestellung"`),
-  `catalogId` (`https://claude2ui.local/catalogs/v1/catalog.json` – der Katalog von Claude2UI),
+  `catalogId` (`https://claude2ui.local/catalogs/v1/catalog.json` – der Katalog von C2UI),
   `components` (flache Liste, genau eine Komponente mit `"id": "root"`), optional `dataModel`.
 - **`updateComponents`** – `surfaceId` + `components`: fügt Komponenten hinzu oder ersetzt sie (gleiche `id` = ersetzen).
 - **`updateDataModel`** – `surfaceId`, `path` (JSON Pointer, Standard `/`), `value`: setzt einen Wert (`null` löscht).

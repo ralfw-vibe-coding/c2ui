@@ -1,12 +1,12 @@
 // Gibt dem lokalen Electron (node_modules) im Entwicklungsmodus den Namen und das Icon
-// von Claude2UI, damit Menüleiste und Dock nicht "Electron" zeigen. Nur macOS.
+// von C2UI, damit Menüleiste und Dock nicht "Electron" zeigen. Nur macOS.
 // Läuft automatisch nach `npm install` (postinstall).
 import { execFileSync } from 'node:child_process'
 import { copyFileSync, existsSync, utimesSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const NAME = 'Claude2UI'
+const NAME = 'C2UI'
 
 if (process.platform !== 'darwin') process.exit(0)
 

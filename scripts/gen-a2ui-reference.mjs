@@ -50,7 +50,7 @@ function componentProps(def) {
 
 const lines = []
 const CLAUDE2UI_CATALOG_ID = 'https://claude2ui.local/catalogs/v1/catalog.json'
-lines.push('# A2UI v1.0 – Katalog von Claude2UI')
+lines.push('# A2UI v1.0 – Katalog von C2UI')
 lines.push('')
 lines.push(`catalogId: \`${CLAUDE2UI_CATALOG_ID}\` – enthält alle Komponenten des offiziellen Basic Catalog`)
 lines.push('(unten) plus Charts und ein Image für lokale Dateien (am Ende). Diese catalogId bei createSurface verwenden.')
@@ -64,7 +64,7 @@ lines.push('- Alle Komponenten haben `id` und `component`; optional `weight` (Fl
 lines.push('')
 lines.push('## Komponenten des Basic Catalog')
 for (const [name, def] of Object.entries(catalog.components)) {
-  if (name === 'Image') continue // ersetzt durch das Image von Claude2UI (siehe unten)
+  if (name === 'Image') continue // ersetzt durch das Image von C2UI (siehe unten)
   const { props, required, checkable } = componentProps(def)
   lines.push('')
   lines.push(`### ${name}${checkable ? ' (unterstützt `checks`)' : ''}`)

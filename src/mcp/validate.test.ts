@@ -64,7 +64,7 @@ describe('A2UI-Validierung', () => {
     }
   })
 
-  it('normalisiert auf den Claude2UI-Katalog', () => {
+  it('normalisiert auf den C2UI-Katalog', () => {
     expect(callMessages({ messages: [{ createSurface: { surfaceId: 's' } }] })[0].createSurface.catalogId).toBe(CLAUDE2UI_CATALOG_ID)
   })
 
@@ -110,7 +110,7 @@ describe('A2UI-Validierung', () => {
     expect(r.errors[0]).toMatch(/Typ „Fancy“ gibt es nicht/)
   })
 
-  it('Basic-Katalog-ID wird auf den Claude2UI-Katalog umgeschrieben (Table funktioniert trotzdem)', () => {
+  it('Basic-Katalog-ID wird auf den C2UI-Katalog umgeschrieben (Table funktioniert trotzdem)', () => {
     const basic = 'https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json'
     const msgs = callMessages({
       messages: [{ createSurface: { surfaceId: 's', catalogId: basic, components: [{ id: 'root', component: 'Table', columns: [{ key: 'a' }], data: [] }] } }]

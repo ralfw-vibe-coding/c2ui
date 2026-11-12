@@ -1,4 +1,4 @@
-# A2UI v1.0 – Katalog von Claude2UI
+# A2UI v1.0 – Katalog von C2UI
 
 catalogId: `https://claude2ui.local/catalogs/v1/catalog.json` – enthält alle Komponenten des offiziellen Basic Catalog
 (unten) plus Charts und ein Image für lokale Dateien (am Ende). Diese catalogId bei createSurface verwenden.
@@ -221,9 +221,9 @@ Example 2: Dynamic list with templates
 ]
 ```
 
-## Zusätzliche Komponenten von Claude2UI
+## Zusätzliche Komponenten von C2UI
 
-Diese Komponenten gibt es nur im Katalog von Claude2UI (`catalogId` siehe oben). Sie ergänzen bzw. ersetzen den Basic Catalog.
+Diese Komponenten gibt es nur im Katalog von C2UI (`catalogId` siehe oben). Sie ergänzen bzw. ersetzen den Basic Catalog.
 
 ### Image (ersetzt das Image des Basic Catalog)
 - `url` **Pflicht**: DynamicString – `http(s):`- oder `data:`-URL **oder lokaler Pfad**: absolut (`/Users/…/bild.png`),

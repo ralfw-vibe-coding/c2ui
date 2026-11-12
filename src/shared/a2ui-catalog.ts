@@ -2,7 +2,7 @@ import { z } from 'zod'
 import { basicCatalog, Catalog, CommonSchemas, createFunctionImplementation, OpenUrlApi, type ComponentApi } from '@a2ui/web_core/v1_0'
 
 /**
- * Katalog von Claude2UI: alle Komponenten des A2UI-Basic-Catalog, dazu Charts, und ein Image,
+ * Katalog von C2UI: alle Komponenten des A2UI-Basic-Catalog, dazu Charts, und ein Image,
  * das auch lokale Dateien anzeigen kann. Hier stehen nur die APIs (Name + Schema) – damit
  * kann der MCP-Server ohne React validieren. Die React-Implementierungen hängt der Renderer an.
  */

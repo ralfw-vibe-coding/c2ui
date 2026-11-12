@@ -30,7 +30,7 @@ const DESCRIBE_TOOL = 'describe_components'
 
 /** Zusätzliche Systemanweisung für Werkstatt-Chats (eigene Komponenten bauen/bearbeiten). */
 export function workshopPrompt(componentsDir: string): string {
-  return `Du bist in der Komponenten-Werkstatt von Claude2UI. Dein Arbeitsverzeichnis ist der Ordner mit den eigenen
+  return `Du bist in der Komponenten-Werkstatt von C2UI. Dein Arbeitsverzeichnis ist der Ordner mit den eigenen
 A2UI-Komponenten des Nutzers (${componentsDir}). Jede Komponente ist ein Unterordner mit einer component.json:
 eine Vorlage aus vorhandenen A2UI-Komponenten mit eigenen Eigenschaften. Das Format steht vollständig in ANLEITUNG.md
 in diesem Ordner – lies sie zu Beginn, bevor du etwas anlegst oder änderst.

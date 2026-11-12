@@ -9,7 +9,7 @@ export const A2UI_TOOL = 'render_ui'
 export const A2UI_TOOL_FULL = `mcp__${A2UI_SERVER}__${A2UI_TOOL}`
 export const A2UI_VERSION = '1.0'
 export const BASIC_CATALOG_ID = 'https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json'
-/** Katalog von Claude2UI: Basic Catalog + Charts + Image mit lokalen Dateien (siehe a2ui-catalog.ts). */
+/** Katalog von C2UI: Basic Catalog + Charts + Image mit lokalen Dateien (siehe a2ui-catalog.ts). */
 export const CLAUDE2UI_CATALOG_ID = 'https://claude2ui.local/catalogs/v1/catalog.json'
 /** Protokoll, über das der Renderer lokale Bilder lädt. */
 export const LOCAL_FILE_SCHEME = 'c2ui-file'
@@ -18,7 +18,7 @@ export const A2UI_ACTION_PREFIX = 'A2UI-Aktion: '
 
 export type A2uiMessage = Record<string, any>
 
-/** Namen aller eingebauten Komponenten (Basic Catalog + Claude2UI); eigene dürfen sie nicht überschreiben. */
+/** Namen aller eingebauten Komponenten (Basic Catalog + C2UI); eigene dürfen sie nicht überschreiben. */
 export const BUILTIN_COMPONENT_NAMES = [
   'Text', 'Image', 'Icon', 'Video', 'AudioPlayer', 'Row', 'Column', 'List', 'Card', 'Tabs', 'Modal', 'Divider',
   'Button', 'TextField', 'CheckBox', 'ChoicePicker', 'Slider', 'DateTimeInput',
@@ -42,8 +42,8 @@ export function rawCallMessages(input: unknown): A2uiMessage[] {
 }
 
 /**
- * Vereinheitlicht eine Nachricht: Version ergänzen, Katalog auf den von Claude2UI setzen.
- * Der Claude2UI-Katalog enthält den Basic Catalog vollständig – eine Basic-ID wird deshalb
+ * Vereinheitlicht eine Nachricht: Version ergänzen, Katalog auf den von C2UI setzen.
+ * Der C2UI-Katalog enthält den Basic Catalog vollständig – eine Basic-ID wird deshalb
  * verlustfrei umgeschrieben (sonst fehlten Table, Charts usw., wenn ein Modell die alte ID nutzt).
  */
 export function normalizeMessage(m: A2uiMessage): A2uiMessage {

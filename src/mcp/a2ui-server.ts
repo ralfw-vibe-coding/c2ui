@@ -45,7 +45,7 @@ function loadHistory(): A2uiMessage[] {
   }
 }
 
-const INSTRUCTIONS = `Dieser Server zeigt A2UI-Oberflächen (v1.0, Basic Catalog) direkt im Chat der App Claude2UI an.
+const INSTRUCTIONS = `Dieser Server zeigt A2UI-Oberflächen (v1.0, Basic Catalog) direkt im Chat der App C2UI an.
 Nutze render_ui nur, wenn der Nutzer eine Oberfläche wünscht oder mit einem Screen interagiert
 (Nachrichten, die mit "${A2UI_ACTION_PREFIX.trim()}" beginnen). Sonst normal mit Text antworten.
 Vor dem ersten Screen den Skill "a2ui" laden (Protokoll, Komponenten, Beispiele).
@@ -55,7 +55,7 @@ const DESCRIBE_TOOL = 'describe_components'
 
 const DESCRIBE = {
   name: DESCRIBE_TOOL,
-  description: `Liefert die verfügbaren A2UI-Komponenten von Claude2UI: eingebaute (Basic Catalog, Charts, Table, Metric …)
+  description: `Liefert die verfügbaren A2UI-Komponenten von C2UI: eingebaute (Basic Catalog, Charts, Table, Metric …)
 und eigene Komponenten des Nutzers. Ohne Argument: Übersicht plus vollständige Doku der eigenen Komponenten.
 Mit "names": Doku genau dieser Komponenten. Vor dem Bau eines Screens aufrufen, um eigene Komponenten zu kennen.`,
   inputSchema: {

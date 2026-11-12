@@ -3,7 +3,7 @@ import { A2UI_ACTION_PREFIX, callMessages, isA2uiCall, surfaceIdOf } from '@shar
 import { buildClaude2uiCatalog } from '@shared/a2ui-catalog'
 import { COMPONENT_IMPLS } from './components'
 
-// Ein Katalog für alle Chats: Claude2UI (mit React-Komponenten) und der Basic Catalog (ältere Screens).
+// Ein Katalog für alle Chats: C2UI (mit React-Komponenten) und der Basic Catalog (ältere Screens).
 let catalogs: unknown[] | null = null
 const getCatalogs = (): unknown[] => (catalogs ??= [buildClaude2uiCatalog(COMPONENT_IMPLS as never), basicCatalog])
 import type { Transcript } from '@shared/types'

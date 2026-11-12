@@ -1,4 +1,6 @@
-# Claude2UI
+# C2UI
+
+(früher: Claude2UI)
 
 Desktop-App (Electron), in der mehrere Chats mit der Claude CLI oder der Codex CLI parallel neben- und übereinander laufen.
 
@@ -74,14 +76,16 @@ node scripts/a2ui-codex-e2e.mjs   # A2UI mit Codex
 ### App bauen und installieren (macOS, Apple Silicon)
 
 ```bash
-npm run dist                                   # baut dist/mac-arm64/Claude2UI.app (ad-hoc signiert)
-ditto dist/mac-arm64/Claude2UI.app /Applications/Claude2UI.app
+npm run dist                                   # baut dist/mac-arm64/C2UI.app (ad-hoc signiert)
+ditto dist/mac-arm64/C2UI.app /Applications/C2UI.app
 ```
 
 Skill und MCP-Server liegen in der App entpackt unter `Contents/Resources/app.asar.unpacked/`, weil Claude und Codex
 als fremde Prozesse nicht in `app.asar` lesen können. Gepackte App und Entwicklungsmodus teilen sich das Datenverzeichnis.
 
-Daten liegen unter `~/Library/Application Support/Claude2UI/` (`chats.json`, `layout.json`, `settings.json`, `transcripts/`).
+Daten liegen unter `~/Library/Application Support/C2UI/` (`chats.json`, `layout.json`, `settings.json`, `transcripts/`).
+Gibt es noch Daten aus der Zeit, als die App Claude2UI hieß, nutzt sie weiterhin `…/Claude2UI/` – Chats und
+Sessions verweisen mit absoluten Pfaden dorthin.
 
 ## Aufbau
 

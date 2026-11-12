@@ -5,14 +5,20 @@ import { LOCAL_FILE_SCHEME } from '@shared/a2ui'
 import type { AgentKind, Attachment, ChatPatch, LayoutState, PermissionMode, Settings } from '@shared/types'
 import { ChatManager } from './chats'
 import { ensureComponentsDir, loadComposites } from './componentsLoader'
-import { watch } from 'node:fs'
+import { existsSync, watch } from 'node:fs'
 import { listModels } from './models'
 import { resolveLoginPath } from './env'
 import { Storage } from './storage'
 
-app.setName('Claude2UI')
+app.setName('C2UI')
 // Für Tests: eigenes Datenverzeichnis per Umgebungsvariable.
 if (process.env.CLAUDE2UI_USER_DATA) app.setPath('userData', process.env.CLAUDE2UI_USER_DATA)
+else {
+  // Die App hieß früher Claude2UI. Vorhandene Daten bleiben dort: Chats, Werkstatt und Anhänge verweisen
+  // mit absoluten Pfaden hinein (auch die Sessions von Claude/Codex), ein Umzug würde sie abhängen.
+  const legacy = join(app.getPath('appData'), 'Claude2UI')
+  if (existsSync(join(legacy, 'chats.json'))) app.setPath('userData', legacy)
+}
 
 const iconPath = join(app.getAppPath(), 'resources', 'icon.png')
 
@@ -47,17 +53,17 @@ let manager: ChatManager
 let loginPath = ''
 let componentsDir = ''
 
-const COMPONENTS_README = `# Eigene A2UI-Komponenten für Claude2UI
+const COMPONENTS_README = `# Eigene A2UI-Komponenten für C2UI
 
-(Diese Datei und ANLEITUNG.md werden von Claude2UI bei jedem Start aktualisiert – eigene Notizen bitte woanders ablegen.)
+(Diese Datei und ANLEITUNG.md werden von C2UI bei jedem Start aktualisiert – eigene Notizen bitte woanders ablegen.)
 
 Jeder Unterordner mit einer \`component.json\` ist eine eigene Komponente: eine Vorlage aus vorhandenen
 A2UI-Komponenten mit eigenen Eigenschaften. Claude und Codex sehen sie über das Werkzeug \`describe_components\`
-und verwenden sie wie eingebaute Komponenten. Änderungen wirken sofort; Fehler zeigt Claude2UI unter
+und verwenden sie wie eingebaute Komponenten. Änderungen wirken sofort; Fehler zeigt C2UI unter
 Einstellungen → Eigene A2UI-Komponenten.
 
 Vollständige Anleitung mit Beispielen:
-https://github.com/ralfw-vibe-coding/claude2ui/blob/main/docs/eigene-komponenten.md
+https://github.com/ralfw-vibe-coding/c2ui/blob/main/docs/eigene-komponenten.md
 
 Kurzfassung einer component.json (siehe auch ContactCard/component.json):
 
@@ -95,7 +101,7 @@ function createWindow(): void {
     height: 900,
     minWidth: 700,
     minHeight: 450,
-    title: 'Claude2UI',
+    title: 'C2UI',
     backgroundColor: '#1b1b1f',
     icon: iconPath,
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',

@@ -1,6 +1,6 @@
 {
-  "name": "claude2ui",
-  "productName": "Claude2UI",
+  "name": "c2ui",
+  "productName": "C2UI",
   "version": "0.1.0",
   "description": "Mehrere Claude-CLI-Chats parallel in einem frei teilbaren Panel-Grid",
   "main": "./out/main/index.js",
@@ -41,8 +41,8 @@
     "vitest": "^5.1.0"
   },
   "build": {
-    "appId": "de.ralfw.claude2ui",
-    "productName": "Claude2UI",
+    "appId": "de.ralfw.c2ui",
+    "productName": "C2UI",
     "directories": {
       "output": "dist",
       "buildResources": "resources"

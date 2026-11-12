@@ -1,6 +1,6 @@
 # Eigene A2UI-Komponenten bauen
 
-Claude2UI zeigt Oberflächen, die Claude oder Codex im Chat erzeugen, mit dem A2UI-Protokoll an. Neben den eingebauten
+C2UI zeigt Oberflächen, die Claude oder Codex im Chat erzeugen, mit dem A2UI-Protokoll an. Neben den eingebauten
 Komponenten (Text, Button, Table, Charts, …) kannst du **eigene Komponenten** definieren – ohne Programmieren und ohne die
 App neu zu bauen. Eine eigene Komponente ist eine **Vorlage aus vorhandenen Komponenten** mit eigenen Eigenschaften.
 
@@ -36,7 +36,7 @@ Typische Gründe:
 
 ## In fünf Minuten zur ersten Komponente
 
-1. In Claude2UI **Einstellungen → Eigene A2UI-Komponenten → Ordner öffnen**.
+1. In C2UI **Einstellungen → Eigene A2UI-Komponenten → Ordner öffnen**.
 2. Einen Unterordner anlegen, z. B. `KpiTile`, und darin eine Datei `component.json`:
 
 ```json
@@ -78,7 +78,7 @@ Statt JSON von Hand zu schreiben, kannst du Komponenten im Gespräch mit Claude 
    *„Neue Komponente: Rechnungszeile mit Position, Menge, Einzelpreis, Summe“*.
 4. Claude liest die Anleitung (`ANLEITUNG.md` im Ordner), schreibt die `component.json`, prüft mit
    `describe_components`, dass sie fehlerfrei geladen wurde, und zeigt eine **Vorschau** (Screen `vorschau-<name>`).
-5. **Live-Vorschau:** Ändert sich eine Komponente, zeichnet Claude2UI alle bestehenden Screens mit der neuen Definition
+5. **Live-Vorschau:** Ändert sich eine Komponente, zeichnet C2UI alle bestehenden Screens mit der neuen Definition
    neu – die Vorschau (und jeder andere Screen, der die Komponente nutzt) ändert sich sofort sichtbar.
 
 Auch **in jedem normalen Chat** kannst du sagen *„Bau mir eine Komponente für …“* – Claude und Codex dürfen in den
@@ -91,7 +91,7 @@ Hinweis: Beim Neuzeichnen gehen Eingaben in Screens verloren, die noch nicht per
 ## Wo die Komponenten liegen
 
 ```
-~/Library/Application Support/Claude2UI/components/
+~/Library/Application Support/C2UI/components/      (früher: …/Claude2UI/components/)
 ├── README.md                 ← Kurzanleitung (wird von der App gepflegt)
 ├── ANLEITUNG.md              ← diese Anleitung (wird von der App gepflegt, für Werkstatt-Chats)
 ├── ContactCard/

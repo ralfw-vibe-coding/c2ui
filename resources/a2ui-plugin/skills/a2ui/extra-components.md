@@ -1,6 +1,6 @@
-## Zusätzliche Komponenten von Claude2UI
+## Zusätzliche Komponenten von C2UI
 
-Diese Komponenten gibt es nur im Katalog von Claude2UI (`catalogId` siehe oben). Sie ergänzen bzw. ersetzen den Basic Catalog.
+Diese Komponenten gibt es nur im Katalog von C2UI (`catalogId` siehe oben). Sie ergänzen bzw. ersetzen den Basic Catalog.
 
 ### Image (ersetzt das Image des Basic Catalog)
 - `url` **Pflicht**: DynamicString – `http(s):`- oder `data:`-URL **oder lokaler Pfad**: absolut (`/Users/…/bild.png`),
