@@ -21,6 +21,7 @@ const PlainMarkdown = ({ markdown }: { markdown: string }) => <span>{markdown.re
 export function ScreenStrip({ chatId, surfaceIds }: { chatId: string; surfaceIds: string[] }) {
   const [collapsed, setCollapsed] = useState(() => collapsedChats.has(chatId))
   const visible = useVisibleSurfaces(chatId, surfaceIds)
+  const gen = useStore((s) => s.componentsVersion)
   if (surfaceIds.length === 0) return null
 
   const toggle = (): void => {
@@ -41,7 +42,7 @@ export function ScreenStrip({ chatId, surfaceIds }: { chatId: string; surfaceIds
       {!collapsed && (
         <div className="screen-strip-items">
           {surfaceIds.map((sid) => (
-            <Thumbnail key={sid} chatId={chatId} surfaceId={sid} active={visible.has(sid)} />
+            <Thumbnail key={`${sid}:${gen}`} chatId={chatId} surfaceId={sid} active={visible.has(sid)} />
           ))}
         </div>
       )}

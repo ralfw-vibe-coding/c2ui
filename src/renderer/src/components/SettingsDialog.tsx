@@ -133,20 +133,26 @@ function ModelSelect({ agent, value, onChange }: { agent: AgentKind; value: stri
   )
 }
 
-/** Eigene A2UI-Komponenten: Ordner, geladene Komponenten, Fehler. */
+/** Eigene A2UI-Komponenten: Liste, Werkstatt, Ordner, Fehler. */
 function ComponentsSection() {
   const { defs, errors, dir } = useStore((s) => s.components)
+  const open = (name?: string): void => void useStore.getState().openWorkshop(name)
   return (
     <fieldset className="agent-settings">
       <legend>Eigene A2UI-Komponenten</legend>
-      <div className="components-head">
-        <span className="muted small">
-          {defs.length ? defs.map((d) => d.name).join(', ') : 'Keine'} · Ordner: <code>{dir.split('/').slice(-2).join('/')}</code>
-        </span>
-        <button className="btn" onClick={() => window.api.reveal(dir)}>
-          Ordner öffnen
-        </button>
-      </div>
+      {defs.length > 0 && (
+        <ul className="components-list">
+          {defs.map((d) => (
+            <li key={d.name}>
+              <span className="components-name">{d.name}</span>
+              <span className="muted small components-desc">{d.description}</span>
+              <button className="btn small-btn" onClick={() => open(d.name)} title="In der Komponenten-Werkstatt mit Claude bearbeiten">
+                Mit Claude bearbeiten
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
       {errors.length > 0 && (
         <ul className="components-errors">
           {errors.map((e) => (
@@ -154,7 +160,18 @@ function ComponentsSection() {
           ))}
         </ul>
       )}
-      <span className="muted small">Je Komponente ein Unterordner mit component.json (Anleitung: README.md im Ordner). Änderungen wirken sofort.</span>
+      <div className="components-head">
+        <button className="btn primary" onClick={() => open()}>
+          Neue Komponente mit Claude
+        </button>
+        <button className="btn" onClick={() => window.api.reveal(dir)}>
+          Ordner öffnen
+        </button>
+      </div>
+      <span className="muted small">
+        Die Werkstatt öffnet einen Claude-Chat im Komponenten-Ordner (neben dem aktuellen). Änderungen wirken sofort – auch
+        auf bereits angezeigte Screens.
+      </span>
     </fieldset>
   )
 }

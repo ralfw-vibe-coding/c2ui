@@ -49,6 +49,8 @@ export interface Chat {
   permissionMode: PermissionMode
   /** Modell dieses Chats; leer = Standard der CLI. Fehlt bei alten Chats (dann Einstellung). */
   model?: string
+  /** Sonderzweck: 'component-workshop' = Chat zum Bauen/Bearbeiten eigener A2UI-Komponenten. */
+  purpose?: 'component-workshop'
   /** Session-ID der CLI (Claude: vorab vergeben; Codex: Thread-ID nach dem ersten Turn). */
   sessionId: string
   /** true, sobald die CLI-Session existiert (dann wird fortgesetzt statt neu begonnen). */

@@ -108,6 +108,16 @@ export function chatSurfaces(chatId: string): ChatSurfaces {
   return cs
 }
 
+/**
+ * Verwirft den A2UI-Zustand aller Chats. Beim nächsten Rendern wird er aus den Transkripten neu
+ * aufgebaut – z. B. wenn sich eigene Komponenten geändert haben (Live-Vorschau in der Werkstatt).
+ * Lokale Eingaben, die noch nicht per Aktion gesendet wurden, gehen dabei verloren.
+ */
+export function resetAllChatSurfaces(): void {
+  for (const cs of registry.values()) cs.dispose()
+  registry.clear()
+}
+
 export function disposeChatSurfaces(chatId: string): void {
   registry.get(chatId)?.dispose()
   registry.delete(chatId)

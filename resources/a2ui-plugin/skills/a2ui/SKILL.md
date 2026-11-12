@@ -21,6 +21,13 @@ Eigene Komponenten verwendest du wie eingebaute: `{"id": "k1", "component": "Con
 mit genau den dokumentierten Eigenschaften. Passt eine eigene Komponente zur Aufgabe, nimm sie bevorzugt –
 der Nutzer hat sie genau dafür angelegt. `describe_components` mit `"names"` liefert auch die Doku eingebauter Komponenten.
 
+### Neue eigene Komponenten anlegen
+
+Bittet der Nutzer darum, eine **Komponente zu bauen oder zu ändern** (z. B. „Bau mir ein Kanban-Widget“), dann schreibe
+sie als `<Name>/component.json` in den Komponenten-Ordner (Pfad und Anleitung nennt `describe_components`; lies die
+Anleitung vorher). Prüfe danach mit `describe_components`, dass sie geladen wurde, und zeige sie in einem Vorschau-Screen.
+Bestehende Screens zeichnet die App nach Änderungen an Komponenten automatisch neu.
+
 ## Wann
 
 - Nur wenn der Nutzer eine Oberfläche wünscht oder mit einem bestehenden Screen interagiert.

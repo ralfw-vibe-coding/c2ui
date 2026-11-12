@@ -1,6 +1,7 @@
 import { create } from 'zustand'
-import { disposeChatSurfaces, setA2uiActionHandler } from './a2ui/chatSurfaces'
+import { disposeChatSurfaces, resetAllChatSurfaces, setA2uiActionHandler } from './a2ui/chatSurfaces'
 import { setComposites, type CompositeDef } from '@shared/a2ui-composites'
+import { setDraft } from './drafts'
 import * as L from '@shared/layout'
 import { applyEvent } from '@shared/transcript'
 import type { AgentEvent, AgentKind, Chat, LayoutState, Settings, Transcript } from '@shared/types'
@@ -21,6 +22,8 @@ interface State {
   sidebarCollapsed: boolean
   /** Eigene A2UI-Komponenten aus dem Komponenten-Ordner. */
   components: { defs: CompositeDef[]; errors: string[]; dir: string }
+  /** Zählt Änderungen an eigenen Komponenten; Screens werden dann neu aufgebaut. */
+  componentsVersion: number
 }
 
 interface Actions {
@@ -29,6 +32,8 @@ interface Actions {
   selectCell(cellId: string): void
   openChat(chatId: string, cellId?: string): Promise<void>
   newChat(agent: AgentKind, cellId?: string): Promise<void>
+  /** Werkstatt-Chat zum Bauen/Bearbeiten eigener Komponenten in einer neuen Zelle öffnen. */
+  openWorkshop(component?: string): Promise<void>
   closeChat(cellId: string): Promise<void>
   removeCell(cellId: string): Promise<void>
   splitCell(cellId: string, direction: 'row' | 'column'): void
@@ -103,6 +108,7 @@ export const useStore = create<State & Actions>((set, get) => {
     settingsOpen: false,
     sidebarCollapsed: readFlag('sidebarCollapsed'),
     components: { defs: [], errors: [], dir: '' },
+    componentsVersion: 0,
 
     async init() {
       // Eigene Komponenten zuerst – sie werden beim Anzeigen der Screens aufgelöst.
@@ -111,7 +117,9 @@ export const useStore = create<State & Actions>((set, get) => {
       set({ components })
       window.api.onComponentsChanged((r) => {
         setComposites(r.defs)
-        set((st) => ({ components: { ...st.components, ...r } }))
+        // Bestehende Screens mit den neuen Definitionen neu aufbauen (Live-Vorschau).
+        resetAllChatSurfaces()
+        set((st) => ({ components: { ...st.components, ...r }, componentsVersion: st.componentsVersion + 1 }))
       })
       const s = await window.api.init()
       const layout = L.sanitize(s.layout, new Set(s.chats.map((c) => c.id)))
@@ -167,6 +175,31 @@ export const useStore = create<State & Actions>((set, get) => {
         transcripts: { ...s.transcripts, [c.id]: [] },
         settings: s.settings ? { ...s.settings, lastDirectory: dir } : s.settings
       }))
+      await get().openChat(c.id, cellId)
+    },
+
+    async openWorkshop(component) {
+      const c = await window.api.createWorkshopChat(component)
+      setDraft(
+        c.id,
+        component
+          ? `Ich möchte die Komponente ${component} ändern: `
+          : 'Bau mir eine neue A2UI-Komponente: '
+      )
+      set((s) => ({
+        chats: s.chats.some((x) => x.id === c.id) ? s.chats : [c, ...s.chats],
+        transcripts: { ...s.transcripts, [c.id]: [] },
+        settingsOpen: false
+      }))
+      // In eine neue Zelle rechts neben der markierten – die Vorschau soll neben dem Bisherigen stehen.
+      const { layout } = get()
+      const sel = L.findLeaf(layout.root, layout.selectedCellId)
+      let cellId = layout.selectedCellId
+      if (sel?.chatId) {
+        const nl = L.leaf()
+        get().setLayout({ root: L.splitCell(layout.root, layout.selectedCellId, 'row', 'after', nl), selectedCellId: nl.id })
+        cellId = nl.id
+      }
       await get().openChat(c.id, cellId)
     },
 

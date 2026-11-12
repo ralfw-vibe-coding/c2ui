@@ -47,7 +47,9 @@ export function rawCallMessages(input: unknown): A2uiMessage[] {
  * verlustfrei umgeschrieben (sonst fehlten Table, Charts usw., wenn ein Modell die alte ID nutzt).
  */
 export function normalizeMessage(m: A2uiMessage): A2uiMessage {
-  const out: A2uiMessage = { ...m, version: m.version ?? A2UI_VERSION }
+  // Modelle schreiben gelegentlich "v1.0" oder 1 – das ist gemeint.
+  const v = m.version === undefined || /^v?1(\.0)?$/.test(String(m.version)) ? A2UI_VERSION : m.version
+  const out: A2uiMessage = { ...m, version: v }
   const cat = (id: unknown): unknown => (id === undefined || id === BASIC_CATALOG_ID ? CLAUDE2UI_CATALOG_ID : id)
   const comps = (list: unknown): unknown =>
     Array.isArray(list)

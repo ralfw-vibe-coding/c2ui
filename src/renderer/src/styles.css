@@ -1674,3 +1674,35 @@ button.a2ui-update:hover {
   font-size: 13px !important;
   color: var(--text) !important;
 }
+
+.components-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.components-list li {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--border);
+}
+.components-name {
+  font-weight: 600;
+}
+.components-desc {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.small-btn {
+  padding: 3px 8px;
+  font-size: 12px;
+}
+.components-head {
+  justify-content: flex-start !important;
+}

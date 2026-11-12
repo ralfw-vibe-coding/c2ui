@@ -42,7 +42,7 @@ export function loadComposites(dir: string): LoadedComponents {
  * Legt den Komponenten-Ordner beim ersten Start mit Beispiel an. Die README gehört der App und
  * wird bei jedem Start aktualisiert.
  */
-export function ensureComponentsDir(dir: string, examplesDir: string, readme: string): void {
+export function ensureComponentsDir(dir: string, examplesDir: string, readme: string, guideFile?: string): void {
   if (!existsSync(dir)) {
     mkdirSync(dir, { recursive: true })
     try {
@@ -53,6 +53,8 @@ export function ensureComponentsDir(dir: string, examplesDir: string, readme: st
   }
   try {
     writeFileSync(join(dir, 'README.md'), readme)
+    // Vollständige Anleitung, damit Werkstatt-Chats sie im Arbeitsverzeichnis lesen können.
+    if (guideFile && existsSync(guideFile)) writeFileSync(join(dir, 'ANLEITUNG.md'), readFileSync(guideFile, 'utf8'))
   } catch {
     /* z. B. schreibgeschützt */
   }

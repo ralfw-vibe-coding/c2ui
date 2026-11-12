@@ -17,6 +17,7 @@ const A2uiMarkdown = ({ markdown }: { markdown: string }) => (
 /** Darstellung eines render_ui-Aufrufs im Chat. */
 export function A2uiBlock({ chatId, block }: { chatId: string; block: Block & { type: 'tool_use' } }) {
   const busy = useStore((s) => !!s.busy[chatId])
+  const gen = useStore((s) => s.componentsVersion)
   if (!block.result) {
     return (
       <div className="a2ui-pending">
@@ -41,7 +42,7 @@ export function A2uiBlock({ chatId, block }: { chatId: string; block: Block & { 
   return (
     <>
       {eff.created.map((sid) => (
-        <SurfaceView key={sid} chatId={chatId} surfaceId={sid} locked={busy} />
+        <SurfaceView key={`${sid}:${gen}`} chatId={chatId} surfaceId={sid} locked={busy} />
       ))}
       {eff.updated.map((sid) => (
         <button key={sid} className="a2ui-update" onClick={() => scrollToSurface(chatId, sid)}>

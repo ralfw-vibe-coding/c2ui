@@ -28,6 +28,24 @@ const serverEnv = (s: A2uiSetup) => ({
 })
 const DESCRIBE_TOOL = 'describe_components'
 
+/** Zusätzliche Systemanweisung für Werkstatt-Chats (eigene Komponenten bauen/bearbeiten). */
+export function workshopPrompt(componentsDir: string): string {
+  return `Du bist in der Komponenten-Werkstatt von Claude2UI. Dein Arbeitsverzeichnis ist der Ordner mit den eigenen
+A2UI-Komponenten des Nutzers (${componentsDir}). Jede Komponente ist ein Unterordner mit einer component.json:
+eine Vorlage aus vorhandenen A2UI-Komponenten mit eigenen Eigenschaften. Das Format steht vollständig in ANLEITUNG.md
+in diesem Ordner – lies sie zu Beginn, bevor du etwas anlegst oder änderst.
+
+Arbeitsweise:
+1. Komponenten anlegen bzw. ändern, indem du <Name>/component.json schreibst (gültiges JSON, ohne Kommentare).
+2. Danach describe_components (MCP-Server a2ui) aufrufen: Die Komponente muss in der Liste stehen; fehlerhafte Dateien
+   stehen dort unter „Nicht geladene eigene Komponenten“ mit Grund – dann korrigieren.
+3. Eine Vorschau zeigen: render_ui mit surfaceId "vorschau-<name in kleinbuchstaben>" und createSurface, mit 1–3 Instanzen
+   (typische Werte, dazu eine Instanz ohne optionale Eigenschaften). Gibt es die Vorschau schon, KEIN neues createSurface:
+   Die App zeichnet bestehende Screens nach jeder Änderung an einer Komponente automatisch neu. Nur wenn andere
+   Beispielwerte nötig sind, die Vorschau per updateComponents/updateDataModel anpassen.
+4. Kurz antworten: was geändert wurde, ggf. eine Frage. Die Vorschau nicht als Text beschreiben.`
+}
+
 /** Claude: Skill per Plugin, MCP-Server per --mcp-config, Tool ohne Rückfrage erlaubt. */
 export function claudeA2uiArgs(s: A2uiSetup): string[] {
   const mcp = {
@@ -40,6 +58,8 @@ export function claudeA2uiArgs(s: A2uiSetup): string[] {
     // Damit Claude die Referenz des Skills lesen darf, obwohl sie außerhalb des Arbeitsverzeichnisses liegt.
     '--add-dir', join(s.pluginDir, 'skills'),
     '--mcp-config', JSON.stringify(mcp),
+    // Eigene Komponenten dürfen aus jedem Chat heraus angelegt/geändert werden.
+    '--add-dir', s.componentsDir,
     '--allowedTools', `${A2UI_TOOL_FULL},mcp__${A2UI_SERVER}__${DESCRIBE_TOOL}`
   ]
 }
@@ -64,6 +84,8 @@ export function codexA2uiLaunch(s: A2uiSetup): { args: string[]; env: Record<str
   const p = `mcp_servers.${A2UI_SERVER}`
   const args = [
     '-c', `shell_environment_policy.set.HOME=${toml(realHome)}`,
+    // Eigene Komponenten dürfen aus jedem Chat heraus angelegt/geändert werden.
+    '-c', `sandbox_workspace_write.writable_roots=${toml([s.componentsDir])}`,
     '-c', `${p}.command=${toml(s.execPath)}`,
     '-c', `${p}.args=${toml([s.serverScript])}`,
     '-c', `${p}.env=${toml(serverEnv(s))}`,

@@ -2,23 +2,120 @@
   "name": "ContactCard",
   "description": "Visitenkarte einer Person: Foto, Name, Rolle und E-Mail, optional mit Button.",
   "properties": {
-    "name": { "type": "DynamicString", "required": true, "description": "Voller Name." },
-    "role": { "type": "DynamicString", "description": "Rolle oder Firma." },
-    "email": { "type": "DynamicString", "description": "E-Mail-Adresse." },
-    "photo": { "type": "DynamicString", "description": "Bild-URL oder lokaler Pfad." },
-    "status": { "type": "string", "enum": ["neutral", "info", "success", "warning", "error"], "default": "neutral", "description": "Farbe des Status-Badges." },
-    "statusText": { "type": "DynamicString", "default": "Kontakt", "description": "Text des Status-Badges." },
-    "action": { "type": "Action", "description": "Optional: Aktion für den Button „Kontaktieren“." }
+    "name": {
+      "type": "DynamicString",
+      "required": true,
+      "description": "Voller Name."
+    },
+    "role": {
+      "type": "DynamicString",
+      "description": "Rolle oder Firma."
+    },
+    "email": {
+      "type": "DynamicString",
+      "description": "E-Mail-Adresse."
+    },
+    "photo": {
+      "type": "DynamicString",
+      "description": "Bild-URL oder lokaler Pfad."
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "neutral",
+        "info",
+        "success",
+        "warning",
+        "error"
+      ],
+      "default": "neutral",
+      "description": "Farbe des Status-Badges."
+    },
+    "statusText": {
+      "type": "DynamicString",
+      "default": "Kontakt",
+      "description": "Text des Status-Badges."
+    },
+    "action": {
+      "type": "Action",
+      "description": "Optional: Aktion für den Button „Kontaktieren“."
+    }
   },
   "template": [
-    { "id": "root", "component": "Card", "child": "row" },
-    { "id": "row", "component": "Row", "align": "center", "children": ["foto", "info", "badge"] },
-    { "id": "foto", "component": "Image", "url": "$photo", "variant": "avatar", "description": "$name" },
-    { "id": "info", "component": "Column", "weight": 1, "children": ["name", "role", "email"] },
-    { "id": "name", "component": "Text", "text": "$name" },
-    { "id": "role", "component": "Text", "variant": "caption", "text": "$role" },
-    { "id": "email", "component": "Text", "variant": "caption", "text": "$email" },
-    { "id": "badge", "component": "Badge", "text": "$statusText", "tone": "$status" }
+    {
+      "id": "root",
+      "component": "Card",
+      "child": "row"
+    },
+    {
+      "id": "row",
+      "component": "Row",
+      "align": "center",
+      "children": [
+        "foto",
+        "info",
+        "badge",
+        "button"
+      ]
+    },
+    {
+      "id": "foto",
+      "component": "Image",
+      "url": "$photo",
+      "variant": "avatar",
+      "description": "$name"
+    },
+    {
+      "id": "info",
+      "component": "Column",
+      "weight": 1,
+      "children": [
+        "name",
+        "role",
+        "email"
+      ]
+    },
+    {
+      "id": "name",
+      "component": "Text",
+      "text": "$name"
+    },
+    {
+      "id": "role",
+      "component": "Text",
+      "variant": "caption",
+      "text": "$role"
+    },
+    {
+      "id": "email",
+      "component": "Text",
+      "variant": "caption",
+      "text": "$email"
+    },
+    {
+      "id": "badge",
+      "component": "Badge",
+      "text": "$statusText",
+      "tone": "$status"
+    },
+    {
+      "id": "buttonText",
+      "component": "Text",
+      "text": "Kontaktieren"
+    },
+    {
+      "id": "button",
+      "component": "Button",
+      "variant": "borderless",
+      "child": "buttonText",
+      "action": "$action"
+    }
   ],
-  "example": { "name": "Ada Lovelace", "role": "Analytical Engines Ltd.", "email": "ada@example.org", "status": "success", "statusText": "aktiv" }
+  "example": {
+    "name": "Ada Lovelace",
+    "role": "Analytical Engines Ltd.",
+    "email": "ada@example.org",
+    "status": "success",
+    "statusText": "aktiv"
+  }
 }

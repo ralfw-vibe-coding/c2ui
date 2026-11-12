@@ -47,7 +47,7 @@ let componentsDir = ''
 
 const COMPONENTS_README = `# Eigene A2UI-Komponenten für Claude2UI
 
-(Diese Datei wird von Claude2UI bei jedem Start aktualisiert – eigene Notizen bitte woanders ablegen.)
+(Diese Datei und ANLEITUNG.md werden von Claude2UI bei jedem Start aktualisiert – eigene Notizen bitte woanders ablegen.)
 
 Jeder Unterordner mit einer \`component.json\` ist eine eigene Komponente: eine Vorlage aus vorhandenen
 A2UI-Komponenten mit eigenen Eigenschaften. Claude und Codex sehen sie über das Werkzeug \`describe_components\`
@@ -153,6 +153,12 @@ function registerIpc(): void {
   ipcMain.handle('chats:create', (_e, cwd: string, agent: AgentKind, mode?: PermissionMode) =>
     manager.create(cwd, agent, mode)
   )
+  ipcMain.handle('chats:createWorkshop', (_e, component?: string) =>
+    manager.create(componentsDir, 'claude', undefined, {
+      title: component ? `Werkstatt: ${component}` : 'Komponenten-Werkstatt',
+      purpose: 'component-workshop'
+    })
+  )
   ipcMain.handle('chats:update', (_e, id: string, patch: ChatPatch) => manager.update(id, patch))
   ipcMain.handle('chats:delete', (_e, id: string) => manager.delete(id))
   ipcMain.handle('transcript:get', (_e, id: string) => manager.transcript(id))
@@ -201,7 +207,12 @@ app.whenReady().then(() => {
   const storage = new Storage(app.getPath('userData'))
   loginPath = resolveLoginPath()
   componentsDir = join(app.getPath('userData'), 'components')
-  ensureComponentsDir(componentsDir, unpacked(join(app.getAppPath(), 'resources', 'example-components')), COMPONENTS_README)
+  ensureComponentsDir(
+    componentsDir,
+    unpacked(join(app.getAppPath(), 'resources', 'example-components')),
+    COMPONENTS_README,
+    join(app.getAppPath(), 'docs', 'eigene-komponenten.md')
+  )
   // Eigene Komponenten beobachten und den Renderer informieren.
   let watchTimer: NodeJS.Timeout | null = null
   try {

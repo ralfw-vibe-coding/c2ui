@@ -2,7 +2,7 @@ import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { chatModel, type Block } from '@shared/types'
 import { childEnv } from '../env'
-import { claudeA2uiArgs } from './a2ui'
+import { claudeA2uiArgs, workshopPrompt } from './a2ui'
 import type { AgentCallbacks, AgentContext, AgentFactory, AgentSession } from './types'
 
 const MAX_TOOL_RESULT = 20_000
@@ -90,6 +90,7 @@ class ClaudeSession implements AgentSession {
     if (model) args.push('--model', model)
     const a2ui = this.ctx.a2ui?.()
     if (a2ui) args.push(...claudeA2uiArgs(a2ui))
+    if (a2ui && chat.purpose === 'component-workshop') args.push('--append-system-prompt', workshopPrompt(a2ui.componentsDir))
     if (chat.sessionStarted) args.push('--resume', chat.sessionId)
     else args.push('--session-id', chat.sessionId)
 

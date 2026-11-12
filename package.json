@@ -50,6 +50,7 @@
     "files": [
       "out/**/*",
       "resources/**/*",
+      "docs/**/*",
       "package.json",
       "!node_modules/**/*"
     ],

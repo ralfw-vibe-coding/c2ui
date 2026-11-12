@@ -92,12 +92,18 @@ export class ChatManager {
     return [...this.chats.values()].sort((a, b) => b.updatedAt - a.updatedAt)
   }
 
-  create(cwd: string, agent: AgentKind = 'claude', permissionMode?: PermissionMode): Chat {
+  create(
+    cwd: string,
+    agent: AgentKind = 'claude',
+    permissionMode?: PermissionMode,
+    opts: { title?: string; purpose?: Chat['purpose'] } = {}
+  ): Chat {
     const now = Date.now()
     const chat: Chat = {
       id: randomUUID(),
-      title: DEFAULT_TITLE,
+      title: opts.title ?? DEFAULT_TITLE,
       cwd,
+      purpose: opts.purpose,
       agent,
       permissionMode: permissionMode ?? this.settings.agents[agent].defaultMode,
       model: this.settings.agents[agent].model,
@@ -107,7 +113,7 @@ export class ChatManager {
       updatedAt: now
     }
     this.chats.set(chat.id, chat)
-    this.setSettings({ lastDirectory: cwd })
+    if (!opts.purpose) this.setSettings({ lastDirectory: cwd })
     this.saveChats()
     return chat
   }

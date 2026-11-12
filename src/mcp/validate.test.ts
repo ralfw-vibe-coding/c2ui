@@ -118,4 +118,11 @@ describe('A2UI-Validierung', () => {
     expect(msgs[0].createSurface.catalogId).toBe(CLAUDE2UI_CATALOG_ID)
     expect(validate([], msgs).errors).toEqual([])
   })
+
+  it('toleriert Versionsangaben wie "v1.0" oder 1', () => {
+    for (const version of ['v1.0', 'v1', 1, '1']) {
+      const r = validate([], [{ version, createSurface: { surfaceId: 's', components: [{ id: 'root', component: 'Text', text: 'x' }] } }])
+      expect(r.errors, String(version)).toEqual([])
+    }
+  })
 })

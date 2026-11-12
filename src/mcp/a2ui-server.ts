@@ -92,8 +92,12 @@ function describeComponents(args: Record<string, any>): string {
       })
       .join('\n\n')
   }
+  const dir = process.env.A2UI_COMPONENTS_DIR
   const parts = [
     `catalogId: ${CLAUDE2UI_CATALOG_ID}`,
+    ...(dir
+      ? [`Eigene Komponenten liegen in ${dir}/<Name>/component.json – Anleitung zum Anlegen und Ändern: ${dir}/ANLEITUNG.md.`]
+      : []),
     `Eingebaute Komponenten: ${BUILTIN_COMPONENT_NAMES.join(', ')} (Doku: Skill-Referenz oder describe_components mit "names").`,
     custom.length
       ? `Eigene Komponenten des Nutzers (${custom.length}) – wie eingebaute verwenden, mit denselben Eigenschaften wie dokumentiert:\n\n` +

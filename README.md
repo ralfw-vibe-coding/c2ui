@@ -44,7 +44,8 @@ Ohne ausdrücklichen Wunsch antwortet Claude wie gewohnt mit Text.
   `resources/a2ui-plugin/skills/a2ui/extra-components.md` (ein Test prüft, dass jede Eigenschaft beschrieben ist).
 - **Eigene Komponenten ohne Programmieren**: `component.json` im Komponenten-Ordner (Einstellungen → „Ordner öffnen“),
   Vorlage aus vorhandenen Komponenten mit eigenen Eigenschaften; Claude/Codex finden sie über `describe_components`.
-  **Anleitung: [docs/eigene-komponenten.md](docs/eigene-komponenten.md)**
+  **Komponenten-Werkstatt**: „Mit Claude bearbeiten“ in den Einstellungen öffnet einen Chat im Komponenten-Ordner;
+  Änderungen zeichnen bestehende Screens live neu. **Anleitung: [docs/eigene-komponenten.md](docs/eigene-komponenten.md)**
 - **Screen-Übersicht**: Leiste mit Live-Miniaturen aller aktiven Screens eines Chats; Klick springt hin,
   sichtbare Screens sind markiert, einklappbar.
 - **Codex**: Den Skill findet Codex über ein Schatten-Home (`<userData>/codex-home`, Symlinks auf das echte Home,

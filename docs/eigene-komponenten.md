@@ -16,6 +16,7 @@ Typische Gründe:
 ## Inhalt
 
 1. [In fünf Minuten zur ersten Komponente](#in-fünf-minuten-zur-ersten-komponente)
+1. [Mit Claude bauen: die Komponenten-Werkstatt](#mit-claude-bauen-die-komponenten-werkstatt)
 2. [Wo die Komponenten liegen](#wo-die-komponenten-liegen)
 3. [Aufbau einer `component.json`](#aufbau-einer-componentjson)
 4. [Eigenschaften und ihre Typen](#eigenschaften-und-ihre-typen)
@@ -65,11 +66,34 @@ Die App beobachtet den Ordner; Änderungen wirken **sofort** für neue Screens u
 
 ---
 
+## Mit Claude bauen: die Komponenten-Werkstatt
+
+Statt JSON von Hand zu schreiben, kannst du Komponenten im Gespräch mit Claude bauen („vibe coden“):
+
+1. **Einstellungen → Eigene A2UI-Komponenten**: bei einer Komponente **„Mit Claude bearbeiten“** oder
+   **„Neue Komponente mit Claude“**.
+2. Es öffnet sich ein **Werkstatt-Chat** in einer neuen Zelle neben dem aktuellen – mit dem Komponenten-Ordner als
+   Arbeitsverzeichnis und einem vorbereiteten Satzanfang im Eingabefeld.
+3. Beschreibe, was du willst: *„Zeig mir erst eine Vorschau“*, *„Das Badge soll links stehen“*,
+   *„Neue Komponente: Rechnungszeile mit Position, Menge, Einzelpreis, Summe“*.
+4. Claude liest die Anleitung (`ANLEITUNG.md` im Ordner), schreibt die `component.json`, prüft mit
+   `describe_components`, dass sie fehlerfrei geladen wurde, und zeigt eine **Vorschau** (Screen `vorschau-<name>`).
+5. **Live-Vorschau:** Ändert sich eine Komponente, zeichnet Claude2UI alle bestehenden Screens mit der neuen Definition
+   neu – die Vorschau (und jeder andere Screen, der die Komponente nutzt) ändert sich sofort sichtbar.
+
+Auch **in jedem normalen Chat** kannst du sagen *„Bau mir eine Komponente für …“* – Claude und Codex dürfen in den
+Komponenten-Ordner schreiben und wissen über den A2UI-Skill, wie es geht.
+
+Hinweis: Beim Neuzeichnen gehen Eingaben in Screens verloren, die noch nicht per Button an das Modell gesendet wurden.
+
+---
+
 ## Wo die Komponenten liegen
 
 ```
 ~/Library/Application Support/Claude2UI/components/
 ├── README.md                 ← Kurzanleitung (wird von der App gepflegt)
+├── ANLEITUNG.md              ← diese Anleitung (wird von der App gepflegt, für Werkstatt-Chats)
 ├── ContactCard/
 │   └── component.json        ← mitgeliefertes Beispiel
 └── KpiTile/
@@ -273,6 +297,7 @@ Die Auflösung geht bis zu fünf Ebenen tief; tiefere (oder zirkuläre) Verschac
   Komponenten bevorzugt** zu verwenden.
 - Neue oder geänderte Komponenten sind beim nächsten Aufruf sichtbar. Hat das Modell in einer laufenden Session schon
   nachgeschaut, sag ihm einfach: „Schau dir die Komponenten nochmal an.“
+- Bereits angezeigte Screens werden bei jeder Änderung an einer Komponente automatisch neu gezeichnet.
 
 ---
 

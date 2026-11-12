@@ -8,8 +8,7 @@ import { Icon } from './Icon'
 import { TranscriptView } from './TranscriptView'
 
 const NEAR_BOTTOM_PX = 60
-/** Entwürfe überleben das Neu-Einhängen einer Zelle (z. B. beim Teilen). */
-const drafts = new Map<string, string>()
+import { drafts } from '../drafts'
 
 export function ChatPanel({ chatId, active }: { chatId: string; active: boolean }) {
   const transcript = useStore((s) => s.transcripts[chatId])
@@ -20,8 +19,11 @@ export function ChatPanel({ chatId, active }: { chatId: string; active: boolean 
   const [atBottom, setAtBottom] = useState(true)
 
   // A2UI: neue render_ui-Aufrufe anwenden, bevor die Nachrichten gerendert werden.
-  const freshA2ui = useMemo(() => (transcript ? chatSurfaces(chatId).sync(transcript) : []), [chatId, transcript])
+  const componentsVersion = useStore((s) => s.componentsVersion)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const freshA2ui = useMemo(() => (transcript ? chatSurfaces(chatId).sync(transcript) : []), [chatId, transcript, componentsVersion])
   const activeSurfaces = useMemo(() => chatSurfaces(chatId).activeSurfaces(), [chatId, freshA2ui]) // eslint-disable-line react-hooks/exhaustive-deps
+  const seenVersion = useRef(componentsVersion)
   const a2uiReady = useRef(false)
   useEffect(() => {
     if (!transcript) return
@@ -30,13 +32,18 @@ export function ChatPanel({ chatId, active }: { chatId: string; active: boolean 
       a2uiReady.current = true
       return
     }
+    // Nach einem Neuaufbau (geänderte Komponenten) nicht springen – es ist kein neues Update.
+    if (seenVersion.current !== componentsVersion) {
+      seenVersion.current = componentsVersion
+      return
+    }
     const cs = chatSurfaces(chatId)
     const updated = freshA2ui.flatMap((id) => cs.effect(id)?.updated ?? [])
     if (updated.length) {
       stickRef.current = false
       requestAnimationFrame(() => scrollToSurface(chatId, updated[updated.length - 1]))
     }
-  }, [freshA2ui, chatId, transcript])
+  }, [freshA2ui, chatId, transcript, componentsVersion])
 
   // Scroll-Ereignisse kommen asynchron. Folgt eines kurz auf einen eigenen Sprung ans Ende,
   // ist der Inhalt evtl. inzwischen gewachsen – das ist kein Wegscrollen des Nutzers.

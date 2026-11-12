@@ -24,7 +24,8 @@
      neue Komponenten sind sofort für Claude und Codex sichtbar, der Skill bleibt unverändert.
   3. Später: echte neue Darstellung als Web Component (`element.js`), nur für vertrauenswürdige eigene
      Komponenten (läuft im App-Fenster) oder abgeschottet im iframe.
-  4. Später: Claude baut Komponenten selbst („Bau mir ein Kanban-Widget“), mit Freigabe vor dem Aktivieren.
+  4. Erledigt: Komponenten-Werkstatt (Chat im Komponenten-Ordner, Live-Neuzeichnen) und Bauen auf Zuruf aus jedem Chat.
+     Offen: Freigabe vor dem Aktivieren von Komponenten mit eigenem Code (sobald es Stufe 3 gibt).
 - **Lokale Eingaben in A2UI-Screens speichern**, die ohne Button-Aktion gemacht wurden (überleben derzeit keinen Neustart).
 - **Weitere Widgets** nach Bedarf (z. B. Timeline, Kalender, Karte, Kanban); Muster: Schema in
   `src/shared/a2ui-catalog.ts`, React in `src/renderer/src/a2ui/`, Doku in `extra-components.md`.
