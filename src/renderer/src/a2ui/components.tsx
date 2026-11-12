@@ -17,6 +17,7 @@ import {
 } from 'recharts'
 import { BarChartApi, ImageApi, LineChartApi, PieChartApi } from '@shared/a2ui-catalog'
 import { LOCAL_FILE_SCHEME } from '@shared/a2ui'
+import { WIDGET_IMPLS } from './widgets'
 
 /** Kontext des Chats, in dem ein Screen angezeigt wird (für relative Bildpfade). */
 export const A2uiChatContext = createContext<{ cwd: string; home: string }>({ cwd: '', home: '' })
@@ -205,6 +206,7 @@ export const ImageImpl = createComponentImplementation(ImageApi, ({ props }) => 
 })
 
 export const COMPONENT_IMPLS = {
+  ...WIDGET_IMPLS,
   Image: ImageImpl,
   LineChart: LineChartImpl,
   BarChart: BarChartImpl,

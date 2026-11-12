@@ -15,7 +15,29 @@ const sample = [
       surfaceId: 'demo',
       components: [
         { id: 'root', component: 'Card', child: 'col' },
-        { id: 'col', component: 'Column', children: ['h', 'name', 'agree', 'size', 'rating', 'row', 'list', 'charts', 'pie', 'img', 'imgMissing'] },
+        { id: 'col', component: 'Column', children: ['kpis', 'tbl', 'prog', 'alerts', 'badges', 'code', 'scatter', 'h', 'name', 'agree', 'size', 'rating', 'row', 'list', 'charts', 'pie', 'img', 'imgMissing'] },
+        { id: 'kpis', component: 'Row', children: ['k1', 'k2', 'k3'] },
+        { id: 'k1', component: 'Metric', weight: 1, label: 'Umsatz Q3', value: 1284500, format: 'currency', delta: 12.4, deltaLabel: 'ggü. Q2', trend: [8, 9, 8.5, 11, 12.8] },
+        { id: 'k2', component: 'Metric', weight: 1, label: 'Kosten', value: 412300, format: 'currency', delta: 6.1, higherIsBetter: false, trend: [3, 3.2, 3.5, 4.1] },
+        { id: 'k3', component: 'Metric', weight: 1, label: 'Antwortzeit', value: 1.8, unit: 'Std.', delta: -15, higherIsBetter: false },
+        { id: 'tbl', component: 'Table', title: 'Offene Aufträge', data: { '@path': '/orders' }, selected: { '@path': '/auswahl' },
+          action: { event: { name: 'auftrag', context: { zeile: { '@path': '/auswahl' } } } },
+          columns: [{ key: 'nr', label: 'Nr.' }, { key: 'kunde', label: 'Kunde' }, { key: 'betrag', label: 'Betrag', format: 'currency' },
+            { key: 'faellig', label: 'Fällig', format: 'date' }, { key: 'quote', label: 'Marge', format: 'percent' }] },
+        { id: 'prog', component: 'Progress', label: 'Migration', value: 68, tone: 'accent' },
+        { id: 'alerts', component: 'Column', children: ['al1', 'al2'] },
+        { id: 'al1', component: 'Alert', tone: 'warning', title: 'Zwei Aufträge überfällig', text: 'Bitte **heute** nachfassen.' },
+        { id: 'al2', component: 'Alert', tone: 'success', text: 'Import abgeschlossen: 1.204 Datensätze.' },
+        { id: 'badges', component: 'Row', children: ['b1', 'b2', 'b3', 'b4'], justify: 'start' },
+        { id: 'b1', component: 'Badge', text: 'offen', tone: 'info' },
+        { id: 'b2', component: 'Badge', text: 'bezahlt', tone: 'success' },
+        { id: 'b3', component: 'Badge', text: 'überfällig', tone: 'error' },
+        { id: 'b4', component: 'Badge', text: 'v2.1' },
+        { id: 'code', component: 'CodeBlock', title: 'umsatz.py', language: 'python',
+          code: 'import pandas as pd\n\n# Umsatz je Monat\ndf = pd.read_csv("umsatz.csv")\nprint(df.groupby("monat")["betrag"].sum())  # 6 Zeilen' },
+        { id: 'scatter', component: 'ScatterChart', title: 'Preis vs. Absatz', data: [
+          { p: 9, a: 420, s: 'Basis' }, { p: 12, a: 380, s: 'Basis' }, { p: 15, a: 310, s: 'Basis' }, { p: 25, a: 190, s: 'Premium' }, { p: 29, a: 160, s: 'Premium' }, { p: 35, a: 120, s: 'Premium' } ],
+          xKey: 'p', yKey: 'a', groupKey: 's', xLabel: 'Preis', xUnit: '€', yLabel: 'Absatz' },
         { id: 'charts', component: 'Row', children: ['line', 'bar'] },
         { id: 'line', component: 'LineChart', weight: 1, title: 'Umsatz & Kosten', data: { '@path': '/sales' }, xKey: 'monat', unit: '€', area: true,
           series: [{ key: 'umsatz', label: 'Umsatz' }, { key: 'kosten', label: 'Kosten' }] },
@@ -69,7 +91,12 @@ const sample = [
           { monat: 'Apr', umsatz: 150, kosten: 99 }, { monat: 'Mai', umsatz: 190, kosten: 105 }, { monat: 'Jun', umsatz: 210, kosten: 112 }
         ],
         teams: [{ team: 'Web', offen: 12, erledigt: 30 }, { team: 'App', offen: 8, erledigt: 22 }, { team: 'Backend', offen: 15, erledigt: 41 }],
-        items: [{ label: 'Erster Eintrag' }, { label: 'Zweiter Eintrag' }]
+        items: [{ label: 'Erster Eintrag' }, { label: 'Zweiter Eintrag' }],
+        orders: [
+          { nr: 'A-1001', kunde: 'Müller GmbH', betrag: 12500, faellig: '2026-11-20', quote: 18.5 },
+          { nr: 'A-1002', kunde: 'Schmidt AG', betrag: 4300.5, faellig: '2026-11-05', quote: 22 },
+          { nr: 'A-1003', kunde: 'Weber KG', betrag: 870, faellig: '2026-12-01', quote: 9.75 }
+        ]
       }
     }
   }

@@ -1,13 +1,16 @@
 ---
 name: a2ui
-description: Zeigt interaktive Oberflächen (Formulare, Karten, Listen, Auswahlen, Diagramme/Charts, Bilder auch aus lokalen Dateien, kleine Dashboards) direkt im Chat der App Claude2UI an, über das MCP-Tool render_ui im A2UI-Format v1.0. Verwenden, wenn der Nutzer ausdrücklich eine Oberfläche, einen Screen, ein Formular, „A2UI“ o. Ä. wünscht, oder wenn eine Nachricht mit „A2UI-Aktion:“ beginnt (Interaktion mit einem bereits angezeigten Screen).
+description: Zeigt interaktive Oberflächen (Formulare, Tabellen, Kennzahlen/KPIs, Diagramme/Charts, Fortschrittsbalken, Hinweise, Code, Bilder auch aus lokalen Dateien, Dashboards) direkt im Chat der App Claude2UI an, über das MCP-Tool render_ui im A2UI-Format v1.0. Verwenden, wenn der Nutzer ausdrücklich eine Oberfläche, einen Screen, ein Formular, „A2UI“ o. Ä. wünscht, oder wenn eine Nachricht mit „A2UI-Aktion:“ beginnt (Interaktion mit einem bereits angezeigten Screen).
 ---
 
 # A2UI-Screens im Chat rendern
 
 Die App Claude2UI kann A2UI-Oberflächen (Protokoll v1.0) direkt im Chat anzeigen. Ihr Katalog enthält alle
-Komponenten des A2UI-Basic-Catalog **plus LineChart, BarChart, PieChart** und ein **Image, das auch lokale Dateien** zeigt
-(Pfad absolut, mit `~` oder relativ zum Arbeitsverzeichnis).
+Komponenten des A2UI-Basic-Catalog **plus**:
+- Diagramme: **LineChart, BarChart, PieChart, ScatterChart**
+- **Table** (sortierbar, Zeilen auswählbar), **Metric** (KPI-Kachel mit Veränderung und Verlauf), **Progress**,
+  **Alert** (Hinweisbox), **Badge** (Status-Etikett), **CodeBlock** (Quelltext mit Hervorhebung)
+- ein **Image, das auch lokale Dateien** zeigt (Pfad absolut, mit `~` oder relativ zum Arbeitsverzeichnis)
 Du lieferst sie über das Tool **`render_ui`** (MCP-Server `a2ui`, volle Bezeichnung `mcp__a2ui__render_ui`).
 
 ## Wann

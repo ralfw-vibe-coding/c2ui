@@ -77,4 +77,31 @@ describe('A2UI-Validierung', () => {
       for (const k of keys) expect(doc, `${api.name}.${k}`).toContain(`\`${k}\``)
     }
   })
+
+  it('neue Widgets: gültige Beispiele werden angenommen', () => {
+    const comps = [
+      { id: 'root', component: 'Column', children: ['t', 'm', 'p', 'a', 'b', 'c', 's'] },
+      {
+        id: 't', component: 'Table', title: 'Aufträge', data: { '@path': '/rows' }, selected: { '@path': '/auswahl' },
+        columns: [{ key: 'kunde', label: 'Kunde' }, { key: 'betrag', format: 'currency' }, { key: 'datum', format: 'date' }],
+        action: { event: { name: 'zeile', context: { zeile: { '@path': '/auswahl' } } } }
+      },
+      { id: 'm', component: 'Metric', label: 'Umsatz', value: 12345, format: 'currency', delta: 4.2, deltaLabel: 'ggü. Vormonat', trend: [1, 3, 2, 5] },
+      { id: 'p', component: 'Progress', value: { '@path': '/fortschritt' }, label: 'Import', tone: 'success' },
+      { id: 'a', component: 'Alert', tone: 'warning', title: 'Achtung', text: 'Noch **3** offene Punkte' },
+      { id: 'b', component: 'Badge', text: 'offen', tone: 'info' },
+      { id: 'c', component: 'CodeBlock', code: 'print(1)', language: 'python', title: 'main.py' },
+      { id: 's', component: 'ScatterChart', data: [{ x: 1, y: 2, g: 'A' }], xKey: 'x', yKey: 'y', groupKey: 'g' }
+    ]
+    const r = validate([], [{ createSurface: { surfaceId: 'w', components: comps, dataModel: { rows: [], fortschritt: 40 } } }])
+    expect(r.errors).toEqual([])
+  })
+
+  it('neue Widgets: typische Fehler werden erkannt', () => {
+    const mk = (c: object) => [{ createSurface: { surfaceId: 's', components: [{ id: 'root', ...c }] } }]
+    expect(validate([], mk({ component: 'Table', data: [] })).errors[0]).toMatch(/columns/)
+    expect(validate([], mk({ component: 'Table', data: [], columns: [{ key: 'a', format: 'euro' }] })).ok).toBe(false)
+    expect(validate([], mk({ component: 'Metric', value: 1 })).errors[0]).toMatch(/label/)
+    expect(validate([], mk({ component: 'Alert', tone: 'danger', text: 'x' })).ok).toBe(false)
+  })
 })
