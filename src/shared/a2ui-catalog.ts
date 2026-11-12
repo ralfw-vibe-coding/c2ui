@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { basicCatalog, Catalog, CommonSchemas, type ComponentApi } from '@a2ui/web_core/v1_0'
+import { basicCatalog, Catalog, CommonSchemas, createFunctionImplementation, OpenUrlApi, type ComponentApi } from '@a2ui/web_core/v1_0'
 
 /**
  * Katalog von Claude2UI: alle Komponenten des A2UI-Basic-Catalog, dazu Charts, und ein Image,
@@ -226,6 +226,24 @@ export const EXTRA_APIS: ComponentApi[] = [
   CodeBlockApi
 ]
 
+/** Erlaubte Ziele von openUrl: Web, E-Mail, Telefon. Kein javascript:, file: usw. */
+export const OPEN_URL_SCHEMES = /^(https?:|mailto:|tel:)/i
+
+let openUrlHandler: (url: string) => void = () => {}
+/** Renderer: wie openUrl tatsächlich öffnet (über den Main-Prozess, siehe shell:openExternal). */
+export function setOpenUrlHandler(h: (url: string) => void): void {
+  openUrlHandler = h
+}
+
+/**
+ * openUrl wie im Basic Catalog, aber zusätzlich mit mailto: und tel: (die Spezifikation erlaubt
+ * nur http/https). Geöffnet wird über das System – Mail-App bzw. Telefon.
+ */
+const OpenUrlImpl = createFunctionImplementation(OpenUrlApi as never, (args: { url?: unknown }) => {
+  const url = String(args?.url ?? '').trim()
+  if (OPEN_URL_SCHEMES.test(url)) openUrlHandler(url)
+})
+
 /**
  * Baut den Katalog. `impls` ersetzt APIs durch Implementierungen (Renderer); ohne bleibt es
  * ein reiner Validierungs-Katalog (MCP-Server).
@@ -234,7 +252,6 @@ export function buildClaude2uiCatalog(impls: Record<string, ComponentApi> = {}):
   const extraNames = new Set(EXTRA_APIS.map((a) => a.name))
   const base = [...basicCatalog.components.values()].filter((c) => !extraNames.has(c.name))
   const extras = EXTRA_APIS.map((a) => impls[a.name] ?? a)
-  return new Catalog(CLAUDE2UI_CATALOG_ID, '1.0', [...base, ...extras] as ComponentApi[], [
-    ...basicCatalog.functions.values()
-  ])
+  const functions = [...basicCatalog.functions.values()].map((f) => (f.name === 'openUrl' ? OpenUrlImpl : f))
+  return new Catalog(CLAUDE2UI_CATALOG_ID, '1.0', [...base, ...extras] as ComponentApi[], functions as never)
 }

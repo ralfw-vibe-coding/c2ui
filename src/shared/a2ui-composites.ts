@@ -193,8 +193,14 @@ function instantiate(def: CompositeDef, inst: Record<string, any>): Record<strin
   for (const t of def.template) {
     for (const [k, v] of Object.entries(t)) {
       if (k === 'id' || k === 'component') continue
-      const m = typeof v === 'string' ? v.match(/^\$([A-Za-z_][A-Za-z0-9_]*)$/) : null
-      if (m && values[m[1]] === undefined && t.id !== 'root') removed.add(t.id)
+      if (t.id === 'root') continue
+      // direktes Feld mit ganzem Platzhalter ("$email") ohne Wert
+      const whole = typeof v === 'string' ? v.match(/^\$([A-Za-z_][A-Za-z0-9_]*)$/) : null
+      if (whole && whole[1] in values && values[whole[1]] === undefined) removed.add(t.id)
+      // irgendwo eingebetteter Platzhalter ("mailto:$email") ohne Wert – der Teil wäre sinnlos
+      if (deepStrings(v).some((str) => !/^\$[A-Za-z_][A-Za-z0-9_]*$/.test(str) && tokens(str, values).some((n) => values[n] === undefined))) {
+        removed.add(t.id)
+      }
     }
   }
   // Eltern, deren einziges Kind entfällt, entfallen mit (außer root).
@@ -229,23 +235,73 @@ function instantiate(def: CompositeDef, inst: Record<string, any>): Record<strin
 }
 
 const OMIT = Symbol('omit')
+const TOKEN = /\$([A-Za-z_][A-Za-z0-9_]*)/g
+
+/** Namen deklarierter Eigenschaften, die in einem Text als $name vorkommen. */
+function tokens(text: string, values: Record<string, unknown>): string[] {
+  return [...text.matchAll(TOKEN)].map((m) => m[1]).filter((n) => n in values)
+}
+
+function deepStrings(v: unknown, out: string[] = []): string[] {
+  if (typeof v === 'string') out.push(v)
+  else if (Array.isArray(v)) v.forEach((x) => deepStrings(x, out))
+  else if (v && typeof v === 'object') Object.values(v).forEach((x) => deepStrings(x, out))
+  return out
+}
+
+const bindingPath = (v: unknown): string | undefined => {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return undefined
+  const o = v as Record<string, unknown>
+  const p = o['@path'] ?? o.path
+  return typeof p === 'string' ? p : undefined
+}
 
 function substitute(v: unknown, values: Record<string, unknown>): unknown {
   if (typeof v === 'string') {
+    // Ganzer Platzhalter: Wert unverändert einsetzen (auch Bindungen, Aktionen, Listen …)
     const m = v.match(/^\$([A-Za-z_][A-Za-z0-9_]*)$/)
-    if (!m) return v
-    return values[m[1]] === undefined ? OMIT : values[m[1]]
+    if (m && m[1] in values) return values[m[1]] === undefined ? OMIT : values[m[1]]
+    return interpolate(v, values)
   }
   if (Array.isArray(v)) return v.map((x) => substitute(x, values)).filter((x) => x !== OMIT)
   if (v && typeof v === 'object') {
     const o: Record<string, unknown> = {}
     for (const [k, x] of Object.entries(v)) {
-      const s = substitute(x, values)
-      if (s !== OMIT) o[k] = s
+      const sv = substitute(x, values)
+      if (sv !== OMIT) o[k] = sv
     }
     return o
   }
   return v
+}
+
+/**
+ * Platzhalter mitten im Text ("mailto:$email", "Hallo $name!"). Feste Werte werden eingesetzt;
+ * ist ein Wert eine Bindung {"@path": …}, wird daraus formatString, damit er live bleibt.
+ * Nicht deklarierte $wörter bleiben stehen (z. B. Preise).
+ */
+function interpolate(text: string, values: Record<string, unknown>): unknown {
+  const names = tokens(text, values)
+  if (!names.length) return text
+  if (names.some((n) => values[n] === undefined)) return OMIT
+  const dynamic = names.some((n) => values[n] !== null && typeof values[n] === 'object')
+  if (!dynamic) return text.replace(TOKEN, (all, n) => (n in values ? String(values[n]) : all))
+  const esc = (s: string): string => s.replace(/\$\{/g, '\\${')
+  let out = ''
+  let last = 0
+  for (const m of text.matchAll(TOKEN)) {
+    const n = m[1]
+    if (!(n in values)) continue
+    out += esc(text.slice(last, m.index))
+    const val = values[n]
+    const path = bindingPath(val)
+    if (path) out += '${' + path + '}'
+    else if (val !== null && typeof val === 'object') out += '' // Funktionsaufrufe lassen sich hier nicht einbetten
+    else out += esc(String(val))
+    last = (m.index ?? 0) + m[0].length
+  }
+  out += esc(text.slice(last))
+  return { '@call': 'formatString', args: { value: out } }
 }
 
 // ---------- Doku ----------

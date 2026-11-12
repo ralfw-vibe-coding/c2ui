@@ -7,7 +7,7 @@ Automatisch erzeugt aus dem offiziellen Katalog (scripts/gen-a2ui-reference.mjs)
 - `DynamicString|Number|Boolean|StringList|Value`: Literal ODER `{"@path": "/json/pointer"}` ODER Funktionsaufruf `{"@call": "name", "args": {...}}`.
 - `ComponentId`/`Child`: ID einer anderen Komponente (Kinder immer per ID, nie inline).
 - `ChildList`: Array von IDs ODER Vorlage `{"path": "/liste", "componentId": "vorlage"}`; in der Vorlage sind Pfade ohne führenden `/` relativ zum Listenelement.
-- `Action`: `{"event": {"name": "...", "context": {...}}}` (geht an dich zurück) ODER `{"functionCall": {"@call": "openUrl", "args": {"url": "..."}}}` (lokal).
+- `Action`: `{"event": {"name": "...", "context": {...}}}` (geht an dich zurück) ODER `{"functionCall": {"@call": "openUrl", "args": {"url": "..."}}}` (lokal; erlaubt sind https:, mailto: und tel:).
 - Alle Komponenten haben `id` und `component`; optional `weight` (Flex-Anteil in Row/Column) und `checks` (bei Eingaben).
 
 ## Komponenten des Basic Catalog

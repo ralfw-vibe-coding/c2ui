@@ -169,11 +169,22 @@ egal ob das ein Text, eine Zahl, eine Bindung `{"@path": …}`, eine Liste oder 
 { "id": "value", "component": "Text", "text": "$value" }
 ```
 
+Platzhalter dürfen auch **mitten im Text** stehen. Dann wird der Wert eingesetzt:
+
+```json
+{ "id": "gruss", "component": "Text", "text": "Hallo $name!" },
+{ "id": "mail",  "component": "Button", "child": "mailText",
+  "action": { "functionCall": { "@call": "openUrl", "args": { "url": "mailto:$email" } } } }
+```
+
 Wichtig:
 
-- Ein Platzhalter muss **der ganze Wert** sein. `"Hallo $name"` funktioniert nicht.
-  Für zusammengesetzte Texte gibt man den fertigen Text als Eigenschaft an – oder bindet im Screen per
-  `formatString` (siehe [Daten binden](#daten-binden)).
+- **Ganzer Wert** (`"$email"`): wird 1:1 ersetzt – Text, Zahl, Bindung, Liste oder Aktion.
+- **Mitten im Text** (`"mailto:$email"`): Ein fester Wert wird direkt eingesetzt. Ist der Wert eine Bindung
+  (`{"@path": "/kontakt/email"}`), wird daraus automatisch `formatString` mit `${/kontakt/email}` – der Text
+  aktualisiert sich dann mit den Daten. Listen und Objekte lassen sich nicht in einen Text einsetzen.
+- Der Name endet beim ersten Zeichen, das kein Buchstabe, keine Ziffer und kein `_` ist: `"$name!"` meint `name`.
+- Ein `$` ohne passende Eigenschaft (z. B. `"Preis: 5 $"`) bleibt einfach stehen.
 - Platzhalter dürfen überall stehen, auch tief verschachtelt (z. B. in `series`, `columns` oder im `context` einer Aktion).
 - Jeder Platzhalter muss in `properties` deklariert sein – sonst wird die Datei abgelehnt.
 
@@ -196,6 +207,8 @@ Verweisen darauf. Beispiel: Ohne `note` fällt im `KpiTile` oben der dritte Text
 Genauer:
 
 - Entfernt wird jede Vorlagen-Komponente, bei der ein **direktes Feld** genau `"$eigenschaft"` lautet und der Wert fehlt.
+- Ebenso jede Komponente, in der **irgendwo** ein eingebetteter Platzhalter ohne Wert steht
+  (z. B. ein Button mit `"mailto:$email"`, wenn `email` fehlt) – ein halber Link wäre sinnlos.
 - Sie verschwindet auch aus den `children` ihrer Eltern.
 - Hat ein Elternteil nur dieses eine Kind (`child`, `trigger`, `content`), entfällt es mit.
 - Die Wurzel (`root`) entfällt nie. Nutze in der Wurzel deshalb keine optionalen Platzhalter.
@@ -328,11 +341,27 @@ Die Auflösung geht bis zu fünf Ebenen tief; tiefere (oder zirkuläre) Verschac
 
 ---
 
+## Links, E-Mail und Telefon
+
+Die eingebaute Funktion `openUrl` öffnet Adressen direkt in der App, ohne Umweg über das Modell:
+
+- `https://…` öffnet den Browser,
+- `mailto:adresse@beispiel.de` öffnet das Mail-Programm (auch mit `?subject=…`),
+- `tel:+49…` öffnet die Telefon-App bzw. FaceTime.
+
+Andere Schemata (z. B. `file:` oder `javascript:`) werden aus Sicherheitsgründen ignoriert.
+
+```json
+{ "id": "mail", "component": "Button", "child": "mailText",
+  "action": { "functionCall": { "@call": "openUrl", "args": { "url": "mailto:$email" } } } }
+```
+
+---
+
 ## Was (noch) nicht geht
 
 - **Eigene Darstellung** (eigenes HTML/CSS/JavaScript, z. B. ein Kanban-Board) – geplant als „Web Components“
   (siehe `BACKLOG.md`). Bis dahin lässt sich alles bauen, was aus den vorhandenen Komponenten zusammensetzbar ist.
-- **Platzhalter mitten im Text** (`"Hallo $name"`).
 - **Bedingungen und Schleifen** in der Vorlage – außer über eingebaute Mittel: `List` mit
   `{"path": …, "componentId": …}` für Listen und optionale Eigenschaften zum Weglassen von Teilen.
 - **Eigene Funktionen** (für `@call`) – nur die eingebauten (`formatString`, `formatCurrency`, `required`, …).

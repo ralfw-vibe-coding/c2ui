@@ -23,6 +23,8 @@ const iconPath = join(app.getAppPath(), 'resources', 'icon.png')
 const unpacked = (p: string): string => p.replace(/app\.asar([\\/])/, 'app.asar.unpacked$1')
 
 // Lokale Bilder für A2UI-Screens: c2ui-file://local/<absoluter Pfad>. Nur Bilddateien.
+/** Was nach außen geöffnet werden darf (Browser, Mail-App, Telefon). */
+const EXTERNAL_URL = /^(https?:|mailto:|tel:)/i
 const IMAGE_EXT = /\.(png|jpe?g|gif|webp|svg|bmp|avif|ico)$/i
 protocol.registerSchemesAsPrivileged([
   { scheme: LOCAL_FILE_SCHEME, privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } }
@@ -69,7 +71,7 @@ Kurzfassung einer component.json (siehe auch ContactCard/component.json):
   "template": [                            // Vorlage aus vorhandenen Komponenten, eine mit id "root"
     { "id": "root",  "component": "Card", "child": "col" },
     { "id": "col",   "component": "Column", "children": ["title", "note"] },
-    { "id": "title", "component": "Text", "text": "$title" },   // "$eigenschaft" = Platzhalter
+    { "id": "title", "component": "Text", "text": "$title" },   // "$eigenschaft" = Platzhalter (auch mitten im Text: "Hallo $title")
     { "id": "note",  "component": "Text", "variant": "caption", "text": "$note" }
   ],
   "example": { "title": "Umsatz Q3", "note": "+12 %" }          // Beispiel für das Modell
@@ -77,6 +79,8 @@ Kurzfassung einer component.json (siehe auch ContactCard/component.json):
 
 Typen: DynamicString, DynamicNumber, DynamicBoolean, DynamicValue (Text/Zahl/… oder Bindung {"@path": …}),
 string, number, boolean (feste Werte, mit "enum" einschränkbar), Action (für Buttons), Child/ChildList (Slots).
+Buttons können per {"functionCall": {"@call": "openUrl", "args": {"url": "mailto:$email"}}} Links, Mail (mailto:)
+und Telefon (tel:) öffnen. Fehlt ein eingebetteter Wert, entfällt die ganze Komponente.
 (Kommentare mit // sind nur zur Erklärung – in echten JSON-Dateien nicht erlaubt.)
 `
 let quitting = false
@@ -104,15 +108,15 @@ function createWindow(): void {
     }
   })
 
-  // Links aus Chat-Antworten im Standardbrowser öffnen, nie im App-Fenster.
+  // Links aus Chat-Antworten im Standardbrowser bzw. in Mail/Telefon öffnen, nie im App-Fenster.
   win.webContents.setWindowOpenHandler(({ url }) => {
-    if (/^https?:/i.test(url)) shell.openExternal(url)
+    if (EXTERNAL_URL.test(url)) void shell.openExternal(url)
     return { action: 'deny' }
   })
   win.webContents.on('will-navigate', (e, url) => {
     if (url !== win?.webContents.getURL()) {
       e.preventDefault()
-      if (/^https?:/i.test(url)) shell.openExternal(url)
+      if (EXTERNAL_URL.test(url)) void shell.openExternal(url)
     }
   })
 
@@ -183,6 +187,11 @@ function registerIpc(): void {
     listModels(agent, manager.getSettings().agents[agent].path, loginPath)
   )
   ipcMain.handle('shell:reveal', (_e, path: string) => shell.openPath(path))
+  ipcMain.handle('shell:openExternal', async (_e, url: string) => {
+    if (typeof url !== 'string' || !EXTERNAL_URL.test(url.trim())) return false
+    await shell.openExternal(url.trim())
+    return true
+  })
   ipcMain.handle('dialog:confirmBusy', async (_e, title: string, action: string) => {
     const r = await dialog.showMessageBox(win!, {
       type: 'question',

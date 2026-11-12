@@ -47,6 +47,8 @@ const api = {
   listComponents: (): Promise<{ defs: CompositeDef[]; errors: string[]; dir: string }> => ipcRenderer.invoke('components:list'),
   onComponentsChanged: (cb: (r: { defs: CompositeDef[]; errors: string[] }) => void) => on('components:changed', cb),
   reveal: (path: string): Promise<string> => ipcRenderer.invoke('shell:reveal', path),
+  /** Öffnet http(s)-, mailto- und tel-Adressen über das System. */
+  openExternal: (url: string): Promise<boolean> => ipcRenderer.invoke('shell:openExternal', url),
   confirmBusy: (title: string, action: string): Promise<'background' | 'stop' | 'cancel'> =>
     ipcRenderer.invoke('dialog:confirmBusy', title, action),
   confirm: (message: string, detail: string, ok: string): Promise<boolean> =>

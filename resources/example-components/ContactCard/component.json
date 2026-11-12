@@ -1,6 +1,6 @@
 {
   "name": "ContactCard",
-  "description": "Visitenkarte einer Person: Foto, Name, Rolle und E-Mail, optional mit Button.",
+  "description": "Visitenkarte einer Person: Foto, Name, Rolle, E-Mail (mit Knopf „E-Mail schreiben“) und Status-Badge.",
   "properties": {
     "name": {
       "type": "DynamicString",
@@ -35,10 +35,6 @@
       "type": "DynamicString",
       "default": "Kontakt",
       "description": "Text des Status-Badges."
-    },
-    "action": {
-      "type": "Action",
-      "description": "Optional: Aktion für den Button „Kontaktieren“."
     }
   },
   "template": [
@@ -54,8 +50,7 @@
       "children": [
         "foto",
         "info",
-        "badge",
-        "button"
+        "badge"
       ]
     },
     {
@@ -72,7 +67,8 @@
       "children": [
         "name",
         "role",
-        "email"
+        "email",
+        "mail"
       ]
     },
     {
@@ -99,16 +95,23 @@
       "tone": "$status"
     },
     {
-      "id": "buttonText",
+      "id": "mailText",
       "component": "Text",
-      "text": "Kontaktieren"
+      "text": "E-Mail schreiben"
     },
     {
-      "id": "button",
+      "id": "mail",
       "component": "Button",
       "variant": "borderless",
-      "child": "buttonText",
-      "action": "$action"
+      "child": "mailText",
+      "action": {
+        "functionCall": {
+          "@call": "openUrl",
+          "args": {
+            "url": "mailto:$email"
+          }
+        }
+      }
     }
   ],
   "example": {

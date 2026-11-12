@@ -131,4 +131,45 @@ describe('eigene Komponenten', () => {
     const r = validate([], [{ createSurface: { surfaceId: 's', components: [{ id: 'root', component: 'Loop' }] } }])
     expect(r.ok).toBe(false)
   })
+
+  it('Platzhalter mitten im Text: feste Werte, Bindungen (formatString), fehlende Werte, fremde $wörter', () => {
+    const Mail: CompositeDef = {
+      name: 'Mail',
+      description: 'Mail-Knopf',
+      properties: { email: { type: 'DynamicString' }, name: { type: 'DynamicString', required: true } },
+      template: [
+        { id: 'root', component: 'Column', children: ['gruss', 'btn'] },
+        { id: 'gruss', component: 'Text', text: 'Hallo $name – kostet $5' },
+        { id: 'btnText', component: 'Text', text: 'Mail' },
+        { id: 'btn', component: 'Button', child: 'btnText', action: { functionCall: { '@call': 'openUrl', args: { url: 'mailto:$email' } } } }
+      ]
+    }
+    setComposites([Mail])
+    const lit = expandComposites([{ id: 'm', component: 'Mail', name: 'Ada', email: 'ada@x.org' }]) as any[]
+    expect(lit.find((c) => c.id === 'm__gruss').text).toBe('Hallo Ada – kostet $5')
+    expect(lit.find((c) => c.id === 'm__btn').action.functionCall.args.url).toBe('mailto:ada@x.org')
+
+    const bound = expandComposites([{ id: 'm', component: 'Mail', name: { '@path': '/n' }, email: { '@path': 'mail' } }]) as any[]
+    expect(bound.find((c) => c.id === 'm__gruss').text).toEqual({ '@call': 'formatString', args: { value: 'Hallo ${/n} – kostet $5' } })
+    expect(bound.find((c) => c.id === 'm__btn').action.functionCall.args.url).toEqual({ '@call': 'formatString', args: { value: 'mailto:${mail}' } })
+
+    // ohne E-Mail entfällt der Knopf (statt eines leeren mailto:)
+    const none = expandComposites([{ id: 'm', component: 'Mail', name: 'Ada' }]) as any[]
+    expect(none.map((c) => c.id)).toEqual(['m', 'm__gruss', 'm__btnText'])
+    expect(none[0].children).toEqual(['m__gruss'])
+
+    // alles gültig für den Validator
+    for (const inst of [{ name: 'Ada', email: 'ada@x.org' }, { name: { '@path': '/n' }, email: { '@path': '/e' } }, { name: 'Ada' }]) {
+      const r = validate([], [{ createSurface: { surfaceId: 's', components: [{ id: 'root', component: 'Mail', ...inst }] } }])
+      expect(r.errors, JSON.stringify(inst)).toEqual([])
+    }
+  })
+
+  it('ContactCard-Beispiel: Knopf „E-Mail schreiben“ öffnet mailto mit der Adresse', () => {
+    setComposites(loadComposites(exampleDir).defs)
+    const out = expandComposites([{ id: 'k', component: 'ContactCard', name: 'Ada', email: 'ada@x.org' }]) as any[]
+    expect(out.find((c) => c.id === 'k__mail').action.functionCall.args.url).toBe('mailto:ada@x.org')
+    const ohne = expandComposites([{ id: 'k', component: 'ContactCard', name: 'Ada' }]) as any[]
+    expect(ohne.some((c) => c.id === 'k__mail')).toBe(false)
+  })
 })
