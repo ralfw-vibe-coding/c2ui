@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, statSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { acceptedMessages, callMessages, isA2uiCall, surfaceIdOf } from '@shared/a2ui'
 import type { A2uiSetup } from './agents/a2ui'
@@ -10,6 +10,7 @@ import {
   migrateSettings,
   type AgentEvent,
   type AgentKind,
+  type Attachment,
   type ChatPatch,
   type Chat,
   type LayoutState,
@@ -23,6 +24,22 @@ import type { AgentFactory, AgentSession } from './agents/types'
 import type { Storage } from './storage'
 
 const DEFAULT_TITLE = 'Neuer Chat'
+const IMAGE_FILE = /\.(png|jpe?g|gif|webp|svg|bmp|avif|heic|tiff?)$/i
+
+function safeName(name: string): string {
+  const n = name.replace(/[\/\\:\x00-\x1f]/g, '_').trim()
+  return n || 'anhang'
+}
+
+/** Dateiname im Ordner, der noch nicht existiert (name.png, name-2.png, …). */
+function uniquePath(dir: string, name: string): string {
+  const dot = name.lastIndexOf('.')
+  const stem = dot > 0 ? name.slice(0, dot) : name
+  const ext = dot > 0 ? name.slice(dot) : ''
+  let p = join(dir, name)
+  for (let i = 2; existsSync(p); i++) p = join(dir, `${stem}-${i}${ext}`)
+  return p
+}
 
 /** Wo die App ihr A2UI-Plugin und den MCP-Server findet. */
 export interface A2uiPaths {
@@ -60,7 +77,8 @@ export class ChatManager {
     private readonly storage: Storage,
     private readonly path: string,
     private readonly events: ChatManagerEvents,
-    private readonly a2ui?: A2uiPaths
+    private readonly a2ui?: A2uiPaths,
+    private readonly attachmentsRoot?: string
   ) {
     this.settings = migrateSettings(storage.read<unknown>('settings', {}))
     for (const c of storage.read<Chat[]>('chats', [])) this.chats.set(c.id, c)
@@ -172,20 +190,20 @@ export class ChatManager {
     return [...this.sessions.entries()].filter(([, s]) => s.busy).map(([id]) => id)
   }
 
-  send(id: string, text: string): void {
+  send(id: string, text: string, attachments: Attachment[] = []): void {
     const chat = this.chats.get(id)
     if (!chat) throw new Error('Unbekannter Chat')
     if (this.isBusy(id)) throw new Error('Chat ist beschäftigt')
 
     if (chat.title === DEFAULT_TITLE) {
-      const t = text.replace(/\s+/g, ' ').trim()
+      const t = (text || attachments.map((a) => a.name).join(', ')).replace(/\s+/g, ' ').trim()
       chat.title = t.length > 60 ? t.slice(0, 57) + '…' : t || basename(chat.cwd)
     }
     chat.updatedAt = Date.now()
     this.saveChats()
 
-    this.emit(id, { kind: 'user', id: randomUUID(), text, ts: Date.now() })
-    this.session(chat).send(text)
+    this.emit(id, { kind: 'user', id: randomUUID(), text, ts: Date.now(), ...(attachments.length ? { attachments } : {}) })
+    this.session(chat).send(text, attachments)
   }
 
   interrupt(id: string): void {
@@ -209,7 +227,8 @@ export class ChatManager {
         settings: () => this.settings,
         path: this.path,
         a2ui: () => this.a2uiSetup(chat.id),
-        history: () => this.historyText(chat.id)
+        history: () => this.historyText(chat.id),
+        attachmentsDir: () => this.attachmentsDir(chat.id)
       },
       {
         onEvent: (e) => this.emit(chat.id, e),
@@ -253,6 +272,33 @@ export class ChatManager {
     let text = lines.join('\n\n')
     if (text.length > maxChars) text = '…(ältere Teile gekürzt)…\n\n' + text.slice(text.length - maxChars)
     return text
+  }
+
+  /** Anhang-Ordner eines Chats (wird bei Bedarf angelegt). */
+  attachmentsDir(chatId: string): string | undefined {
+    if (!this.attachmentsRoot) return undefined
+    const dir = join(this.attachmentsRoot, chatId)
+    mkdirSync(dir, { recursive: true })
+    return dir
+  }
+
+  /** Speichert einen Anhang (Bytes, z. B. ein eingefügtes Bild) im Anhang-Ordner des Chats. */
+  saveAttachment(chatId: string, name: string, data: Uint8Array): Attachment {
+    const dir = this.attachmentsDir(chatId)
+    if (!dir) throw new Error('Kein Anhang-Ordner')
+    const path = uniquePath(dir, safeName(name))
+    writeFileSync(path, data)
+    return { path, name: basename(path), image: IMAGE_FILE.test(path) }
+  }
+
+  /** Kopiert eine Datei (z. B. per Drag&Drop) in den Anhang-Ordner des Chats. */
+  importAttachment(chatId: string, src: string): Attachment {
+    const dir = this.attachmentsDir(chatId)
+    if (!dir) throw new Error('Kein Anhang-Ordner')
+    if (!statSync(src).isFile()) throw new Error(`„${basename(src)}“ ist keine Datei (Ordner werden nicht unterstützt).`)
+    const path = uniquePath(dir, safeName(basename(src)))
+    copyFileSync(src, path)
+    return { path, name: basename(src), image: IMAGE_FILE.test(path) }
   }
 
   /** A2UI-Einrichtung für einen Prozessstart; legt vorher den bisherigen A2UI-Stand des Chats ab. */

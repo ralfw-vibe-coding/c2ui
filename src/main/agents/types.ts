@@ -1,4 +1,4 @@
-import type { AgentEvent, Chat, Settings } from '@shared/types'
+import type { AgentEvent, Attachment, Chat, Settings } from '@shared/types'
 import type { A2uiSetup } from './a2ui'
 
 /**
@@ -8,7 +8,7 @@ import type { A2uiSetup } from './a2ui'
 export interface AgentSession {
   readonly busy: boolean
   /** Startet einen Turn. Darf nur aufgerufen werden, wenn !busy. */
-  send(text: string): void
+  send(text: string, attachments?: Attachment[]): void
   /** Bricht den laufenden Turn ab. */
   interrupt(): void
   /** Beendet einen eventuell laufenden Prozess. */
@@ -27,6 +27,8 @@ export interface AgentContext {
   path: string
   /** A2UI-Einrichtung für diesen Chat; wird direkt vor jedem Prozessstart aufgerufen. */
   a2ui?(): A2uiSetup | null
+  /** Anhang-Ordner des Chats (Claude darf ihn lesen). */
+  attachmentsDir?(): string | undefined
   /** Bisheriger Verlauf als Text (für einen Neustart ohne resume), ohne die aktuelle Nachricht. */
   history?(): string
 }

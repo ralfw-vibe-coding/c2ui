@@ -41,6 +41,13 @@ export function modeLabel(agent: AgentKind, mode: string): string {
   return AGENTS[agent].modes.find((m) => m.value === mode)?.label ?? mode
 }
 
+/** Anhang einer Nutzernachricht (liegt als Datei im Anhang-Ordner des Chats). */
+export interface Attachment {
+  path: string
+  name: string
+  image: boolean
+}
+
 export interface Chat {
   id: string
   title: string
@@ -136,7 +143,7 @@ export type Block =
     }
 
 export type TranscriptItem =
-  | { type: 'user'; id: string; text: string; ts: number }
+  | { type: 'user'; id: string; text: string; ts: number; attachments?: Attachment[] }
   | { type: 'assistant'; id: string; blocks: Block[] }
   | { type: 'error'; id: string; text: string }
   | { type: 'notice'; id: string; text: string }
@@ -154,7 +161,7 @@ export type Transcript = TranscriptItem[]
 
 /** Normalisierte Events, die ein Agent-Adapter liefert. */
 export type AgentEvent =
-  | { kind: 'user'; id: string; text: string; ts: number }
+  | { kind: 'user'; id: string; text: string; ts: number; attachments?: Attachment[] }
   | { kind: 'text-delta'; msgId: string; index: number; text: string; blockType: 'text' | 'thinking' }
   | { kind: 'assistant'; msgId: string; blocks: Block[]; /** Position des ersten Blocks in der Nachricht; fehlt = anhängen */ index?: number }
   | { kind: 'tool-result'; toolUseId: string; content: string; isError: boolean }

@@ -1706,3 +1706,134 @@ button.a2ui-update:hover {
 .components-head {
   justify-content: flex-start !important;
 }
+
+/* Anhänge */
+.chat-panel.file-over .transcript {
+  outline: 2px dashed var(--accent);
+  outline-offset: -6px;
+  border-radius: 8px;
+}
+.file-drop-hint {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 5;
+  background: var(--accent);
+  color: #fff;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  pointer-events: none;
+  box-shadow: var(--shadow);
+}
+.attach-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.attach-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 240px;
+  padding: 3px 4px 3px 4px;
+  border: 1px solid var(--border-strong);
+  border-radius: 7px;
+  background: var(--bg-elev);
+  font-size: 12px;
+  color: var(--text);
+}
+.attach-chip img {
+  width: 32px;
+  height: 32px;
+  object-fit: cover;
+  border-radius: 4px;
+  display: block;
+}
+.attach-chip .icon {
+  color: var(--text-muted);
+  margin-left: 2px;
+}
+.attach-name {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.attach-chip.sent {
+  cursor: pointer;
+  padding: 5px 10px;
+}
+.msg-user-col {
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+.sent-attachments {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+  max-width: 85%;
+}
+.sent-image {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0;
+  overflow: hidden;
+  cursor: zoom-in;
+  background: var(--bg);
+}
+.sent-image img {
+  display: block;
+  max-width: 220px;
+  max-height: 160px;
+  object-fit: contain;
+}
+
+/* Schmale Zellen: zuerst Ordner und Modell kürzen, der Titel behält eine Mindestbreite */
+.cell-header .cell-title {
+  min-width: 110px;
+}
+.cell-header .rename-btn {
+  display: none;
+}
+.cell-header:hover .rename-btn {
+  display: inline-flex;
+}
+.cell-meta {
+  flex-shrink: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+.cell-meta.cell-cwd {
+  flex-shrink: 3;
+  text-overflow: ellipsis;
+}
+.model-chip-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cell-actions {
+  flex-shrink: 0;
+}
+.mode-select {
+  min-width: 0;
+  flex-shrink: 1;
+}
+.cell-header {
+  container: cellhead / inline-size;
+}
+/* In schmalen Zellen Ordner und Modell ganz ausblenden statt als Reste zu zeigen */
+@container cellhead (max-width: 600px) {
+  .cell-header .cell-meta {
+    display: none;
+  }
+}
+@container cellhead (max-width: 420px) {
+  .cell-header .mode-select {
+    max-width: 92px;
+  }
+}

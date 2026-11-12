@@ -2,7 +2,7 @@ import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { app, BrowserWindow, dialog, ipcMain, nativeImage, net, protocol, shell } from 'electron'
 import { LOCAL_FILE_SCHEME } from '@shared/a2ui'
-import type { AgentKind, ChatPatch, LayoutState, PermissionMode, Settings } from '@shared/types'
+import type { AgentKind, Attachment, ChatPatch, LayoutState, PermissionMode, Settings } from '@shared/types'
 import { ChatManager } from './chats'
 import { ensureComponentsDir, loadComposites } from './componentsLoader'
 import { watch } from 'node:fs'
@@ -162,7 +162,13 @@ function registerIpc(): void {
   ipcMain.handle('chats:update', (_e, id: string, patch: ChatPatch) => manager.update(id, patch))
   ipcMain.handle('chats:delete', (_e, id: string) => manager.delete(id))
   ipcMain.handle('transcript:get', (_e, id: string) => manager.transcript(id))
-  ipcMain.handle('agent:send', (_e, id: string, text: string) => manager.send(id, text))
+  ipcMain.handle('agent:send', (_e, id: string, text: string, attachments?: Attachment[]) =>
+    manager.send(id, text, attachments ?? [])
+  )
+  ipcMain.handle('attachments:save', (_e, chatId: string, name: string, data: Uint8Array) =>
+    manager.saveAttachment(chatId, name, data)
+  )
+  ipcMain.handle('attachments:import', (_e, chatId: string, path: string) => manager.importAttachment(chatId, path))
   ipcMain.handle('agent:interrupt', (_e, id: string) => manager.interrupt(id))
   ipcMain.handle('dialog:pickDirectory', async (_e, defaultPath?: string) => {
     const r = await dialog.showOpenDialog(win!, {
@@ -238,7 +244,8 @@ app.whenReady().then(() => {
       stateDir: join(app.getPath('userData'), 'a2ui-state'),
       shadowHomeDir: join(app.getPath('userData'), 'codex-home'),
       componentsDir
-    }
+    },
+    join(app.getPath('userData'), 'attachments')
   )
   registerIpc()
   registerLocalFileProtocol()

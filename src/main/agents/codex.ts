@@ -3,10 +3,11 @@ import { readdirSync, statSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
-import { chatModel, type Block } from '@shared/types'
+import { chatModel, type Attachment, type Block } from '@shared/types'
 import { codexConfigDefaultModel } from '../models'
 import { childEnv } from '../env'
 import { codexA2uiLaunch } from './a2ui'
+import { inlineImages, textWithAttachments } from './attachments'
 import type { AgentCallbacks, AgentContext, AgentFactory, AgentSession } from './types'
 
 const MAX_TOOL_RESULT = 20_000
@@ -42,6 +43,8 @@ class CodexSession implements AgentSession {
   private turnText = ''
   /** Der laufende Prozess setzt eine bestehende Session fort. */
   private resuming = false
+  /** Bilder des laufenden Turns (per --image an Codex). */
+  private turnImages: string[] = []
   private retried = false
 
   constructor(
@@ -53,8 +56,10 @@ class CodexSession implements AgentSession {
     return this._busy
   }
 
-  send(text: string): void {
+  send(text: string, attachments: Attachment[] = []): void {
     if (this._busy) throw new Error('Chat ist beschäftigt')
+    this.turnImages = inlineImages(attachments).map((i) => i.path)
+    text = textWithAttachments(text, attachments)
     this.setBusy(true)
     this.interrupted = false
     this.turnEnded = false
@@ -111,6 +116,8 @@ class CodexSession implements AgentSession {
     const a2ui = this.ctx.a2ui?.()
     const launch = a2ui ? codexA2uiLaunch(a2ui) : { args: [], env: {} }
     common.push(...launch.args)
+    // --image nimmt mehrere Werte; mit "=" wird nichts Nachfolgendes verschluckt.
+    for (const img of this.turnImages) common.push(`--image=${img}`)
     this.resuming = chat.sessionStarted && !fresh
     const args = this.resuming
       ? ['exec', 'resume', ...common, chat.sessionId, '-']

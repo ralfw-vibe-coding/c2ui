@@ -9,6 +9,9 @@ Desktop-App (Electron), in der mehrere Chats mit der Claude CLI oder der Codex C
 - Sidebar mit eigener Chatliste (Doppelklick = umbenennen). Klick öffnet den Chat in der markierten Zelle.
 - Neuer Chat mit Claude oder Codex: Buttons oben in der Sidebar oder in einer leeren Zelle, danach Arbeitsverzeichnis wählen. Leere Zellen bieten außerdem frühere Chats an.
 - Pro Chat ein Arbeitsverzeichnis und ein Berechtigungs- bzw. Sandbox-Modus; Standard, Modell und Binary-Pfad je Agent in den Einstellungen.
+- Anhänge: Bilder per Einfügen (⌘V) und Dateien per Drag & Drop. Sie landen im Anhang-Ordner des Chats
+  (`<userData>/attachments/<chat>`); Claude bekommt Bilder als Bild und darf den Ordner lesen, Codex bekommt Bilder per `--image`.
+- Arbeitsschritte (Werkzeugaufrufe, Zwischentexte) je Antwort einklappbar.
 - Ein Chat ist höchstens in einer Zelle offen. Layout, Chatliste und Transkripte überstehen einen Neustart.
 - Wird ein arbeitender Chat geschlossen, fragt die App nach: im Hintergrund weiterlaufen lassen, abbrechen oder nicht schließen.
 

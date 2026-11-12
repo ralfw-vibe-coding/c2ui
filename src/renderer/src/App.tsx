@@ -18,7 +18,17 @@ export function App() {
       }
     }
     window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
+    // Dateien, die neben einen Chat fallen, sollen das Fenster nicht zu der Datei navigieren.
+    const stopFileDrop = (e: DragEvent): void => {
+      if (e.dataTransfer?.types.includes('Files')) e.preventDefault()
+    }
+    window.addEventListener('dragover', stopFileDrop)
+    window.addEventListener('drop', stopFileDrop)
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      window.removeEventListener('dragover', stopFileDrop)
+      window.removeEventListener('drop', stopFileDrop)
+    }
   }, [])
 
   if (!ready) return <div className="boot muted">Lade …</div>

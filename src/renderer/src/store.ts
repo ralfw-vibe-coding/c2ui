@@ -4,7 +4,7 @@ import { setComposites, type CompositeDef } from '@shared/a2ui-composites'
 import { setDraft } from './drafts'
 import * as L from '@shared/layout'
 import { applyEvent } from '@shared/transcript'
-import type { AgentEvent, AgentKind, Chat, LayoutState, Settings, Transcript } from '@shared/types'
+import type { AgentEvent, AgentKind, Attachment, Chat, LayoutState, Settings, Transcript } from '@shared/types'
 
 export const CHAT_MIME = 'application/x-claude2ui-chat'
 
@@ -24,6 +24,8 @@ interface State {
   components: { defs: CompositeDef[]; errors: string[]; dir: string }
   /** Zählt Änderungen an eigenen Komponenten; Screens werden dann neu aufgebaut. */
   componentsVersion: number
+  /** Noch nicht gesendete Anhänge je Chat. */
+  pendingAttachments: Record<string, Attachment[] | undefined>
 }
 
 interface Actions {
@@ -40,7 +42,11 @@ interface Actions {
   drop(chatId: string, cellId: string, zone: L.DropZone): Promise<void>
   deleteChat(chatId: string): Promise<void>
   renameChat(chatId: string, title: string): Promise<void>
-  send(chatId: string, text: string): Promise<void>
+  send(chatId: string, text: string, attachments?: Attachment[]): Promise<void>
+  /** Dateien (Einfügen, Drag&Drop) als Anhänge des Chats übernehmen. */
+  addFiles(chatId: string, files: File[]): Promise<string[]>
+  removeAttachment(chatId: string, path: string): void
+  clearAttachments(chatId: string): void
   setDragging(chatId: string | null): void
   setSettingsOpen(open: boolean): void
   toggleSidebar(): void
@@ -109,6 +115,7 @@ export const useStore = create<State & Actions>((set, get) => {
     sidebarCollapsed: readFlag('sidebarCollapsed'),
     components: { defs: [], errors: [], dir: '' },
     componentsVersion: 0,
+    pendingAttachments: {},
 
     async init() {
       // Eigene Komponenten zuerst – sie werden beim Anzeigen der Screens aufgelöst.
@@ -258,9 +265,33 @@ export const useStore = create<State & Actions>((set, get) => {
       if (t) await window.api.updateChat(chatId, { title: t })
     },
 
-    async send(chatId, text) {
+    async send(chatId, text, attachments) {
       await loadTranscript(chatId)
-      await window.api.send(chatId, text)
+      await window.api.send(chatId, text, attachments)
+    },
+
+    async addFiles(chatId, files) {
+      const errors: string[] = []
+      for (const f of files) {
+        try {
+          const path = window.api.pathForFile(f)
+          const a = path
+            ? await window.api.importAttachment(chatId, path)
+            : await window.api.saveAttachment(chatId, f.name && f.name !== 'image.png' ? f.name : `bild-${stamp()}.${ext(f.type)}`, new Uint8Array(await f.arrayBuffer()))
+          set((s) => ({ pendingAttachments: { ...s.pendingAttachments, [chatId]: [...(s.pendingAttachments[chatId] ?? []), a] } }))
+        } catch (e) {
+          errors.push(String((e as Error).message ?? e).replace(/^Error invoking remote method '[^']+': (Error: )?/, ''))
+        }
+      }
+      return errors
+    },
+
+    removeAttachment(chatId, path) {
+      set((s) => ({ pendingAttachments: { ...s.pendingAttachments, [chatId]: (s.pendingAttachments[chatId] ?? []).filter((a) => a.path !== path) } }))
+    },
+
+    clearAttachments(chatId) {
+      set((s) => ({ pendingAttachments: { ...s.pendingAttachments, [chatId]: [] } }))
     },
 
     setDragging(chatId) {
@@ -283,6 +314,16 @@ export const useStore = create<State & Actions>((set, get) => {
     }
   }
 })
+
+function stamp(): string {
+  const d = new Date()
+  const p = (n: number): string => String(n).padStart(2, '0')
+  return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`
+}
+
+function ext(mime: string): string {
+  return ({ 'image/png': 'png', 'image/jpeg': 'jpg', 'image/gif': 'gif', 'image/webp': 'webp', 'image/tiff': 'tiff' } as Record<string, string>)[mime] ?? 'bin'
+}
 
 export function useChat(id: string | null | undefined): Chat | undefined {
   return useStore((s) => s.chats.find((c) => c.id === id))

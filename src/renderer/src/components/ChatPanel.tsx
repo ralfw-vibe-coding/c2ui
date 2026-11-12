@@ -9,6 +9,7 @@ import { TranscriptView } from './TranscriptView'
 
 const NEAR_BOTTOM_PX = 60
 import { drafts } from '../drafts'
+import { AttachmentChips } from './Attachments'
 
 export function ChatPanel({ chatId, active }: { chatId: string; active: boolean }) {
   const transcript = useStore((s) => s.transcripts[chatId])
@@ -17,6 +18,7 @@ export function ChatPanel({ chatId, active }: { chatId: string; active: boolean 
   const scrollRef = useRef<HTMLDivElement>(null)
   const stickRef = useRef(true)
   const [atBottom, setAtBottom] = useState(true)
+  const [fileOver, setFileOver] = useState(false)
 
   // A2UI: neue render_ui-Aufrufe anwenden, bevor die Nachrichten gerendert werden.
   const componentsVersion = useStore((s) => s.componentsVersion)
@@ -91,7 +93,26 @@ export function ChatPanel({ chatId, active }: { chatId: string; active: boolean 
   }, [])
 
   return (
-    <div className="chat-panel" data-chat-id={chatId}>
+    <div
+      className={`chat-panel${fileOver ? ' file-over' : ''}`}
+      data-chat-id={chatId}
+      onDragOver={(e) => {
+        if (!e.dataTransfer.types.includes('Files')) return
+        e.preventDefault()
+        e.dataTransfer.dropEffect = 'copy'
+        if (!fileOver) setFileOver(true)
+      }}
+      onDragLeave={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node)) setFileOver(false)
+      }}
+      onDrop={(e) => {
+        if (!e.dataTransfer.files.length) return
+        e.preventDefault()
+        setFileOver(false)
+        void useStore.getState().addFiles(chatId, [...e.dataTransfer.files])
+      }}
+    >
+      {fileOver && <div className="file-drop-hint">Dateien hier ablegen, um sie anzuhängen</div>}
       <ScreenStrip chatId={chatId} surfaceIds={activeSurfaces} />
       <div className="transcript" ref={scrollRef} onScroll={onScroll}>
         <div className="transcript-inner" ref={innerRef}>
@@ -160,22 +181,36 @@ function Composer({
     el.style.overflowY = h > 220 ? 'auto' : 'hidden'
   }, [text])
 
+  const attachments = useStore((s) => s.pendingAttachments[chatId]) ?? []
+
   async function submit(): Promise<void> {
     const t = text.trim()
-    if (!t || busy) return
+    if ((!t && attachments.length === 0) || busy) return
     setError(null)
     setText('')
+    const sent = attachments
+    useStore.getState().clearAttachments(chatId)
     try {
-      await useStore.getState().send(chatId, t)
+      await useStore.getState().send(chatId, t, sent)
     } catch (e) {
       setText(t)
+      for (const a of sent) useStore.setState((st) => ({ pendingAttachments: { ...st.pendingAttachments, [chatId]: [...(st.pendingAttachments[chatId] ?? []), a] } }))
       setError(String((e as Error).message ?? e).replace(/^Error invoking remote method '[^']+': (Error: )?/, ''))
     }
+  }
+
+  async function onPaste(e: React.ClipboardEvent<HTMLTextAreaElement>): Promise<void> {
+    const files = [...e.clipboardData.files]
+    if (!files.length) return
+    e.preventDefault()
+    const errors = await useStore.getState().addFiles(chatId, files)
+    if (errors.length) setError(errors.join(' · '))
   }
 
   return (
     <div className="composer">
       {error && <div className="composer-error">{error}</div>}
+      {attachments.length > 0 && <AttachmentChips chatId={chatId} attachments={attachments} />}
       <div className="composer-row">
         <textarea
           ref={ref}
@@ -188,6 +223,7 @@ function Composer({
           }
           disabled={busy}
           onChange={(e) => setText(e.target.value)}
+          onPaste={(e) => void onPaste(e)}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
               e.preventDefault()
@@ -200,7 +236,7 @@ function Composer({
             <Icon name="stop" />
           </button>
         ) : (
-          <button className="btn primary" onClick={() => void submit()} disabled={!text.trim()} title="Senden">
+          <button className="btn primary" onClick={() => void submit()} disabled={!text.trim() && attachments.length === 0} title="Senden">
             <Icon name="send" />
           </button>
         )}

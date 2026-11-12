@@ -4,11 +4,20 @@ import { A2UI_ACTION_PREFIX, isA2uiCall } from '@shared/a2ui'
 import { A2uiBlock, ActionMessage } from '../a2ui/A2uiBlock'
 import { Icon } from './Icon'
 import { ChatMarkdown, LocalImage } from './LocalImage'
+import { SentAttachments } from './Attachments'
 
 export const TranscriptItemView = memo(function TranscriptItemView({ item, chatId }: { item: TranscriptItem; chatId: string }) {
   switch (item.type) {
     case 'user':
       if (item.text.startsWith(A2UI_ACTION_PREFIX)) return <ActionMessage text={item.text} />
+      if (item.attachments?.length) {
+        return (
+          <div className="msg msg-user msg-user-col">
+            <SentAttachments attachments={item.attachments} />
+            {item.text && <div className="bubble">{item.text}</div>}
+          </div>
+        )
+      }
       return (
         <div className="msg msg-user">
           <div className="bubble">{item.text}</div>

@@ -1,6 +1,6 @@
-import { contextBridge, ipcRenderer, webFrame, type IpcRendererEvent } from 'electron'
+import { contextBridge, ipcRenderer, webFrame, webUtils, type IpcRendererEvent } from 'electron'
 import type { CompositeDef } from '@shared/a2ui-composites'
-import type { AgentEvent, AgentKind, Chat, ChatPatch, LayoutState, ModelList, PermissionMode, Settings, Transcript } from '@shared/types'
+import type { AgentEvent, AgentKind, Attachment, Chat, ChatPatch, LayoutState, ModelList, PermissionMode, Settings, Transcript } from '@shared/types'
 
 export interface InitState {
   settings: Settings
@@ -27,7 +27,20 @@ const api = {
   createWorkshopChat: (component?: string): Promise<Chat> => ipcRenderer.invoke('chats:createWorkshop', component),
   deleteChat: (id: string): Promise<void> => ipcRenderer.invoke('chats:delete', id),
   transcript: (id: string): Promise<Transcript> => ipcRenderer.invoke('transcript:get', id),
-  send: (id: string, text: string): Promise<void> => ipcRenderer.invoke('agent:send', id, text),
+  send: (id: string, text: string, attachments?: Attachment[]): Promise<void> =>
+    ipcRenderer.invoke('agent:send', id, text, attachments),
+  saveAttachment: (chatId: string, name: string, data: Uint8Array): Promise<Attachment> =>
+    ipcRenderer.invoke('attachments:save', chatId, name, data),
+  importAttachment: (chatId: string, path: string): Promise<Attachment> =>
+    ipcRenderer.invoke('attachments:import', chatId, path),
+  /** Dateipfad einer per Drag&Drop/Einfügen gelieferten Datei ('' wenn es keinen gibt, z. B. Screenshot). */
+  pathForFile: (file: File): string => {
+    try {
+      return webUtils.getPathForFile(file)
+    } catch {
+      return ''
+    }
+  },
   interrupt: (id: string): Promise<void> => ipcRenderer.invoke('agent:interrupt', id),
   pickDirectory: (defaultPath?: string): Promise<string | null> => ipcRenderer.invoke('dialog:pickDirectory', defaultPath),
   listModels: (agent: AgentKind): Promise<ModelList> => ipcRenderer.invoke('models:list', agent),
