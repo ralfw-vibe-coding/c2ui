@@ -18,7 +18,7 @@ const ARCH = 'arm64' // wie mac.target in package.json
 const identity = process.env.C2UI_SIGN_IDENTITY || pkg.c2ui?.signIdentity
 const install = process.argv.includes('--install')
 const log = (...a) => console.log('[package]', ...a)
-const sh = (cmd, args, opts = {}) => execFileSync(cmd, args, { cwd: root, encoding: 'utf8', ...opts }).trim()
+const sh = (cmd, args, opts = {}) => (execFileSync(cmd, args, { cwd: root, encoding: 'utf8', ...opts }) ?? '').trim()
 const git = (...args) => sh('git', args)
 
 if (!identity) throw new Error('Keine Signatur-Identität: package.json "c2ui.signIdentity" oder C2UI_SIGN_IDENTITY setzen.')

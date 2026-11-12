@@ -1,6 +1,6 @@
 import { execFile, spawn } from 'node:child_process'
 import { readFileSync } from 'node:fs'
-import { readdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { readdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { app } from 'electron'
 import type { BuildInfo, UpdaterTools } from './updater'
@@ -17,7 +17,11 @@ export function realUpdaterTools(): UpdaterTools {
       ),
     read: (path) => readFile(path, 'utf8'),
     write: (path, text) => writeFile(path, text),
-    remove: (path) => rm(path, { recursive: true, force: true }),
+    // Nicht fs.rm: Electrons fs hält app.asar für einen Ordner, rekursives Löschen eines Bundles scheitert dann.
+    remove: (path) =>
+      new Promise((resolve, reject) =>
+        execFile('/bin/rm', ['-rf', path], (err, _out, stderr) => (err ? reject(new Error(String(stderr).trim() || err.message)) : resolve()))
+      ),
     detach: (command, args) => spawn(command, args, { detached: true, stdio: 'ignore' }).unref(),
     quit: () => app.quit(),
     now: () => new Date()

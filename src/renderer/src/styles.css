@@ -1990,6 +1990,9 @@ button.a2ui-update:hover {
   color: var(--danger);
 }
 .update-folder {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2000,4 +2003,7 @@ button.a2ui-update:hover {
   border-radius: 50%;
   background: var(--accent);
   margin-left: 4px;
+}
+fieldset.agent-settings {
+  min-width: 0;
 }
