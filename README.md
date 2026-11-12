@@ -80,9 +80,36 @@ node scripts/a2ui-codex-e2e.mjs   # A2UI mit Codex
 ### App bauen und installieren (macOS, Apple Silicon)
 
 ```bash
-npm run dist                                   # baut dist/mac-arm64/C2UI.app (ad-hoc signiert)
-ditto dist/mac-arm64/C2UI.app /Applications/C2UI.app
+npm run package                 # dist/mac-arm64/C2UI.app + dist/C2UI-<version>-b<build>-arm64.zip
+npm run package -- --install    # zusätzlich nach /Applications (nur wenn C2UI nicht läuft)
 ```
+
+Das Packskript (`scripts/package.mjs`) schreibt Build-Angaben nach `Contents/Resources/build.json`
+(Build = Anzahl der Commits, dazu Version, Commit, Chip) und signiert mit einer **festen Identität**
+(`package.json` → `c2ui.signIdentity` oder `C2UI_SIGN_IDENTITY`). Ein selbst erstelltes Code-Signing-Zertifikat
+genügt (Schlüsselbundverwaltung → Zertifikatsassistent → Zertifikat erstellen → Typ „Code-Signierung“).
+Ad-hoc-Signatur geht nicht: Dann passt kein neuer Build zur installierten App.
+
+### Selbst-Aktualisierung aus einem Ordner
+
+Ohne Apple-Entwicklerprogramm, Notarisierung oder Server: Das ZIP aus `dist/` kommt in einen Ordner, meist einen
+geteilten Dropbox-Ordner. Jede installierte App schaut beim Start, alle 30 Minuten und auf Knopfdruck hinein
+(Einstellungen → **Aktualisierung**: Ordner wählen, Jetzt prüfen, Update-Ordner entfernen) und bietet einen neueren
+Build an; am Einstellungen-Knopf erscheint dann ein Punkt.
+
+- Geprüft wird nur `build.json` im ZIP (`unzip -p`, ohne Entpacken); angeboten wird der höchste Build über dem
+  laufenden mit passendem Chip.
+- Installieren: neben die App entpacken (`.C2UI Update/`, gleiches Volume), Build erneut prüfen, Signatur prüfen
+  (`codesign --verify --deep --strict`, dann die designated requirement der installierten App), Quarantäne entfernen,
+  Tausch-Skript abgekoppelt starten, App beenden. Das Skript wartet aufs Ende, tauscht per `mv` (bei Fehler kommt die
+  alte App zurück), räumt auf und startet neu.
+- Warum ohne Sperre: Gatekeeper prüft nur Dateien mit `com.apple.quarantine`; Dropbox, iCloud Drive, Syncthing, `curl`
+  setzen das nicht. Ein Download per Browser schon – darum keine Release-Downloads über den Browser.
+- Der Update-Ordner gilt je Mac (`<userData>/update.json`). Die App aus dem Repo (`npm run dev`) aktualisiert sich nie.
+- Für Entwickler: bei sich `dist/` als Update-Ordner eintragen, dann reicht `npm run package`.
+- Den ersten Build mit Updater bekommt jeder einmal von Hand (ZIP entpacken, nach Programme ziehen, Ordner wählen).
+- Code: `src/main/updater.ts` (Logik, Werkzeuge als Objekt → Tests mit Attrappen, echtes Tausch-Skript im Test),
+  `src/main/updaterSetup.ts` (echte Werkzeuge), E2E mit echtem Build: `node scripts/update-e2e.mjs`.
 
 Skill und MCP-Server liegen in der App entpackt unter `Contents/Resources/app.asar.unpacked/`, weil Claude und Codex
 als fremde Prozesse nicht in `app.asar` lesen können. Gepackte App und Entwicklungsmodus teilen sich das Datenverzeichnis.

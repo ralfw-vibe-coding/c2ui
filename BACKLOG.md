@@ -37,4 +37,5 @@
 - Einklappbare Arbeitsschritte zwischen Frage und Antwort
 - Bilder und Dateien per Einfügen und Drag & Drop
 - Bezug auf Teile einer Antwort: markieren → Overlay → Chips im Eingabefeld; „In neuem Chat fragen“ (Fork)
+- Selbst-Aktualisierung aus einem Ordner (Dropbox o. Ä.), feste Signatur, `npm run package`
 - Umbenennung in C2UI (Repo ralfw-vibe-coding/c2ui)
