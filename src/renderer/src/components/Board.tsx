@@ -85,6 +85,7 @@ export function Board({ rootId, cellId }: { rootId: string; cellId: string }) {
                   onClick={open}
                   onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), open())}
                 >
+                  <span className="board-bar" style={{ background: colorOf(lane.color) }} />
                   {first && n.lane > 0 && (
                     <button
                       className="board-fold"
@@ -177,14 +178,10 @@ function Graph({ model, width, height, activeNode }: { model: BoardModel; width:
       {/* Eingeklappte Äste: kurzer gestrichelter Ansatz an der Abzweigstelle */}
       {model.collapsed.map((f) =>
         f.row === undefined ? null : (
-          <path
-            key={f.chatId}
-            d={`M ${x(f.lane)} ${y(f.row)} q 4 10 14 12`}
-            fill="none"
-            stroke={colorOf(f.color)}
-            strokeWidth={2}
-            strokeDasharray="2 3"
-          />
+          <g key={f.chatId}>
+            <path d={`M ${x(f.lane)} ${y(f.row)} q 3 9 13 11`} fill="none" stroke={colorOf(f.color)} strokeWidth={2.5} />
+            <circle cx={x(f.lane) + 14} cy={y(f.row) + 11} r={4.5} fill={colorOf(f.color)} />
+          </g>
         )
       )}
       {/* Knoten */}
