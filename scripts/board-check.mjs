@@ -22,7 +22,7 @@ const chats = [
   chat('haus', 'Hausarbeit: Gliederung', 'claude', 0),
   chat('quellen', 'Quellenlage', 'claude', 12, 'haus', 2),
   chat('archiv', 'Archivbestände', 'codex', 20, 'quellen', 1),
-  chat('methode', 'Methode', 'claude', 40, 'haus', 3),
+  chat('methode', 'Qualitativ oder quantitativ?', 'claude', 40, 'haus', 3), // Titel = erste Nachricht
   chat('anderes', 'Anderer Chat ohne Äste', 'claude', 100)
 ]
 const u = (id, m, text, extra = {}) => ({ type: 'user', id, ts: min(m), text, ...extra })
@@ -65,6 +65,13 @@ check(lanes.length === 4 && lanes[0].includes('Hausarbeit'), 'vier Spuren, Wurze
 check((await page.locator('.board-graph path').count()) === 3, 'drei Abzweig-Kanten')
 check((await page.locator('.cell-title', { hasText: 'Diskurs: Hausarbeit' }).count()) === 1, 'Zellentitel nennt den Diskurs')
 await page.screenshot({ path: join(out, '1-board.png') })
+const chips = await page.evaluate(() =>
+  [...document.querySelectorAll('.board-chip')].map((c) => ({ text: c.textContent.trim(), border: getComputedStyle(c).borderTopColor }))
+)
+log('Chips:', JSON.stringify(chips))
+const bare = chips.filter((c) => !c.text)
+check(bare.length === 1 && /rgba\(0, 0, 0, 0\)|transparent/.test(bare[0].border), 'Chip ohne Text hat keinen Rahmen')
+check(chips.filter((c) => c.text).every((c) => !/rgba\(0, 0, 0, 0\)/.test(c.border)), 'Chips mit Text haben ihren Rahmen')
 // Hover über einer Zeile darf den Graphen nicht verdecken
 await page.locator('.board-row', { hasText: 'Welche Quellen' }).hover()
 const onTop = await page.evaluate(() => {

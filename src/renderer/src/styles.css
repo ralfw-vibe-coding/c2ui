@@ -2385,5 +2385,7 @@ li > .fork-slot {
 }
 
 .board-chip.bare {
-  padding: 1px 4px;
+  /* ohne Text kein Rahmen – nur das Agent-Logo */
+  padding: 0;
+  border-color: transparent !important;
 }
