@@ -61,11 +61,10 @@ export function Board({ rootId, cellId }: { rootId: string; cellId: string }) {
                   key={`${n.chatId}:${n.itemId}`}
                   className={`board-row ${n.kind}`}
                   style={{ top: n.row * ROW, height: ROW, paddingLeft: width + 6 }}
-                  title={titleRepeats ? n.text : `${lane.title}\n\n${n.text}`}
                   onClick={() => void useStore.getState().openFromBoard(cellId, n.chatId, n.itemId)}
                 >
                   {firstOfLane.has(`${n.chatId}:${n.row}`) && (
-                    <span className={`board-chip${titleRepeats ? ' bare' : ''}`} style={{ borderColor: colorOf(n.lane) }} title={lane.title}>
+                    <span className={`board-chip${titleRepeats ? ' bare' : ''}`} style={{ borderColor: colorOf(n.lane) }}>
                       <AgentLogo agent={lane.agent} size={11} />
                       {!titleRepeats && lane.title}
                     </span>
