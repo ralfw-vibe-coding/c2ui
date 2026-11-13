@@ -18,6 +18,9 @@ Desktop-App (Electron), in der mehrere Chats mit der Claude CLI oder der Codex C
   ↩ übernimmt Zitat + Anmerkung als Chip ins Eingabefeld (mehrere sammelbar, gesendet als `> Zitat` + Anmerkung).
   ⌘↩ bzw. „In neuem Chat fragen“ zweigt einen neuen Chat daneben ab, der den bisherigen Verlauf kennt
   (Claude: `--resume <quelle> --fork-session --session-id <neu>`; Codex: Verlauf als Kontext im ersten Turn).
+- **Warteschlange:** Während ein Chat arbeitet, bleibt das Eingabefeld frei; Enter reiht die Nachricht ein
+  (mit Bezügen und Anhängen). Eingereihtes geht nach jeder Antwort einzeln raus, lässt sich bis dahin zurück ins
+  Eingabefeld holen oder entfernen. Nach Abbruch oder Fehler hält die Schlange an („Fortsetzen“).
 - Ein Chat ist höchstens in einer Zelle offen. Layout, Chatliste und Transkripte überstehen einen Neustart.
 - Wird ein arbeitender Chat geschlossen, fragt die App nach: im Hintergrund weiterlaufen lassen, abbrechen oder nicht schließen.
 

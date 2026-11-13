@@ -11,13 +11,9 @@
 
 ## Ideen (gesammelt, Reihenfolge offen)
 
-- **Nachrichten in die Warteschlange** (dringend): während der Agent arbeitet, die nächste Anweisung tippen
-  und einreihen; wird nach dem Turn automatisch gesendet, bis dahin bearbeit- und löschbar.
 - **Chat-Baum in der Seitenleiste:** Nebenchats (`forkFrom`) eingerückt unter ihrem Ursprung, zuklappbar.
 - **Abzweigungen im Verlauf:** Markierung an der zitierten Stelle („↳ 2 Nachfragen“), Klick öffnet den
   Nebenchat; im Nebenchat Brotkrumen zurück zur Stelle.
-- **Zweitmeinung:** Zwillingschats Claude + Codex; Prompts gehen an beide, bis einer geschlossen wird.
-  Achtung: im selben Ordner würden beide dieselben Dateien ändern.
 - **Benachrichtigungen,** wenn ein Chat im Hintergrund fertig ist oder hängt.
 - **Kontextfüllstand** je Chat (aus den Token-Angaben der CLIs); Verdichten machen die CLIs selbst.
 - **Screens anheften:** A2UI-Screen in eine eigene Zelle lösen, der Chat aktualisiert ihn weiter.
@@ -37,6 +33,9 @@
 
 ## Später
 
+- **Zweitmeinung:** Zwillingschats Claude + Codex; Prompts gehen an beide, bis einer geschlossen wird.
+  Achtung: im selben Ordner würden beide dieselben Dateien ändern.
+- **Council of Experts:** mehrere Agenten/Rollen diskutieren ein Thema aus verschiedenen Perspektiven.
 - **Freigaben im UI** statt nur fester Berechtigungsmodi (Claude `--permission-prompt-tool`).
 
 ## Erledigt
@@ -54,3 +53,4 @@
 - Bezug auf Teile einer Antwort: markieren → Overlay → Chips im Eingabefeld; „In neuem Chat fragen“ (Fork)
 - Selbst-Aktualisierung aus einem Ordner (Dropbox o. Ä.), feste Signatur, `npm run package`
 - Umbenennung in C2UI (Repo ralfw-vibe-coding/c2ui)
+- Warteschlange: Nachrichten einreihen, während der Agent arbeitet

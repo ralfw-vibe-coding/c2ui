@@ -5,6 +5,7 @@ import { setDraft } from './drafts'
 import * as L from '@shared/layout'
 import { composeMessage, forkTitle, type QuoteRef } from '@shared/quotes'
 import { parseUpdateState, type UpdateState } from '@shared/update'
+import * as Q from '@shared/queue'
 import { applyEvent } from '@shared/transcript'
 import type { AgentEvent, AgentKind, Attachment, Chat, LayoutState, Settings, Transcript } from '@shared/types'
 
@@ -32,6 +33,8 @@ interface State {
   pendingRefs: Record<string, QuoteRef[] | undefined>
   /** Selbst-Aktualisierung aus einem Ordner (Einstellungen → Aktualisierung). */
   update: UpdateState
+  /** Eingereihte Nachrichten je Chat (während er arbeitet geschrieben). */
+  queues: Record<string, Q.ChatQueue | undefined>
 }
 
 interface Actions {
@@ -60,6 +63,12 @@ interface Actions {
   restoreRefs(chatId: string, refs: QuoteRef[]): void
   /** Neuer Chat mit dem Kontext dieses Chats, rechts daneben geöffnet; fragt dort sofort nach. */
   askInNewChat(sourceChatId: string, quote: string, note: string): Promise<void>
+  /** Nachricht einreihen; wird gesendet, sobald der Chat frei ist. */
+  enqueue(chatId: string, msg: Omit<Q.QueuedMessage, 'id'>): void
+  removeQueued(chatId: string, id: string): void
+  /** Eingereihte Nachricht zum Bearbeiten herausnehmen. */
+  takeQueued(chatId: string, id: string): Q.QueuedMessage | undefined
+  resumeQueue(chatId: string): void
   setDragging(chatId: string | null): void
   setSettingsOpen(open: boolean): void
   toggleSidebar(): void
@@ -107,7 +116,26 @@ export const useStore = create<State & Actions>((set, get) => {
     }
   }
 
+  const queueOf = (chatId: string): Q.ChatQueue => get().queues[chatId] ?? Q.EMPTY_QUEUE
+  const setQueue = (chatId: string, q: Q.ChatQueue): void => set((s) => ({ queues: { ...s.queues, [chatId]: q } }))
+
+  /** Sendet die nächste eingereihte Nachricht, falls der Chat frei ist. */
+  async function drainQueue(chatId: string): Promise<void> {
+    const { queue, next } = Q.takeNext(queueOf(chatId), !!get().busy[chatId])
+    if (!next) return
+    setQueue(chatId, queue)
+    // Sofort als beschäftigt markieren, damit eine Eingabe in der Lücke eingereiht statt parallel gesendet wird.
+    set((s) => ({ busy: { ...s.busy, [chatId]: true } }))
+    try {
+      await get().send(chatId, composeMessage(next.refs, next.text), next.attachments)
+    } catch (e) {
+      set((s) => ({ busy: { ...s.busy, [chatId]: false } }))
+      setQueue(chatId, Q.sendFailed(queueOf(chatId), next, ipcError(e)))
+    }
+  }
+
   function onAgentEvent(chatId: string, e: AgentEvent): void {
+    if (e.kind === 'turn-end') setQueue(chatId, Q.afterTurn(queueOf(chatId), e.isError, e.errorText))
     // Ereignisse für nicht geladene Transkripte ignorieren: der Main-Prozess hat den
     // vollständigen Stand und liefert ihn beim Laden (IPC ist geordnet).
     const t = get().transcripts[chatId]
@@ -131,6 +159,7 @@ export const useStore = create<State & Actions>((set, get) => {
     pendingAttachments: {},
     pendingRefs: {},
     update: { state: 'unavailable' },
+    queues: {},
 
     async init() {
       // Eigene Komponenten zuerst – sie werden beim Anzeigen der Screens aufgelöst.
@@ -154,7 +183,10 @@ export const useStore = create<State & Actions>((set, get) => {
         busy: Object.fromEntries(s.busy.map((id) => [id, true]))
       })
       window.api.onAgentEvent(onAgentEvent)
-      window.api.onBusy((id, b) => set((st) => ({ busy: { ...st.busy, [id]: b } })))
+      window.api.onBusy((id, b) => {
+        set((st) => ({ busy: { ...st.busy, [id]: b } }))
+        if (!b) void drainQueue(id)
+      })
       window.api.onChatsChanged((chats) => set({ chats }))
       window.api.onUpdate((u) => set({ update: parseUpdateState(u) }))
       void window.api.updateState().then((u) => set({ update: parseUpdateState(u) }))
@@ -274,7 +306,9 @@ export const useStore = create<State & Actions>((set, get) => {
       set((s) => {
         const transcripts = { ...s.transcripts }
         delete transcripts[chatId]
-        return { transcripts, chats: s.chats.filter((x) => x.id !== chatId) }
+        const queues = { ...s.queues }
+        delete queues[chatId]
+        return { transcripts, queues, chats: s.chats.filter((x) => x.id !== chatId) }
       })
     },
 
@@ -298,7 +332,7 @@ export const useStore = create<State & Actions>((set, get) => {
             : await window.api.saveAttachment(chatId, f.name && f.name !== 'image.png' ? f.name : `bild-${stamp()}.${ext(f.type)}`, new Uint8Array(await f.arrayBuffer()))
           set((s) => ({ pendingAttachments: { ...s.pendingAttachments, [chatId]: [...(s.pendingAttachments[chatId] ?? []), a] } }))
         } catch (e) {
-          errors.push(String((e as Error).message ?? e).replace(/^Error invoking remote method '[^']+': (Error: )?/, ''))
+          errors.push(ipcError(e))
         }
       }
       return errors
@@ -344,6 +378,26 @@ export const useStore = create<State & Actions>((set, get) => {
       await get().send(c.id, composeMessage([{ id: '', quote, note }], ''))
     },
 
+    enqueue(chatId, msg) {
+      setQueue(chatId, Q.enqueue(queueOf(chatId), { ...msg, id: crypto.randomUUID() }))
+      void drainQueue(chatId)
+    },
+
+    removeQueued(chatId, id) {
+      setQueue(chatId, Q.removeQueued(queueOf(chatId), id))
+    },
+
+    takeQueued(chatId, id) {
+      const m = queueOf(chatId).items.find((x) => x.id === id)
+      if (m) setQueue(chatId, Q.removeQueued(queueOf(chatId), id))
+      return m
+    },
+
+    resumeQueue(chatId) {
+      setQueue(chatId, Q.resume(queueOf(chatId)))
+      void drainQueue(chatId)
+    },
+
     setDragging(chatId) {
       set({ dragging: chatId })
     },
@@ -364,6 +418,11 @@ export const useStore = create<State & Actions>((set, get) => {
     }
   }
 })
+
+/** Fehlermeldung aus einem IPC-Aufruf ohne Electron-Vorspann. */
+export function ipcError(e: unknown): string {
+  return String((e as Error)?.message ?? e).replace(/^Error invoking remote method '[^']+': (Error: )?/, '')
+}
 
 function stamp(): string {
   const d = new Date()

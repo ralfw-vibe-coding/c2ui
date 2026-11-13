@@ -21,7 +21,9 @@ const paths: Record<string, string> = {
   file: 'M6 3h8l4 4v14H6zM14 3v4h4',
   pencil: 'M4 20h4L19 9l-4-4L4 16zM14 6l4 4',
   info: 'M12 3a9 9 0 100 18 9 9 0 000-18zM12 11v6M12 7.5v.5',
-  alert: 'M12 4l9 16H3zM12 10v4M12 17v.5'
+  alert: 'M12 4l9 16H3zM12 10v4M12 17v.5',
+  queue: 'M4 6h12M4 12h8M4 18h8M17 13v8M13 17h8',
+  play: 'M7 4l13 8-13 8z'
 }
 
 export function Icon({ name, size = 16 }: { name: string; size?: number }) {

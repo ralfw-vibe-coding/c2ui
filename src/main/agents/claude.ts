@@ -110,12 +110,17 @@ class ClaudeSession implements AgentSession {
     this.stderrTail = ''
 
     p.stdout.setEncoding('utf8')
-    p.stdout.on('data', (d: string) => this.onData(d))
+    // Ein abgehängter (abgebrochener) Prozess darf den nächsten Turn nicht mehr beeinflussen.
+    p.stdout.on('data', (d: string) => {
+      if (this.proc === p) this.onData(d)
+    })
     p.stderr.setEncoding('utf8')
     p.stderr.on('data', (d: string) => {
+      if (this.proc !== p) return
       this.stderrTail = (this.stderrTail + d).slice(-4000)
     })
     p.on('error', (err) => {
+      if (this.proc !== p) return
       this.proc = null
       const msg =
         (err as NodeJS.ErrnoException).code === 'ENOENT'
@@ -125,7 +130,8 @@ class ClaudeSession implements AgentSession {
     })
     // 'close' statt 'exit': erst dann sind alle stdout-Daten gelesen.
     p.on('close', (code, signal) => {
-      if (this.proc === p) this.proc = null
+      if (this.proc !== p) return
+      this.proc = null
       if (!this._busy) return
       if (this.interrupted) {
         this.endTurn({ isError: true, errorText: 'Abgebrochen.' })
@@ -211,6 +217,13 @@ class ClaudeSession implements AgentSession {
       }
 
       case 'result': {
+        if (this.interrupted) {
+          // Nach SIGINT meldet die CLI noch ein Ergebnis und beendet sich dann. Prozess abhängen,
+          // damit eine sofort folgende Nachricht (z. B. aus der Warteschlange) einen neuen startet.
+          this.proc = null
+          this.endTurn({ isError: true, errorText: 'Abgebrochen.' })
+          return
+        }
         const isError = !!m.is_error || (m.subtype && m.subtype !== 'success')
         this.endTurn({
           isError,

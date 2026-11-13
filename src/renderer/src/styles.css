@@ -2007,3 +2007,72 @@ button.a2ui-update:hover {
 fieldset.agent-settings {
   min-width: 0;
 }
+
+/* Warteschlange über dem Eingabefeld */
+.queue {
+  margin-bottom: 6px;
+  border: 1px dashed var(--border-strong);
+  border-radius: 8px;
+  padding: 4px 6px;
+  font-size: 12px;
+}
+.queue.paused {
+  border-color: var(--warning, #c98a00);
+}
+.queue-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+  padding: 1px 0 3px;
+}
+.queue-head > span {
+  flex: 1;
+  min-width: 0;
+}
+.queue-resume {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid var(--border-strong);
+  background: var(--bg-elev);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.queue-resume:hover {
+  border-color: var(--accent);
+}
+.queue-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 0;
+  color: var(--text);
+}
+.queue-nr {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--bg-elev);
+  border: 1px solid var(--border-strong);
+  font-size: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+}
+.queue-text {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.queue-meta {
+  flex: none;
+  color: var(--text-muted);
+}

@@ -3,7 +3,7 @@ import { chatSurfaces } from '../a2ui/chatSurfaces'
 import { scrollToSurface } from '../a2ui/A2uiBlock'
 import { ScreenStrip } from '../a2ui/ScreenStrip'
 import { AGENTS } from '@shared/types'
-import { useChat, useStore } from '../store'
+import { ipcError, useChat, useStore } from '../store'
 import { Icon } from './Icon'
 import { TranscriptView } from './TranscriptView'
 
@@ -12,6 +12,8 @@ import { drafts } from '../drafts'
 import { AttachmentChips } from './Attachments'
 import { QuoteSelection, RefChips } from './QuoteRefs'
 import { composeMessage } from '@shared/quotes'
+import { EMPTY_QUEUE, shouldQueue } from '@shared/queue'
+import { QueueList } from './QueueList'
 
 export function ChatPanel({ chatId, active }: { chatId: string; active: boolean }) {
   const transcript = useStore((s) => s.transcripts[chatId])
@@ -165,7 +167,7 @@ function Composer({
   // Fokus nur holen, wenn der Nutzer nicht gerade woanders tippt (z. B. beim Umbenennen).
   useEffect(() => {
     const el = ref.current
-    if (!autoFocus || busy || !el) return
+    if (!autoFocus || !el) return
     const ae = document.activeElement
     const typingElsewhere =
       ae instanceof HTMLElement &&
@@ -188,22 +190,42 @@ function Composer({
   const refs = useStore((s) => s.pendingRefs[chatId]) ?? []
   const canSend = !!text.trim() || attachments.length > 0 || refs.length > 0
 
+  const queue = useStore((s) => s.queues[chatId]) ?? EMPTY_QUEUE
+
   async function submit(): Promise<void> {
     const t = text.trim()
-    if (!canSend || busy) return
+    if (!canSend) return
     setError(null)
     setText('')
     const sent = attachments
-    useStore.getState().clearAttachments(chatId)
-    const sentRefs = useStore.getState().takeRefs(chatId)
+    const st = useStore.getState()
+    st.clearAttachments(chatId)
+    const sentRefs = st.takeRefs(chatId)
+    // Arbeitet der Chat (oder warten schon Nachrichten), wird eingereiht statt gesendet.
+    if (shouldQueue(st.queues[chatId] ?? EMPTY_QUEUE, !!st.busy[chatId])) {
+      st.enqueue(chatId, { text: t, refs: sentRefs, attachments: sent })
+      return
+    }
     try {
       await useStore.getState().send(chatId, composeMessage(sentRefs, t), sent)
     } catch (e) {
       setText(t)
       useStore.getState().restoreRefs(chatId, sentRefs)
       for (const a of sent) useStore.setState((st) => ({ pendingAttachments: { ...st.pendingAttachments, [chatId]: [...(st.pendingAttachments[chatId] ?? []), a] } }))
-      setError(String((e as Error).message ?? e).replace(/^Error invoking remote method '[^']+': (Error: )?/, ''))
+      setError(ipcError(e))
     }
+  }
+
+  /** Eingereihte Nachricht zurück ins Eingabefeld holen (vor einen evtl. schon getippten Text). */
+  function editQueued(id: string): void {
+    const st = useStore.getState()
+    const m = st.takeQueued(chatId, id)
+    if (!m) return
+    const current = text.trim()
+    setText(current ? `${m.text}\n\n${current}` : m.text)
+    st.restoreRefs(chatId, m.refs)
+    for (const a of m.attachments) useStore.setState((s) => ({ pendingAttachments: { ...s.pendingAttachments, [chatId]: [...(s.pendingAttachments[chatId] ?? []), a] } }))
+    ref.current?.focus()
   }
 
   async function onPaste(e: React.ClipboardEvent<HTMLTextAreaElement>): Promise<void> {
@@ -217,6 +239,7 @@ function Composer({
   return (
     <div className="composer">
       {error && <div className="composer-error">{error}</div>}
+      {(queue.items.length > 0 || queue.paused) && <QueueList chatId={chatId} queue={queue} busy={busy} onEdit={editQueued} />}
       {refs.length > 0 && <RefChips chatId={chatId} refs={refs} />}
       {attachments.length > 0 && <AttachmentChips chatId={chatId} attachments={attachments} />}
       <div className="composer-row">
@@ -226,10 +249,9 @@ function Composer({
           rows={1}
           placeholder={
             busy
-              ? `${agentLabel} arbeitet – Eingabe gesperrt`
+              ? `${agentLabel} arbeitet – Enter reiht die Nachricht ein`
               : `Nachricht an ${agentLabel} … (Enter senden, Shift+Enter Zeilenumbruch)`
           }
-          disabled={busy}
           onChange={(e) => setText(e.target.value)}
           onPaste={(e) => void onPaste(e)}
           onKeyDown={(e) => {
@@ -239,6 +261,11 @@ function Composer({
             }
           }}
         />
+        {busy && canSend && (
+          <button className="btn" onClick={() => void submit()} title="Einreihen – wird gesendet, wenn die Antwort fertig ist">
+            <Icon name="queue" />
+          </button>
+        )}
         {busy ? (
           <button className="btn stop" onClick={() => window.api.interrupt(chatId)} title="Antwort abbrechen">
             <Icon name="stop" />
