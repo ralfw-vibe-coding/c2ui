@@ -77,6 +77,36 @@ export function ChatPanel({ chatId, active }: { chatId: string; active: boolean 
     setAtBottom(true)
   }
 
+  // Sprung an eine Stelle (z. B. Abzweigstelle eines Nebenchats), sobald sie gerendert ist.
+  const jump = useStore((s) => (s.jump?.chatId === chatId ? s.jump : null))
+  useEffect(() => {
+    if (!jump || !transcript) return
+    let frames = 0
+    let raf = 0
+    const tryJump = (): void => {
+      const root = scrollRef.current
+      const el =
+        (jump.forkChild && root?.querySelector<HTMLElement>(`[data-fork-child="${CSS.escape(jump.forkChild)}"]`)) ||
+        (jump.itemId && lastUnitElement(root, jump.itemId)) ||
+        null
+      if (!el) {
+        if (++frames < 90) raf = requestAnimationFrame(tryJump)
+        else useStore.getState().clearJump(jump.n)
+        return
+      }
+      stickRef.current = false
+      programmaticUntil.current = 0
+      setAtBottom(false)
+      el.scrollIntoView({ block: 'center' })
+      el.classList.remove('a2ui-flash')
+      void el.offsetWidth
+      el.classList.add('a2ui-flash')
+      useStore.getState().clearJump(jump.n)
+    }
+    raf = requestAnimationFrame(tryJump)
+    return () => cancelAnimationFrame(raf)
+  }, [jump, transcript])
+
   // Neue Inhalte: am Ende kleben bleiben, wenn man schon unten war.
   useLayoutEffect(() => {
     if (stickRef.current) scrollToEnd()
@@ -144,6 +174,13 @@ export function ChatPanel({ chatId, active }: { chatId: string; active: boolean 
       <Composer chatId={chatId} busy={busy} autoFocus={active} agentLabel={agentLabel} />
     </div>
   )
+}
+
+/** Sichtbares Element der letzten Darstellungseinheit eines Transkript-Eintrags. */
+function lastUnitElement(root: HTMLElement | null, itemId: string): HTMLElement | null {
+  const units = root?.querySelectorAll<HTMLElement>(`.unit[data-item-id="${CSS.escape(itemId)}"]`)
+  const last = units?.[units.length - 1]
+  return (last?.firstElementChild as HTMLElement | null) ?? null
 }
 
 function Composer({

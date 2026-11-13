@@ -37,6 +37,16 @@ interface State {
   queues: Record<string, Q.ChatQueue | undefined>
   /** Zwischenrufe, die an den Agenten gingen, aber noch nicht aufgenommen wurden. */
   steering: Record<string, Q.QueuedMessage[] | undefined>
+  /** Ausstehender Sprung an eine Stelle im Verlauf (z. B. Abzweigpunkt eines Nebenchats). */
+  jump: JumpTarget | null
+}
+
+/** Ziel eines Sprungs: Markierung eines Nebenchats im Ursprung, sonst ein Transkript-Eintrag. */
+export interface JumpTarget {
+  chatId: string
+  forkChild?: string
+  itemId?: string
+  n: number
 }
 
 interface Actions {
@@ -73,6 +83,11 @@ interface Actions {
   resumeQueue(chatId: string): void
   /** Eingereihte Nachricht als Zwischenruf in die laufende Antwort geben (Steer). */
   steerQueued(chatId: string, id: string): Promise<void>
+  /** Chat neben einem anderen öffnen (oder markieren, falls schon offen). */
+  openBeside(chatId: string, anchorChatId: string, side: 'before' | 'after'): Promise<void>
+  /** Im Verlauf eines Chats an eine Stelle springen (nachdem er geöffnet ist). */
+  jumpTo(target: Omit<JumpTarget, 'n'>): void
+  clearJump(n: number): void
   setDragging(chatId: string | null): void
   setSettingsOpen(open: boolean): void
   toggleSidebar(): void
@@ -166,6 +181,7 @@ export const useStore = create<State & Actions>((set, get) => {
     update: { state: 'unavailable' },
     queues: {},
     steering: {},
+    jump: null,
 
     async init() {
       // Eigene Komponenten zuerst – sie werden beim Anzeigen der Screens aufgelöst.
@@ -406,6 +422,24 @@ export const useStore = create<State & Actions>((set, get) => {
     resumeQueue(chatId) {
       setQueue(chatId, Q.resume(queueOf(chatId)))
       void drainQueue(chatId)
+    },
+
+    async openBeside(chatId, anchorChatId, side) {
+      const { layout } = get()
+      if (L.findCellOfChat(layout.root, chatId)) return get().openChat(chatId)
+      const anchor = L.findCellOfChat(layout.root, anchorChatId)
+      if (!anchor) return get().openChat(chatId)
+      const nl = L.leaf()
+      get().setLayout({ root: L.splitCell(layout.root, anchor.id, 'row', side, nl), selectedCellId: nl.id })
+      await get().openChat(chatId, nl.id)
+    },
+
+    jumpTo(target) {
+      set((s) => ({ jump: { ...target, n: (s.jump?.n ?? 0) + 1 } }))
+    },
+
+    clearJump(n) {
+      if (get().jump?.n === n) set({ jump: null })
     },
 
     async steerQueued(chatId, id) {

@@ -22,8 +22,44 @@ export function Sidebar() {
   // Platz für die Auf-/Zu-Pfeile nur, wenn es überhaupt Nebenchats gibt.
   const hasTree = tree.some((n) => n.children.length > 0)
 
+  const [width, setWidth] = useState(readWidth)
+
+  /** Breite per Ziehen am rechten Rand; Doppelklick setzt sie zurück. */
+  const startResize = (e: React.PointerEvent<HTMLDivElement>): void => {
+    e.preventDefault()
+    const startX = e.clientX
+    const startW = width
+    const handle = e.currentTarget
+    handle.setPointerCapture(e.pointerId)
+    document.body.classList.add('resizing-col')
+    let w = startW
+    const move = (ev: PointerEvent): void => {
+      w = clampWidth(startW + ev.clientX - startX)
+      setWidth(w)
+    }
+    const up = (): void => {
+      handle.removeEventListener('pointermove', move)
+      handle.removeEventListener('pointerup', up)
+      handle.removeEventListener('pointercancel', up)
+      document.body.classList.remove('resizing-col')
+      writeWidth(w)
+    }
+    handle.addEventListener('pointermove', move)
+    handle.addEventListener('pointerup', up)
+    handle.addEventListener('pointercancel', up)
+  }
+
   return (
-    <aside className="sidebar">
+    <aside className="sidebar" style={{ width }}>
+      <div
+        className="sidebar-resizer"
+        title="Breite ziehen · Doppelklick: Standardbreite"
+        onPointerDown={startResize}
+        onDoubleClick={() => {
+          setWidth(DEFAULT_WIDTH)
+          writeWidth(DEFAULT_WIDTH)
+        }}
+      />
       <div className="titlebar drag-region" />
       <div className="sidebar-actions">
         {AGENT_KINDS.map((a) => (
@@ -63,6 +99,26 @@ export function Sidebar() {
       </div>
     </aside>
   )
+}
+
+// Breite der Seitenleiste (pro Rechner, im localStorage).
+const WIDTH_KEY = 'c2ui.sidebarWidth'
+const DEFAULT_WIDTH = 260
+const clampWidth = (w: number): number => Math.round(Math.min(560, Math.max(180, w)))
+function readWidth(): number {
+  try {
+    const v = Number(localStorage.getItem(WIDTH_KEY))
+    return v ? clampWidth(v) : DEFAULT_WIDTH
+  } catch {
+    return DEFAULT_WIDTH
+  }
+}
+function writeWidth(w: number): void {
+  try {
+    localStorage.setItem(WIDTH_KEY, String(w))
+  } catch {
+    /* egal */
+  }
 }
 
 // Zugeklappte Teilbäume (pro Rechner, im localStorage).

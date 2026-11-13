@@ -1,9 +1,11 @@
-import { memo, useState } from 'react'
+import { memo, useMemo, useState } from 'react'
+import { forkAnchors } from '@shared/forks'
 import { shortToolName, toUnits, type Unit } from '@shared/turns'
 import type { Block, Transcript } from '@shared/types'
 import { useStore } from '../store'
 import { Icon } from './Icon'
 import { BlockView, TranscriptItemView } from './Message'
+import { ForkBreadcrumb, ForkMarkers } from './Forks'
 
 /** Gemerkte Auf-/Zu-Zustände der Schrittgruppen (über Neu-Einhängen hinweg). */
 const openGroups = new Set<string>()
@@ -12,12 +14,28 @@ const openGroups = new Set<string>()
 export function TranscriptView({ chatId, transcript, busy }: { chatId: string; transcript: Transcript; busy: boolean }) {
   const collapse = useStore((s) => s.settings?.collapseSteps !== false)
   const units = toUnits(transcript, collapse)
+  const chats = useStore((s) => s.chats)
+  const isFork = useMemo(() => !!chats.find((c) => c.id === chatId)?.forkFrom, [chats, chatId])
+  // Nebenchats dieses Chats → Markierungen an ihren Abzweigstellen.
+  const anchors = useMemo(() => {
+    const children = chats.filter((c) => c.forkFrom?.chatId === chatId).sort((a, b) => a.createdAt - b.createdAt)
+    if (!children.length) return new Map<number, string[]>()
+    return forkAnchors(
+      units.map((u) => ({ itemId: itemIdOf(u), isUser: u.kind === 'item' && u.item.type === 'user' })),
+      children.map((c) => ({ id: c.id, at: c.forkFrom?.at }))
+    )
+  }, [chats, chatId, units])
   return (
     <>
-      {units.map((u) => (
+      {units.map((u, i) => (
         // display: contents – nur für die Zuordnung (Abzweigpunkt), ohne das Layout zu ändern.
         <div key={u.key} className="unit" data-item-id={itemIdOf(u)}>
-          <UnitView unit={u} chatId={chatId} running={busy && u.kind === 'steps' && u.lastTurn} />
+          {isFork && u.kind === 'item' && u.item.type === 'notice' && u.item.text.startsWith('Abgezweigt aus') ? (
+            <ForkBreadcrumb chatId={chatId} />
+          ) : (
+            <UnitView unit={u} chatId={chatId} running={busy && u.kind === 'steps' && u.lastTurn} />
+          )}
+          {anchors.has(i) && <ForkMarkers chatId={chatId} childIds={anchors.get(i)!} />}
         </div>
       ))}
     </>

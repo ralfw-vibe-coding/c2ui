@@ -23,8 +23,8 @@ Schritte, jeweils erst ausprobieren, bevor der nächste kommt:
 
 1. ✓ **Baum in der Seitenleiste:** jeder Knoten ein Chat, voll aufklappbar wie ein Verzeichnisbaum (Navigation).
    **Abzweigpunkt** wird gespeichert: `forkFrom.at` = Turn-Anzahl, Transkript-Eintrag (`itemId`) und Zitat.
-2. **Abzweigungen im Verlauf:** Markierung an der Stelle („↳ 2 Nachfragen“), Klick öffnet den Nebenchat;
-   im Nebenchat Brotkrumen zurück zur Stelle.
+2. ✓ **Abzweigungen im Verlauf:** Markierung an der Stelle („↳ 2 Nachfragen“), Klick öffnet den Nebenchat;
+   im Nebenchat Brotkrumen zurück zur Stelle (öffnet den Ursprung links daneben und springt hin).
 3. **Diskursboard** (Nachvollziehen), zunächst nur ansehen: Zeit läuft nach unten, jeder Chat eine Spur
    (wie `git log --graph`), Turns als Knoten, Abzweige und Merges als Kanten, verworfene Äste ausgegraut.
    Klick auf einen Knoten öffnet den Chat im Grid an dieser Stelle.
@@ -78,3 +78,4 @@ Später denkbar: das Modell legt selbst Äste an (MCP-Werkzeug), sichtbare und a
 - Codex über `codex app-server`: Streaming, Zwischenrufe, echtes Abzweigen, Fortsetzen auch „paginated“ Threads
   (neueste CLI wird automatisch gewählt, z. B. aus ChatGPT.app); Kosten liefert Codex nicht (Abo)
 - Diskurs Schritt 1: Chat-Baum in der Seitenleiste (auf-/zuklappbar), Abzweigpunkt gespeichert
+- Diskurs Schritt 2: Markierungen an Abzweigstellen, Brotkrumen mit Sprung; Seitenleiste in der Breite ziehbar

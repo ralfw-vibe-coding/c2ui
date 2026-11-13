@@ -27,6 +27,10 @@ Desktop-App (Electron), in der mehrere Chats mit der Claude CLI oder der Codex C
 - **Chat-Baum:** Nebenchats stehen in der Seitenleiste eingerückt unter ihrem Ursprung (auf-/zuklappbar, Zustand
   pro Rechner). Ein Diskurs rückt nach oben, sobald in einem seiner Äste gearbeitet wird. Der Abzweigpunkt
   (Turn, Transkript-Eintrag, Zitat) wird mitgespeichert; der Tooltip nennt ihn.
+- **Abzweigungen im Verlauf:** Im Ursprung steht an der zitierten Antwort „↳ Nachfrage“ mit den Nebenchats; Klick
+  öffnet ihn rechts daneben. Im Nebenchat führen Brotkrumen (ganze Kette bis zur Wurzel) zurück: Klick öffnet den
+  Ursprung links daneben und springt an die Abzweigstelle.
+- Seitenleiste: Breite am rechten Rand ziehen (Doppelklick = Standard), pro Rechner gemerkt.
 - Ein Chat ist höchstens in einer Zelle offen. Layout, Chatliste und Transkripte überstehen einen Neustart.
 - Wird ein arbeitender Chat geschlossen, fragt die App nach: im Hintergrund weiterlaufen lassen, abbrechen oder nicht schließen.
 
@@ -95,6 +99,7 @@ node scripts/a2ui-codex-e2e.mjs   # A2UI mit Codex
 node scripts/queue-e2e.mjs codex; node scripts/steer-e2e.mjs codex   # Warteschlange, Zwischenruf
 node scripts/codex-resume-e2e.mjs   # Codex-Chat über Neustart fortsetzen
 node scripts/chat-tree-check.mjs   # Chat-Baum (ohne Modellaufruf)
+node scripts/fork-nav-check.mjs    # Markierungen, Brotkrumen, Seitenleistenbreite (ohne Modellaufruf)
 ```
 
 ### App bauen und installieren (macOS, Apple Silicon)
