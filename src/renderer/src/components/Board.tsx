@@ -1,5 +1,6 @@
 import { useEffect, useMemo } from 'react'
 import { boardModel, sameAsTitle, type BoardModel } from '@shared/board'
+import * as L from '@shared/layout'
 import { useStore } from '../store'
 import { AgentLogo } from './AgentLogo'
 
@@ -21,7 +22,8 @@ export function Board({ rootId, cellId }: { rootId: string; cellId: string }) {
   const chats = useStore((s) => s.chats)
   const transcripts = useStore((s) => s.transcripts)
   const busy = useStore((s) => s.busy)
-  const active = useStore((s) => s.activeChatId)
+  // Hervorgehoben wird der zuletzt markierte Chat – aber nur, solange er in einer Zelle offen ist.
+  const active = useStore((s) => (s.activeChatId && L.findCellOfChat(s.layout.root, s.activeChatId) ? s.activeChatId : null))
   const model = useMemo(() => boardModel(chats, transcripts, rootId), [chats, transcripts, rootId])
   const laneIds = model.lanes.map((l) => l.chatId).join('|')
 

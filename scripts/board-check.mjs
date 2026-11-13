@@ -120,6 +120,10 @@ await page.waitForTimeout(300)
 log('Hervorgehoben nach Wechsel:', (await activeRows()).map((t) => t.slice(0, 25)))
 check((await activeRows()).length === 3 && (await activeRows()).some((t) => /deutschsprachige/.test(t)), 'Hervorhebung folgt dem Wechsel')
 await page.screenshot({ path: join(out, '3-aktiv.png') })
+// Chat schließen (Zelle bleibt): keine Hervorhebung mehr
+await page.locator('.cell').nth(1).locator('.icon-btn[title^="Chat schließen"]').click()
+await page.waitForTimeout(200)
+check((await activeRows()).length === 0 && (await page.locator('.board-active-lane').count()) === 0, 'kein offener Chat → keine Hervorhebung')
 
 // Board übersteht Neuladen
 await page.waitForTimeout(800)
