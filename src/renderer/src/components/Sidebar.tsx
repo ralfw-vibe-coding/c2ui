@@ -226,6 +226,18 @@ function ChatItem({
           +{childCount}
         </span>
       )}
+      {!editing && (depth > 0 || childCount > 0) && (
+        <button
+          className="icon-btn hover-only"
+          title="Diskursboard dieses Baums öffnen"
+          onClick={(e) => {
+            e.stopPropagation()
+            useStore.getState().openBoard(chat.id)
+          }}
+        >
+          <Icon name="board" size={14} />
+        </button>
+      )}
       {!editing && (
         <button
           className="icon-btn hover-only"

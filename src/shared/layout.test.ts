@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { dropChat, emptyLayout, findCellOfChat, leaves, removeCell, sanitize, setChat, splitCell } from './layout'
+import * as L from './layout'
 import type { LayoutNode } from './types'
 
 const shape = (n: LayoutNode): unknown =>
@@ -76,5 +77,40 @@ describe('layout', () => {
     const s = sanitize({ root: r, selectedCellId: 'gibtsnicht' }, new Set(['A']))
     expect(shape(s.root)).toEqual({ row: ['A', '_'], sizes: [50, 50] })
     expect(s.selectedCellId).toBe(leaves(s.root)[0].id)
+  })
+})
+
+describe('Board-Zellen', () => {
+  it('setzt ein Board (statt Chat) und findet es; ein Chat verdrängt es wieder', () => {
+    const s = L.emptyLayout()
+    let r = L.setChat(s.root, s.selectedCellId, 'c1')
+    r = L.setBoard(r, s.selectedCellId, 'root')
+    const cell = L.findCellOfBoard(r, 'root')!
+    expect(cell.chatId).toBeNull()
+    r = L.setChat(r, cell.id, 'c2')
+    expect(L.findCellOfBoard(r, 'root')).toBeUndefined()
+    expect(L.findCellOfChat(r, 'c2')?.board).toBeUndefined()
+  })
+
+  it('Drop auf ein Board tauscht: das Board wandert in die Herkunftszelle', () => {
+    const a = L.leaf('c1')
+    const root = L.splitCell(a, a.id, 'row', 'after', L.leaf())
+    const b = L.leaves(root)[1]
+    let r = L.setBoard(root, b.id, 'root')
+    r = L.dropChat(r, 'c1', b.id, 'center').root
+    expect(L.findCellOfChat(r, 'c1')?.id).toBe(b.id)
+    expect(L.findCellOfBoard(r, 'root')?.id).toBe(a.id)
+  })
+
+  it('entfernt beim Laden Boards unbekannter Chats und doppelte', () => {
+    const a = L.leaf()
+    const root = L.splitCell(a, a.id, 'row', 'after', L.leaf())
+    const [x, y] = L.leaves(root)
+    let r = L.setBoard(root, x.id, 'r')
+    r = { ...r, children: (r as any).children.map((n: any) => (n.id === y.id ? { ...n, board: 'r' } : n)) } as any
+    const s1 = L.sanitize({ root: r, selectedCellId: x.id }, new Set(['r']))
+    expect(L.leaves(s1.root).filter((l) => l.board === 'r').length).toBe(1)
+    const s2 = L.sanitize({ root: r, selectedCellId: x.id }, new Set())
+    expect(L.leaves(s2.root).some((l) => l.board)).toBe(false)
   })
 })

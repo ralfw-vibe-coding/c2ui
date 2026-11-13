@@ -5,19 +5,21 @@ import { displayDir } from '@shared/paths'
 import { CHAT_MIME, useChat, useStore } from '../store'
 import { AgentLogo } from './AgentLogo'
 import { ChatModelSelect } from './ChatModelSelect'
+import { Board } from './Board'
 import { ChatPanel } from './ChatPanel'
 import { EditableTitle } from './EditableTitle'
 import { EmptyCell } from './EmptyCell'
 import { Icon } from './Icon'
 
-export function Cell({ cellId, chatId }: { cellId: string; chatId: string | null }) {
+export function Cell({ cellId, chatId, board }: { cellId: string; chatId: string | null; board?: string }) {
   const selected = useStore((s) => s.layout.selectedCellId === cellId)
   const dragging = useStore((s) => s.dragging)
   const chat = useChat(chatId)
   const busy = useStore((s) => (chatId ? !!s.busy[chatId] : false))
   const home = useStore((s) => s.home)
   const [editing, setEditing] = useState(false)
-  const { selectCell, splitCell, closeChat, removeCell, setDragging } = useStore.getState()
+  const boardTitle = useStore((s) => (board ? s.chats.find((c) => c.id === board)?.title : undefined))
+  const { selectCell, splitCell, closeChat, closeBoard, removeCell, setDragging } = useStore.getState()
 
   return (
     <div
@@ -51,6 +53,11 @@ export function Cell({ cellId, chatId }: { cellId: string; chatId: string | null
                 <Icon name="pencil" size={13} />
               </button>
             )}
+          </div>
+        ) : board ? (
+          <div className="cell-title" title="Diskursboard: alle Chats dieses Baums">
+            <Icon name="board" />
+            <span className="cell-title-text">Diskurs: {boardTitle ?? '–'}</span>
           </div>
         ) : null}
         {chat && (
@@ -89,13 +96,24 @@ export function Cell({ cellId, chatId }: { cellId: string; chatId: string | null
               <Icon name="close" />
             </button>
           )}
+          {board && (
+            <button className="icon-btn" title="Board schließen (Zelle bleibt)" onClick={() => closeBoard(cellId)}>
+              <Icon name="close" />
+            </button>
+          )}
           <button className="icon-btn danger" title="Zelle entfernen" onClick={() => removeCell(cellId)}>
             <Icon name="trash" />
           </button>
         </div>
       </div>
       <div className="cell-body">
-        {chatId ? <ChatPanel chatId={chatId} active={selected} /> : <EmptyCell cellId={cellId} />}
+        {chatId ? (
+          <ChatPanel chatId={chatId} active={selected} />
+        ) : board ? (
+          <Board rootId={board} cellId={cellId} />
+        ) : (
+          <EmptyCell cellId={cellId} />
+        )}
       </div>
       {dragging && <DropOverlay cellId={cellId} />}
     </div>

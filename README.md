@@ -31,6 +31,10 @@ Desktop-App (Electron), in der mehrere Chats mit der Claude CLI oder der Codex C
   Listenpunkt, aus dem zitiert wurde (sonst am Ende der Antwort); Klick öffnet den Nebenchat rechts daneben.
   Im Nebenchat führen Brotkrumen (ganze Kette bis zur Wurzel) zurück: Klick öffnet den Ursprung links daneben,
   springt an die Stelle und markiert das Zitat einige Sekunden gelb.
+- **Diskursboard:** In der Seitenleiste an jedem Chat eines Baums (Symbol „Verzweigung“): öffnet eine Zelle mit dem
+  ganzen Baum als Graph wie `git log --graph` – Zeit nach unten, jeder Chat eine farbige Spur, jede Nutzernachricht
+  ein Knoten (⚡ Zwischenruf, ■ A2UI-Aktion), Abzweigungen als Kurven. Klick auf eine Zeile öffnet den Chat in der
+  Zelle daneben und springt zur Nachricht. Aktualisiert sich live; übersteht einen Neustart.
 - Seitenleiste: Breite am rechten Rand ziehen (Doppelklick = Standard), pro Rechner gemerkt.
 - Ein Chat ist höchstens in einer Zelle offen. Layout, Chatliste und Transkripte überstehen einen Neustart.
 - Wird ein arbeitender Chat geschlossen, fragt die App nach: im Hintergrund weiterlaufen lassen, abbrechen oder nicht schließen.
@@ -101,6 +105,7 @@ node scripts/queue-e2e.mjs codex; node scripts/steer-e2e.mjs codex   # Warteschl
 node scripts/codex-resume-e2e.mjs   # Codex-Chat über Neustart fortsetzen
 node scripts/chat-tree-check.mjs   # Chat-Baum (ohne Modellaufruf)
 node scripts/fork-nav-check.mjs    # Markierungen, Brotkrumen, Seitenleistenbreite (ohne Modellaufruf)
+node scripts/board-check.mjs       # Diskursboard (ohne Modellaufruf)
 ```
 
 ### App bauen und installieren (macOS, Apple Silicon)

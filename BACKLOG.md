@@ -25,9 +25,10 @@ Schritte, jeweils erst ausprobieren, bevor der nächste kommt:
    **Abzweigpunkt** wird gespeichert: `forkFrom.at` = Turn-Anzahl, Transkript-Eintrag (`itemId`) und Zitat.
 2. ✓ **Abzweigungen im Verlauf:** Markierung an der Stelle („↳ 2 Nachfragen“), Klick öffnet den Nebenchat;
    im Nebenchat Brotkrumen zurück zur Stelle (öffnet den Ursprung links daneben und springt hin).
-3. **Diskursboard** (Nachvollziehen), zunächst nur ansehen: Zeit läuft nach unten, jeder Chat eine Spur
-   (wie `git log --graph`), Turns als Knoten, Abzweige und Merges als Kanten, verworfene Äste ausgegraut.
-   Klick auf einen Knoten öffnet den Chat im Grid an dieser Stelle.
+3. ✓ **Diskursboard** (Nachvollziehen), zunächst nur ansehen: Zeit läuft nach unten, jeder Chat eine Spur
+   (wie `git log --graph`), Nutzernachrichten als Knoten, Abzweige als Kanten. Klick auf einen Knoten öffnet den
+   Chat in der Zelle neben dem Board an dieser Stelle. Board = eigener Zelleninhalt (`leaf.board`).
+   Offen: Merges (kommen mit Schritt 6), verworfene Äste ausgegraut (dafür fehlt noch ein „verwerfen“).
 4. **Semantischer Zoom:** weit = Abschnitte (Turns zwischen zwei Abzweig-/Merge-Punkten) als Kasten mit
    Zusammenfassung; mittel = Turns mit Kurztitel; nah = Frage/Antwort, Screens als Miniaturen.
    Kurztitel und Zusammenfassungen im Hintergrund durch ein kleines Modell (einfache Variante: erste Zeile der Frage).
@@ -79,3 +80,4 @@ Später denkbar: das Modell legt selbst Äste an (MCP-Werkzeug), sichtbare und a
   (neueste CLI wird automatisch gewählt, z. B. aus ChatGPT.app); Kosten liefert Codex nicht (Abo)
 - Diskurs Schritt 1: Chat-Baum in der Seitenleiste (auf-/zuklappbar), Abzweigpunkt gespeichert
 - Diskurs Schritt 2: Markierungen an Abzweigstellen, Brotkrumen mit Sprung; Seitenleiste in der Breite ziehbar
+- Diskurs Schritt 3: Diskursboard als Zelle (Graph wie git log --graph, Klick öffnet Chat an der Stelle)

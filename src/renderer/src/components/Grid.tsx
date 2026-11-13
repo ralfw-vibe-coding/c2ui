@@ -16,7 +16,7 @@ export function Grid() {
 }
 
 function NodeView({ node }: { node: LayoutNode }) {
-  if (node.type === 'leaf') return <Cell cellId={node.id} chatId={node.chatId} />
+  if (node.type === 'leaf') return <Cell cellId={node.id} chatId={node.chatId} board={node.board} />
   return <SplitView node={node} />
 }
 

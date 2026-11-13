@@ -105,9 +105,11 @@ export function ChatPanel({ chatId, active }: { chatId: string; active: boolean 
       const target = (range?.startContainer.parentElement as HTMLElement | null) ?? el
       target.scrollIntoView({ block: 'center' })
       if (range) highlightRange(range)
-      el.classList.remove('jump-flash')
-      void el.offsetWidth
-      el.classList.add('jump-flash')
+      // Bei Nutzernachrichten nur die Blase aufleuchten lassen, nicht die ganze Zeile.
+      const flash = el.querySelector<HTMLElement>('.bubble') ?? el
+      flash.classList.remove('jump-flash')
+      void flash.offsetWidth
+      flash.classList.add('jump-flash')
       useStore.getState().clearJump(jump.n)
     }
     raf = requestAnimationFrame(tryJump)

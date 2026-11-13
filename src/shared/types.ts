@@ -199,7 +199,13 @@ export type AgentEvent =
 // ---------- Layout ----------
 
 export type LayoutNode =
-  | { type: 'leaf'; id: string; chatId: string | null }
+  | {
+      type: 'leaf'
+      id: string
+      chatId: string | null
+      /** Diskursboard statt Chat: Wurzel-Chat des Baums (dann ist chatId null). */
+      board?: string
+    }
   | { type: 'split'; id: string; direction: 'row' | 'column'; children: LayoutNode[]; sizes: number[] }
 
 export interface LayoutState {

@@ -4,6 +4,7 @@ import { setComposites, type CompositeDef } from '@shared/a2ui-composites'
 import { setDraft } from './drafts'
 import * as L from '@shared/layout'
 import { composeMessage, forkTitle, type QuoteRef } from '@shared/quotes'
+import { rootOf } from '@shared/board'
 import { parseUpdateState, type UpdateState } from '@shared/update'
 import * as Q from '@shared/queue'
 import { applyEvent } from '@shared/transcript'
@@ -85,6 +86,14 @@ interface Actions {
   steerQueued(chatId: string, id: string): Promise<void>
   /** Chat neben einem anderen öffnen (oder markieren, falls schon offen). */
   openBeside(chatId: string, anchorChatId: string, side: 'before' | 'after'): Promise<void>
+  /** Diskursboard des Baums öffnen, zu dem der Chat gehört (links neben der markierten Zelle). */
+  openBoard(chatId: string): void
+  /** Board aus der Zelle entfernen (Zelle bleibt). */
+  closeBoard(cellId: string): void
+  /** Vom Board aus einen Chat an einer Nachricht öffnen – in der Zelle neben dem Board. */
+  openFromBoard(boardCellId: string, chatId: string, itemId: string): Promise<void>
+  /** Transkripte laden (z. B. alle Chats eines Boards). */
+  ensureTranscripts(chatIds: string[]): void
   /** Im Verlauf eines Chats an eine Stelle springen (nachdem er geöffnet ist). */
   jumpTo(target: Omit<JumpTarget, 'n'>): void
   clearJump(n: number): void
@@ -95,6 +104,8 @@ interface Actions {
 }
 
 const loading = new Set<string>()
+/** Board-Zelle → Zelle, in die es zuletzt einen Chat geöffnet hat. */
+const boardTargets = new Map<string, string>()
 
 // Reine Ansichtseinstellungen (pro Rechner) liegen im localStorage.
 function readFlag(key: string): boolean {
@@ -432,6 +443,47 @@ export const useStore = create<State & Actions>((set, get) => {
       const nl = L.leaf()
       get().setLayout({ root: L.splitCell(layout.root, anchor.id, 'row', side, nl), selectedCellId: nl.id })
       await get().openChat(chatId, nl.id)
+    },
+
+    openBoard(chatId) {
+      const root = rootOf(get().chats, chatId)
+      const { layout } = get()
+      const existing = L.findCellOfBoard(layout.root, root)
+      if (existing) return get().selectCell(existing.id)
+      const sel = L.findLeaf(layout.root, layout.selectedCellId)
+      if (sel && !sel.chatId && !sel.board) {
+        get().setLayout({ root: L.setBoard(layout.root, sel.id, root), selectedCellId: sel.id })
+        return
+      }
+      const nl = L.leaf()
+      const split = L.splitCell(layout.root, layout.selectedCellId, 'row', 'before', nl)
+      get().setLayout({ root: L.setBoard(split, nl.id, root), selectedCellId: nl.id })
+    },
+
+    closeBoard(cellId) {
+      get().setLayout({ ...get().layout, root: L.setChat(get().layout.root, cellId, null) })
+    },
+
+    async openFromBoard(boardCellId, chatId, itemId) {
+      const { layout } = get()
+      if (!L.findCellOfChat(layout.root, chatId)) {
+        // Bevorzugt die Zelle, in die das Board zuletzt geöffnet hat (sonst neue Zelle rechts daneben).
+        const prev = boardTargets.get(boardCellId)
+        const target = prev ? L.findLeaf(layout.root, prev) : undefined
+        if (target && !target.board) {
+          await get().openChat(chatId, target.id)
+        } else {
+          const nl = L.leaf()
+          get().setLayout({ root: L.splitCell(layout.root, boardCellId, 'row', 'after', nl), selectedCellId: nl.id })
+          boardTargets.set(boardCellId, nl.id)
+          await get().openChat(chatId, nl.id)
+        }
+      } else await get().openChat(chatId)
+      get().jumpTo({ chatId, itemId })
+    },
+
+    ensureTranscripts(chatIds) {
+      for (const id of chatIds) void loadTranscript(id)
     },
 
     jumpTo(target) {

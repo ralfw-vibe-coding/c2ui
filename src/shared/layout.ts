@@ -39,12 +39,34 @@ function mapNodes(n: LayoutNode, f: (n: LayoutNode) => LayoutNode): LayoutNode {
   return m
 }
 
-/** Setzt einen Chat in eine Zelle. Ein Chat ist höchstens in einer Zelle offen. */
+/** Zelleninhalt ersetzen: ein Chat oder ein Board (nie beides). */
+function withContent(n: Leaf, chatId: string | null, board?: string): Leaf {
+  const { board: _old, ...rest } = n
+  void _old
+  return board ? { ...rest, chatId: null, board } : { ...rest, chatId }
+}
+
+/** Setzt einen Chat in eine Zelle (ein Board dort verschwindet). Ein Chat ist höchstens in einer Zelle offen. */
 export function setChat(root: LayoutNode, cellId: string, chatId: string | null): LayoutNode {
   return mapNodes(root, (n) => {
     if (n.type !== 'leaf') return n
-    if (n.id === cellId) return { ...n, chatId }
+    if (n.id === cellId) return withContent(n, chatId)
     if (chatId && n.chatId === chatId) return { ...n, chatId: null }
+    return n
+  })
+}
+
+/** Zelle, die das Board zu diesem Wurzel-Chat zeigt. */
+export function findCellOfBoard(n: LayoutNode, rootChatId: string): Leaf | undefined {
+  return leaves(n).find((l) => l.board === rootChatId)
+}
+
+/** Board in eine Zelle setzen (statt eines Chats); ein Board ist höchstens in einer Zelle offen. */
+export function setBoard(root: LayoutNode, cellId: string, rootChatId: string): LayoutNode {
+  return mapNodes(root, (n) => {
+    if (n.type !== 'leaf') return n
+    if (n.id === cellId) return withContent(n, null, rootChatId)
+    if (n.board === rootChatId) return withContent(n, null)
     return n
   })
 }
@@ -161,8 +183,9 @@ export function dropChat(
 
   if (zone === 'center') {
     let r = root
-    if (source) r = setChat(r, source.id, target.chatId)
-    r = mapNodes(r, (n) => (n.type === 'leaf' && n.id === target.id ? { ...n, chatId } : n))
+    // Tauschen: Was in der Zielzelle war (Chat oder Board), wandert in die Herkunftszelle.
+    if (source) r = mapNodes(r, (n) => (n.type === 'leaf' && n.id === source.id ? withContent(n, target.chatId, target.board) : n))
+    r = mapNodes(r, (n) => (n.type === 'leaf' && n.id === target.id ? withContent(n, chatId) : n))
     return { root: r, cellId: target.id }
   }
 
@@ -178,8 +201,14 @@ export function dropChat(
 export function sanitize(state: LayoutState | null | undefined, knownChatIds: Set<string>): LayoutState {
   if (!state || !state.root) return emptyLayout()
   const seen = new Set<string>()
+  const boards = new Set<string>()
   const root = mapNodes(state.root, (n) => {
     if (n.type !== 'leaf') return n
+    if (n.board) {
+      if (!knownChatIds.has(n.board) || boards.has(n.board)) return withContent(n, null)
+      boards.add(n.board)
+      return n
+    }
     if (n.chatId && (!knownChatIds.has(n.chatId) || seen.has(n.chatId))) return { ...n, chatId: null }
     if (n.chatId) seen.add(n.chatId)
     return n
