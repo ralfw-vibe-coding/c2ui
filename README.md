@@ -21,6 +21,9 @@ Desktop-App (Electron), in der mehrere Chats mit der Claude CLI oder der Codex C
 - **Warteschlange:** Während ein Chat arbeitet, bleibt das Eingabefeld frei; Enter reiht die Nachricht ein
   (mit Bezügen und Anhängen). Eingereihtes geht nach jeder Antwort einzeln raus, lässt sich bis dahin zurück ins
   Eingabefeld holen oder entfernen. Nach Abbruch oder Fehler hält die Schlange an („Fortsetzen“).
+  Bei Claude kann eine eingereihte Nachricht per „Zwischenruf“ (Steer) sofort in die laufende Antwort gehen:
+  Claude nimmt sie beim nächsten Schritt auf (`--replay-user-messages` zeigt, wann); kommt sie zu spät,
+  beantwortet Claude sie direkt danach. Codex kann das (noch) nicht.
 - Ein Chat ist höchstens in einer Zelle offen. Layout, Chatliste und Transkripte überstehen einen Neustart.
 - Wird ein arbeitender Chat geschlossen, fragt die App nach: im Hintergrund weiterlaufen lassen, abbrechen oder nicht schließen.
 

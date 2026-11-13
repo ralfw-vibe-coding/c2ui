@@ -241,6 +241,13 @@ export class ChatManager {
     this.session(chat).send(text, attachments)
   }
 
+  /** Zwischenruf in den laufenden Turn; erscheint im Verlauf, sobald der Agent ihn aufnimmt. */
+  steer(id: string, text: string, attachments: Attachment[] = []): void {
+    const s = this.sessions.get(id)
+    if (!s?.busy || !s.steer) throw new Error('Zwischenruf ist gerade nicht möglich')
+    s.steer(text, attachments)
+  }
+
   interrupt(id: string): void {
     this.sessions.get(id)?.interrupt()
   }

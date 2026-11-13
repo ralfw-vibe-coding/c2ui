@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { afterTurn, EMPTY_QUEUE, enqueue, queuedMeta, removeQueued, resume, sendFailed, shouldQueue, takeNext, type QueuedMessage } from './queue'
+import { afterTurn, EMPTY_QUEUE, enqueue, putBack, queuedMeta, removeQueued, resume, sendFailed, shouldQueue, takeNext, type QueuedMessage } from './queue'
 
 const msg = (id: string, extra: Partial<QueuedMessage> = {}): QueuedMessage => ({ id, text: id, refs: [], attachments: [], ...extra })
 
@@ -50,6 +50,13 @@ describe('Warteschlange', () => {
     expect(shouldQueue(q, false)).toBe(true)
     // Angehalten: direkt senden, die Schlange wartet weiter.
     expect(shouldQueue({ ...q, paused: true }, false)).toBe(false)
+  })
+
+  it('stellt nach gescheitertem Zwischenruf vorn wieder ein, ohne anzuhalten', () => {
+    const q = putBack(enqueue(EMPTY_QUEUE, msg('b')), msg('a'), 'geht nicht')
+    expect(q.items.map((m) => m.id)).toEqual(['a', 'b'])
+    expect(q.paused).toBe(false)
+    expect(q.error).toBe('geht nicht')
   })
 
   it('beschreibt Bezüge und Anhänge', () => {

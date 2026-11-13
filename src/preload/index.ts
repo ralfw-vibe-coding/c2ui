@@ -43,6 +43,7 @@ const api = {
     }
   },
   interrupt: (id: string): Promise<void> => ipcRenderer.invoke('agent:interrupt', id),
+  steer: (id: string, text: string, attachments?: Attachment[]): Promise<void> => ipcRenderer.invoke('agent:steer', id, text, attachments),
   pickDirectory: (defaultPath?: string): Promise<string | null> => ipcRenderer.invoke('dialog:pickDirectory', defaultPath),
   listModels: (agent: AgentKind): Promise<ModelList> => ipcRenderer.invoke('models:list', agent),
   listComponents: (): Promise<{ defs: CompositeDef[]; errors: string[]; dir: string }> => ipcRenderer.invoke('components:list'),

@@ -18,6 +18,8 @@ export interface ChatQueue {
   paused: boolean
   /** Grund des Anhaltens (zur Anzeige). */
   reason?: string
+  /** Fehler der letzten Aktion (z. B. Zwischenruf nicht möglich). */
+  error?: string
 }
 
 export const EMPTY_QUEUE: ChatQueue = { items: [], paused: false }
@@ -51,6 +53,11 @@ export function takeNext(q: ChatQueue, busy: boolean): { queue: ChatQueue; next?
 /** Senden fehlgeschlagen: Nachricht wieder vorn einreihen und anhalten. */
 export function sendFailed(q: ChatQueue, item: QueuedMessage, error: string): ChatQueue {
   return { items: [item, ...q.items], paused: true, reason: error }
+}
+
+/** Zwischenruf fehlgeschlagen: Nachricht wieder vorn einreihen, Fehler anzeigen (läuft weiter). */
+export function putBack(q: ChatQueue, item: QueuedMessage, error: string): ChatQueue {
+  return { ...q, items: [item, ...q.items], error }
 }
 
 /** Soll eine neue Eingabe eingereiht statt direkt gesendet werden? */

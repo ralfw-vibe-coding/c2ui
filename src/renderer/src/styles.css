@@ -2076,3 +2076,40 @@ fieldset.agent-settings {
   flex: none;
   color: var(--text-muted);
 }
+.queue-steer {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  border: 1px solid var(--accent);
+  background: transparent;
+  color: var(--accent);
+  border-radius: 6px;
+  padding: 1px 7px;
+  font-size: 11px;
+  cursor: pointer;
+}
+.queue-steer:hover {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+.queue-item.steering {
+  color: var(--text-muted);
+}
+.queue-item.steering > .icon {
+  color: var(--accent);
+  flex: none;
+}
+.queue-error {
+  color: var(--danger);
+  padding: 2px 0;
+}
+.msg-user-col.steer .bubble {
+  border-left: 3px solid var(--accent);
+}
+.steer-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--accent);
+}

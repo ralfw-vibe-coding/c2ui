@@ -23,7 +23,8 @@ const paths: Record<string, string> = {
   info: 'M12 3a9 9 0 100 18 9 9 0 000-18zM12 11v6M12 7.5v.5',
   alert: 'M12 4l9 16H3zM12 10v4M12 17v.5',
   queue: 'M4 6h12M4 12h8M4 18h8M17 13v8M13 17h8',
-  play: 'M7 4l13 8-13 8z'
+  play: 'M7 4l13 8-13 8z',
+  steer: 'M13 3L5 14h6l-1 7 8-11h-6z'
 }
 
 export function Icon({ name, size = 16 }: { name: string; size?: number }) {

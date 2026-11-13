@@ -11,10 +11,15 @@ export const TranscriptItemView = memo(function TranscriptItemView({ item, chatI
   switch (item.type) {
     case 'user':
       if (item.text.startsWith(A2UI_ACTION_PREFIX)) return <ActionMessage text={item.text} />
-      if (item.attachments?.length) {
+      if (item.attachments?.length || item.steer) {
         return (
-          <div className="msg msg-user msg-user-col">
-            <SentAttachments attachments={item.attachments} />
+          <div className={`msg msg-user msg-user-col${item.steer ? ' steer' : ''}`}>
+            {item.steer && (
+              <div className="steer-label" title="Während der Antwort eingeworfen (Steer)">
+                <Icon name="steer" size={11} /> Zwischenruf
+              </div>
+            )}
+            {item.attachments?.length ? <SentAttachments attachments={item.attachments} /> : null}
             {item.text && <div className="bubble"><UserText text={item.text} /></div>}
           </div>
         )

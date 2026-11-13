@@ -148,7 +148,7 @@ export type Block =
     }
 
 export type TranscriptItem =
-  | { type: 'user'; id: string; text: string; ts: number; attachments?: Attachment[] }
+  | { type: 'user'; id: string; text: string; ts: number; attachments?: Attachment[]; /** Zwischenruf in einen laufenden Turn */ steer?: boolean }
   | { type: 'assistant'; id: string; blocks: Block[] }
   | { type: 'error'; id: string; text: string }
   | { type: 'notice'; id: string; text: string }
@@ -166,7 +166,7 @@ export type Transcript = TranscriptItem[]
 
 /** Normalisierte Events, die ein Agent-Adapter liefert. */
 export type AgentEvent =
-  | { kind: 'user'; id: string; text: string; ts: number; attachments?: Attachment[] }
+  | { kind: 'user'; id: string; text: string; ts: number; attachments?: Attachment[]; steer?: boolean }
   | { kind: 'text-delta'; msgId: string; index: number; text: string; blockType: 'text' | 'thinking' }
   | { kind: 'assistant'; msgId: string; blocks: Block[]; /** Position des ersten Blocks in der Nachricht; fehlt = anhängen */ index?: number }
   | { kind: 'tool-result'; toolUseId: string; content: string; isError: boolean }

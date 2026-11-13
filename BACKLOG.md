@@ -7,6 +7,7 @@
    Derzeit fängt die App das ab und startet einen neuen Thread mit dem Verlauf aus ihrem Transkript (verliert
    Detailkontext wie Befehlsausgaben). Der app-server (JSON-RPC, von der Codex-App genutzt) könnte das sauber lösen
    und brächte auch Streaming, Bild-Events und Freigaben.
+   Damit auch Zwischenrufe (Steer) für Codex prüfen.
 2. **Codex**: Antworten streamen (derzeit nur ganze Absätze), Kosten anzeigen – voraussichtlich mit Punkt 1.
 
 ## Ideen (gesammelt, Reihenfolge offen)
@@ -78,3 +79,4 @@ Später denkbar: das Modell legt selbst Äste an (MCP-Werkzeug), sichtbare und a
 - Selbst-Aktualisierung aus einem Ordner (Dropbox o. Ä.), feste Signatur, `npm run package`
 - Umbenennung in C2UI (Repo ralfw-vibe-coding/c2ui)
 - Warteschlange: Nachrichten einreihen, während der Agent arbeitet
+- Zwischenruf (Steer) aus der Warteschlange in die laufende Antwort (Claude)

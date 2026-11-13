@@ -35,6 +35,8 @@ interface State {
   update: UpdateState
   /** Eingereihte Nachrichten je Chat (während er arbeitet geschrieben). */
   queues: Record<string, Q.ChatQueue | undefined>
+  /** Zwischenrufe, die an den Agenten gingen, aber noch nicht aufgenommen wurden. */
+  steering: Record<string, Q.QueuedMessage[] | undefined>
 }
 
 interface Actions {
@@ -69,6 +71,8 @@ interface Actions {
   /** Eingereihte Nachricht zum Bearbeiten herausnehmen. */
   takeQueued(chatId: string, id: string): Q.QueuedMessage | undefined
   resumeQueue(chatId: string): void
+  /** Eingereihte Nachricht als Zwischenruf in die laufende Antwort geben (Steer). */
+  steerQueued(chatId: string, id: string): Promise<void>
   setDragging(chatId: string | null): void
   setSettingsOpen(open: boolean): void
   toggleSidebar(): void
@@ -136,6 +140,7 @@ export const useStore = create<State & Actions>((set, get) => {
 
   function onAgentEvent(chatId: string, e: AgentEvent): void {
     if (e.kind === 'turn-end') setQueue(chatId, Q.afterTurn(queueOf(chatId), e.isError, e.errorText))
+    if (e.kind === 'user' && e.steer) set((s) => ({ steering: { ...s.steering, [chatId]: (s.steering[chatId] ?? []).slice(1) } }))
     // Ereignisse für nicht geladene Transkripte ignorieren: der Main-Prozess hat den
     // vollständigen Stand und liefert ihn beim Laden (IPC ist geordnet).
     const t = get().transcripts[chatId]
@@ -160,6 +165,7 @@ export const useStore = create<State & Actions>((set, get) => {
     pendingRefs: {},
     update: { state: 'unavailable' },
     queues: {},
+    steering: {},
 
     async init() {
       // Eigene Komponenten zuerst – sie werden beim Anzeigen der Screens aufgelöst.
@@ -185,7 +191,11 @@ export const useStore = create<State & Actions>((set, get) => {
       window.api.onAgentEvent(onAgentEvent)
       window.api.onBusy((id, b) => {
         set((st) => ({ busy: { ...st.busy, [id]: b } }))
-        if (!b) void drainQueue(id)
+        if (!b) {
+          // Was bis zum Ende nicht aufgenommen wurde, meldet der Hauptprozess als Hinweis.
+          set((st) => ({ steering: { ...st.steering, [id]: [] } }))
+          void drainQueue(id)
+        }
       })
       window.api.onChatsChanged((chats) => set({ chats }))
       window.api.onUpdate((u) => set({ update: parseUpdateState(u) }))
@@ -396,6 +406,19 @@ export const useStore = create<State & Actions>((set, get) => {
     resumeQueue(chatId) {
       setQueue(chatId, Q.resume(queueOf(chatId)))
       void drainQueue(chatId)
+    },
+
+    async steerQueued(chatId, id) {
+      const m = queueOf(chatId).items.find((x) => x.id === id)
+      if (!m) return
+      setQueue(chatId, { ...Q.removeQueued(queueOf(chatId), id), error: undefined })
+      set((s) => ({ steering: { ...s.steering, [chatId]: [...(s.steering[chatId] ?? []), m] } }))
+      try {
+        await window.api.steer(chatId, composeMessage(m.refs, m.text), m.attachments)
+      } catch (e) {
+        set((s) => ({ steering: { ...s.steering, [chatId]: (s.steering[chatId] ?? []).filter((x) => x.id !== m.id) } }))
+        setQueue(chatId, Q.putBack(queueOf(chatId), m, ipcError(e)))
+      }
     },
 
     setDragging(chatId) {

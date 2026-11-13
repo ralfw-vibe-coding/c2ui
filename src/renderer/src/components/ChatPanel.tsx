@@ -8,6 +8,7 @@ import { Icon } from './Icon'
 import { TranscriptView } from './TranscriptView'
 
 const NEAR_BOTTOM_PX = 60
+const NO_STEERING: never[] = []
 import { drafts } from '../drafts'
 import { AttachmentChips } from './Attachments'
 import { QuoteSelection, RefChips } from './QuoteRefs'
@@ -191,6 +192,10 @@ function Composer({
   const canSend = !!text.trim() || attachments.length > 0 || refs.length > 0
 
   const queue = useStore((s) => s.queues[chatId]) ?? EMPTY_QUEUE
+  const steering = useStore((s) => s.steering[chatId]) ?? NO_STEERING
+  // Zwischenrufe in eine laufende Antwort kann bisher nur Claude.
+  const agent = useChat(chatId)?.agent
+  const canSteer = busy && agent === 'claude'
 
   async function submit(): Promise<void> {
     const t = text.trim()
@@ -239,7 +244,9 @@ function Composer({
   return (
     <div className="composer">
       {error && <div className="composer-error">{error}</div>}
-      {(queue.items.length > 0 || queue.paused) && <QueueList chatId={chatId} queue={queue} busy={busy} onEdit={editQueued} />}
+      {(queue.items.length > 0 || queue.paused || steering.length > 0) && (
+        <QueueList chatId={chatId} queue={queue} steering={steering} busy={busy} canSteer={canSteer} onEdit={editQueued} />
+      )}
       {refs.length > 0 && <RefChips chatId={chatId} refs={refs} />}
       {attachments.length > 0 && <AttachmentChips chatId={chatId} attachments={attachments} />}
       <div className="composer-row">

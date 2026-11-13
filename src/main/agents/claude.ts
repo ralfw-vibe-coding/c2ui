@@ -27,6 +27,12 @@ class ClaudeSession implements AgentSession {
   private curIndex = 0
   /** Modell laut letzter Assistant-Nachricht (exakte ID von der API). */
   private lastModel: string | undefined
+  /**
+   * Nach stdin geschriebene Nachrichten, deren Echo (`--replay-user-messages`) noch aussteht – in
+   * Reihenfolge. Das Echo zeigt, wann die CLI eine Nachricht tatsächlich aufnimmt: Zwischenrufe
+   * erscheinen im Verlauf erst an dieser Stelle.
+   */
+  private replays: ({ kind: 'turn' } | { kind: 'steer'; id: string; text: string; attachments: Attachment[] })[] = []
 
   constructor(
     private readonly ctx: AgentContext,
@@ -45,13 +51,28 @@ class ClaudeSession implements AgentSession {
     this.turnStartedAt = Date.now()
     try {
       const p = this.proc ?? this.spawn()
-      const body = textWithAttachments(text, attachments)
-      const images = claudeImageBlocks(attachments)
-      const content = images.length ? [{ type: 'text', text: body }, ...images] : body
-      p.stdin.write(JSON.stringify({ type: 'user', message: { role: 'user', content } }) + '\n')
+      this.replays.push({ kind: 'turn' })
+      this.write(p, text, attachments)
     } catch (err) {
       this.failTurn(String((err as Error).message ?? err))
     }
+  }
+
+  /**
+   * Zwischenruf: Nachricht in den laufenden Turn. Die CLI nimmt sie beim nächsten Schritt auf
+   * (nach einem Werkzeugaufruf); kommt sie zu spät, beginnt danach von selbst ein weiterer Turn.
+   */
+  steer(text: string, attachments: Attachment[] = []): void {
+    if (!this._busy || !this.proc || this.interrupted) throw new Error('Zwischenruf nur während einer laufenden Antwort möglich')
+    this.replays.push({ kind: 'steer', id: randomUUID(), text, attachments })
+    this.write(this.proc, text, attachments)
+  }
+
+  private write(p: ChildProcessWithoutNullStreams, text: string, attachments: Attachment[]): void {
+    const body = textWithAttachments(text, attachments)
+    const images = claudeImageBlocks(attachments)
+    const content = images.length ? [{ type: 'text', text: body }, ...images] : body
+    p.stdin.write(JSON.stringify({ type: 'user', message: { role: 'user', content } }) + '\n')
   }
 
   interrupt(): void {
@@ -87,6 +108,7 @@ class ClaudeSession implements AgentSession {
       '--output-format', 'stream-json',
       '--verbose',
       '--include-partial-messages',
+      '--replay-user-messages',
       '--permission-mode', chat.permissionMode
     ]
     const cfg = settings.agents.claude
@@ -108,6 +130,7 @@ class ClaudeSession implements AgentSession {
     this.proc = p
     this.buf = ''
     this.stderrTail = ''
+    this.replays = []
 
     p.stdout.setEncoding('utf8')
     // Ein abgehängter (abgebrochener) Prozess darf den nächsten Turn nicht mehr beeinflussen.
@@ -202,6 +225,13 @@ class ClaudeSession implements AgentSession {
       }
 
       case 'user': {
+        if (m.isReplay) {
+          const r = this.replays.shift()
+          if (r?.kind === 'steer') {
+            this.cb.onEvent({ kind: 'user', id: r.id, text: r.text, ts: Date.now(), steer: true, ...(r.attachments.length ? { attachments: r.attachments } : {}) })
+          }
+          return
+        }
         const content = m.message?.content
         if (!Array.isArray(content)) return
         for (const c of content) {
@@ -225,7 +255,10 @@ class ClaudeSession implements AgentSession {
           return
         }
         const isError = !!m.is_error || (m.subtype && m.subtype !== 'success')
+        // Zwischenruf kam zu spät für diesen Turn: die CLI beginnt gleich von selbst einen weiteren.
+        const continues = !isError && this.replays.some((r) => r.kind === 'steer')
         this.endTurn({
+          continues,
           isError,
           errorText: isError ? String(m.result ?? m.subtype ?? 'Fehler') : undefined,
           costTotalUsd: typeof m.total_cost_usd === 'number' ? m.total_cost_usd : undefined,
@@ -236,7 +269,7 @@ class ClaudeSession implements AgentSession {
     }
   }
 
-  private endTurn(r: { isError: boolean; errorText?: string; costTotalUsd?: number; durationMs?: number }): void {
+  private endTurn(r: { isError: boolean; errorText?: string; costTotalUsd?: number; durationMs?: number; continues?: boolean }): void {
     if (!this._busy) return
     this.cb.onEvent({
       kind: 'turn-end',
@@ -248,6 +281,15 @@ class ClaudeSession implements AgentSession {
       model: this.lastModel
     })
     this.lastModel = undefined
+    if (r.continues) {
+      this.turnStartedAt = Date.now()
+      return
+    }
+    // Nicht mehr aufgenommene Zwischenrufe (Abbruch, Fehler) melden statt still zu verlieren.
+    for (const x of this.replays) {
+      if (x.kind === 'steer') this.cb.onEvent({ kind: 'notice', id: randomUUID(), text: `Zwischenruf nicht mehr angekommen: „${x.text}“` })
+    }
+    this.replays = []
     this.setBusy(false)
     this.armIdle()
   }
