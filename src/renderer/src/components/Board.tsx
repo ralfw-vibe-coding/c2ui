@@ -24,6 +24,16 @@ export function Board({ rootId, cellId }: { rootId: string; cellId: string }) {
   const transcripts = useStore((s) => s.transcripts)
   const busy = useStore((s) => s.busy)
   const [hidden, setHidden] = useState<Set<string>>(() => readHidden(rootId))
+  // Zusammenführen: Knoten auf eine andere Spur ziehen – diese Spur leuchtet auf.
+  const [dropLane, setDropLane] = useState<string | null>(null)
+  const dragging = useStore((s) => s.dragging)
+  useEffect(() => {
+    if (!dragging) setDropLane(null)
+  }, [dragging])
+  const mergeSource = (): { chatId: string; itemId?: string } | null => {
+    const d = useStore.getState().dragging
+    return d?.chatId && d.fromCell === cellId ? { chatId: d.chatId, itemId: d.itemId } : null
+  }
   const update = (fn: (next: Set<string>) => void): void => {
     const next = new Set(hidden)
     fn(next)
@@ -58,6 +68,7 @@ export function Board({ rootId, cellId }: { rootId: string; cellId: string }) {
   const height = Math.max(1, model.nodes.length) * ROW
   const firstOfLane = new Set(model.lanes.map((l) => `${l.chatId}:${l.first}`))
   const lastOfLane = new Map(model.lanes.map((l) => [l.chatId, l.last]))
+  const dropTitle = dropLane ? model.lanes.find((l) => l.chatId === dropLane)?.title : undefined
   const foldedAt = new Map<number, BoardModel['collapsed']>()
   for (const f of model.collapsed) if (f.row !== undefined) foldedAt.set(f.row, [...(foldedAt.get(f.row) ?? []), f])
 
@@ -87,7 +98,7 @@ export function Board({ rootId, cellId }: { rootId: string; cellId: string }) {
                   key={`${n.chatId}:${n.itemId}`}
                   role="button"
                   tabIndex={0}
-                  className={`board-row ${n.kind}${n === activeNode ? ' active' : ''}`}
+                  className={`board-row ${n.kind}${n === activeNode ? ' active' : ''}${n.chatId === dropLane ? ' merge-target' : ''}`}
                   style={{ top: n.row * ROW, height: ROW, paddingLeft: width + 6 }}
                   draggable
                   onDragStart={(e) => {
@@ -96,6 +107,24 @@ export function Board({ rootId, cellId }: { rootId: string; cellId: string }) {
                     useStore.getState().setDragging({ chatId: n.chatId, itemId: n.itemId, fromCell: cellId })
                   }}
                   onDragEnd={() => useStore.getState().setDragging(null)}
+                  onDragOver={(e) => {
+                    const src = mergeSource()
+                    if (!src || src.chatId === n.chatId) {
+                      if (dropLane) setDropLane(null)
+                      return
+                    }
+                    e.preventDefault()
+                    e.dataTransfer.dropEffect = 'move'
+                    if (dropLane !== n.chatId) setDropLane(n.chatId)
+                  }}
+                  onDrop={(e) => {
+                    const src = mergeSource()
+                    if (!src || src.chatId === n.chatId) return
+                    e.preventDefault()
+                    useStore.getState().setDragging(null)
+                    setDropLane(null)
+                    useStore.getState().openMerge({ sourceId: src.chatId, sourceItemId: src.itemId, targetId: n.chatId })
+                  }}
                   onClick={(e) => open(e.metaKey)}
                   onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), open(e.metaKey))}
                 >
@@ -107,7 +136,7 @@ export function Board({ rootId, cellId }: { rootId: string; cellId: string }) {
                     </span>
                   )}
                   <span className="board-label">
-                    {n.kind === 'steer' ? '⚡ ' : ''}
+                    {n.kind === 'steer' ? '⚡ ' : n.kind === 'merge' ? '⤵ ' : n.kind === 'prepare' ? '⤴ ' : ''}
                     {n.label}
                   </span>
                   {foldedAt.get(n.row)?.map((f) => (
@@ -124,6 +153,9 @@ export function Board({ rootId, cellId }: { rootId: string; cellId: string }) {
                       ▸ <span className="board-folded-title">{f.title}</span> · {f.messages}
                     </button>
                   ))}
+                  {n.chatId === dropLane && lastOfLane.get(n.chatId) === n.row && (
+                    <span className="board-merge-hint">⤵ hier zusammenführen{dropTitle ? ` (in „${dropTitle}“)` : ''}</span>
+                  )}
                   {running && <span className="spinner" />}
                   <span className="board-time">{time(n.ts)}</span>
                 </div>
@@ -197,6 +229,20 @@ function Graph({
       {model.edges.map((e) => (
         <path key={e.childId} d={edgePath(e)} fill="none" stroke={colorOf(model.lanes[e.to.lane].color)} strokeWidth={2} />
       ))}
+      {/* Zusammenführungen: aus dem Nebenchat senkrecht hinunter, dann in die Spur des Ziels */}
+      {model.merges.map((m) => {
+        const src = model.lanes.find((l) => l.chatId === m.sourceId)
+        return (
+          <path
+            key={`m-${m.itemId}`}
+            className="board-merge"
+            d={mergePath(m)}
+            fill="none"
+            stroke={colorOf(src?.color ?? 0)}
+            strokeWidth={2}
+          />
+        )
+      })}
       {/* Knoten; an Abzweigstellen mit „−“ (Äste offen) bzw. „+“ (eingeklappt) – Klick klappt um */}
       {model.nodes.map((n) => {
         const color = colorOf(model.lanes[n.lane].color)
@@ -228,6 +274,9 @@ function Graph({
             </g>
           )
         }
+        if (n.kind === 'merge') {
+          return <circle key={n.itemId} cx={x(n.lane)} cy={y(n.row)} r={5.5} className="board-node board-node-merge" stroke={color} style={{ fill: color }} />
+        }
         return n.kind === 'action' ? (
           <rect key={n.itemId} x={x(n.lane) - 4} y={y(n.row) - 4} width={8} height={8} rx={2} className="board-node" stroke={color} />
         ) : (
@@ -246,6 +295,17 @@ function edgePath(e: BoardModel['edges'][number]): string {
   const yb = Math.min(y(e.to.row), y1 + ROW * 0.9)
   const mid = (y1 + yb) / 2
   return `M ${x1} ${y1} C ${x1} ${mid}, ${x2} ${mid}, ${x2} ${yb} L ${x2} ${y(e.to.row)}`
+}
+
+/** Zusammenführung: in der Spur des Nebenchats hinunter bis kurz vor die Übernahme, dann hinüber ins Ziel. */
+function mergePath(m: BoardModel['merges'][number]): string {
+  const x1 = x(m.from.lane)
+  const y1 = y(m.from.row)
+  const x2 = x(m.to.lane)
+  const y2 = y(m.to.row)
+  const yb = Math.max(y1, y2 - ROW * 0.9)
+  const mid = (yb + y2) / 2
+  return `M ${x1} ${y1} L ${x1} ${yb} C ${x1} ${mid}, ${x2} ${mid}, ${x2} ${y2}`
 }
 
 function time(ts: number): string {

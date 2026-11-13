@@ -7,7 +7,7 @@ import type { AgentEvent, Block, Transcript, TranscriptItem } from './types'
 export function applyEvent(t: Transcript, e: AgentEvent): Transcript {
   switch (e.kind) {
     case 'user':
-      return [...t, { type: 'user', id: e.id, text: e.text, ts: e.ts, ...(e.attachments?.length ? { attachments: e.attachments } : {}), ...(e.steer ? { steer: true } : {}) }]
+      return [...t, { type: 'user', id: e.id, text: e.text, ts: e.ts, ...(e.attachments?.length ? { attachments: e.attachments } : {}), ...(e.steer ? { steer: true } : {}), ...(e.merge ? { merge: e.merge } : {}) }]
 
     case 'text-delta': {
       const idx = findAssistant(t, e.msgId)

@@ -103,6 +103,24 @@ export interface Settings {
   lastDirectory: string
   /** Arbeitsschritte (Werkzeuge, Zwischentexte) je Turn einklappen. */
   collapseSteps: boolean
+  /** Zusammenführen: Standard-Prompts und ob die Aufarbeitung vor der Übernahme gezeigt wird. */
+  merge: MergeSettings
+}
+
+export interface MergeSettings {
+  /** Prompt an den Nebenchat B: Ergebnisse aufarbeiten. Platzhalter {Titel} (B) und {Ziel} (A). */
+  prepare: string
+  /** Prompt an den Zielchat A: Aufarbeitung übernehmen. Platzhalter wie oben. */
+  adopt: string
+  /** Aufarbeitung vor der Übernahme zum Bearbeiten zeigen. */
+  preview: boolean
+}
+
+export const DEFAULT_MERGE: MergeSettings = {
+  prepare:
+    'Fasse für den Chat „{Ziel}“ zusammen, was in diesem Nebengespräch geklärt wurde: Ergebnisse, Entscheidungen, offene Punkte. Wiederhole nicht den Verlauf, der dort schon bekannt ist. Antworte nur mit der Zusammenfassung.',
+  adopt: 'Berücksichtige diese Ergebnisse aus dem Nebengespräch „{Titel}“.',
+  preview: true
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -112,7 +130,8 @@ export const DEFAULT_SETTINGS: Settings = {
   },
   idleTimeoutMinutes: 10,
   lastDirectory: '',
-  collapseSteps: true
+  collapseSteps: true,
+  merge: DEFAULT_MERGE
 }
 
 /** Lädt gespeicherte Einstellungen, auch im alten Format (vor Codex). */
@@ -122,6 +141,11 @@ export function migrateSettings(raw: any): Settings {
   if (typeof raw.idleTimeoutMinutes === 'number') s.idleTimeoutMinutes = raw.idleTimeoutMinutes
   if (typeof raw.lastDirectory === 'string') s.lastDirectory = raw.lastDirectory
   if (typeof raw.collapseSteps === 'boolean') s.collapseSteps = raw.collapseSteps
+  if (raw.merge && typeof raw.merge === 'object') {
+    if (typeof raw.merge.prepare === 'string' && raw.merge.prepare.trim()) s.merge.prepare = raw.merge.prepare
+    if (typeof raw.merge.adopt === 'string' && raw.merge.adopt.trim()) s.merge.adopt = raw.merge.adopt
+    if (typeof raw.merge.preview === 'boolean') s.merge.preview = raw.merge.preview
+  }
   // Altes Format: Felder direkt auf oberster Ebene, nur Claude
   if (typeof raw.claudePath === 'string') s.agents.claude.path = raw.claudePath
   if (typeof raw.model === 'string') s.agents.claude.model = raw.model
@@ -148,7 +172,17 @@ export type Block =
     }
 
 export type TranscriptItem =
-  | { type: 'user'; id: string; text: string; ts: number; attachments?: Attachment[]; /** Zwischenruf in einen laufenden Turn */ steer?: boolean }
+  | {
+      type: 'user'
+      id: string
+      text: string
+      ts: number
+      attachments?: Attachment[]
+      /** Zwischenruf in einen laufenden Turn */
+      steer?: boolean
+      /** Teil einer Zusammenführung (Aufarbeitung in B bzw. Übernahme in A). */
+      merge?: MergeMark
+    }
   | { type: 'assistant'; id: string; blocks: Block[] }
   | { type: 'error'; id: string; text: string }
   | { type: 'notice'; id: string; text: string }
@@ -164,6 +198,14 @@ export type TranscriptItem =
 
 export type Transcript = TranscriptItem[]
 
+/**
+ * Zusammenführung: Nebenchat B arbeitet auf (prepare), Chat A übernimmt (adopt).
+ * `fromItemId` ist die Nutzernachricht in B, bis zu der übernommen wurde (für die Kante im Board).
+ */
+export type MergeMark =
+  | { role: 'prepare'; targetId: string; targetTitle: string }
+  | { role: 'adopt'; fromChatId: string; fromItemId?: string; fromTitle: string }
+
 /** Stelle im Ursprungs-Chat, an der abgezweigt wurde. */
 export interface ForkPoint {
   /** Anzahl der Turns (Nutzernachrichten) im Ursprung zum Zeitpunkt des Abzweigens. */
@@ -176,7 +218,7 @@ export interface ForkPoint {
 
 /** Normalisierte Events, die ein Agent-Adapter liefert. */
 export type AgentEvent =
-  | { kind: 'user'; id: string; text: string; ts: number; attachments?: Attachment[]; steer?: boolean }
+  | { kind: 'user'; id: string; text: string; ts: number; attachments?: Attachment[]; steer?: boolean; merge?: MergeMark }
   | { kind: 'text-delta'; msgId: string; index: number; text: string; blockType: 'text' | 'thinking' }
   | { kind: 'assistant'; msgId: string; blocks: Block[]; /** Position des ersten Blocks in der Nachricht; fehlt = anhängen */ index?: number }
   | { kind: 'tool-result'; toolUseId: string; content: string; isError: boolean }

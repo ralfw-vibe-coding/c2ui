@@ -125,7 +125,8 @@ export function Cell({ cellId, chatId, board }: { cellId: string; chatId: string
           <EmptyCell cellId={cellId} />
         )}
       </div>
-      {dragging && <DropOverlay cellId={cellId} />}
+      {/* Knoten aus dem eigenen Board: dort wird zusammengeführt (Spur als Ziel), nicht in Zellen gelegt. */}
+      {dragging && dragging.fromCell !== cellId && <DropOverlay cellId={cellId} />}
     </div>
   )
 }
@@ -147,24 +148,15 @@ function zoneFor(e: React.DragEvent, el: HTMLElement): DropZone {
 
 function DropOverlay({ cellId }: { cellId: string }) {
   const [zone, setZone] = useState<DropZone | null>(null)
-  // Knoten aus dem Board dieser Zelle: nur an den Rand (die Mitte würde das Board selbst ersetzen).
-  const allowed = (z: DropZone): boolean => {
-    const d = useStore.getState().dragging
-    return !(z === 'center' && d?.chatId && d.fromCell === cellId)
-  }
   const accepts = (e: React.DragEvent): boolean => e.dataTransfer.types.includes(CHAT_MIME) || e.dataTransfer.types.includes(BOARD_MIME)
   return (
     <div
       className="drop-overlay"
       onDragOver={(e) => {
         if (!accepts(e)) return
-        const z = zoneFor(e, e.currentTarget)
-        if (!allowed(z)) {
-          if (zone) setZone(null)
-          return
-        }
         e.preventDefault()
         e.dataTransfer.dropEffect = 'move'
+        const z = zoneFor(e, e.currentTarget)
         if (z !== zone) setZone(z)
       }}
       onDragLeave={() => setZone(null)}
@@ -175,7 +167,7 @@ function DropOverlay({ cellId }: { cellId: string }) {
         const z = zoneFor(e, e.currentTarget)
         setZone(null)
         st.setDragging(null)
-        if (what && allowed(z)) void st.drop(what, cellId, z)
+        if (what) void st.drop(what, cellId, z)
       }}
     >
       {zone && <div className={`drop-zone drop-${zone}`} />}

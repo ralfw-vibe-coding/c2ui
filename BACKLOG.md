@@ -28,15 +28,17 @@ Schritte, jeweils erst ausprobieren, bevor der nächste kommt:
 3. ✓ **Diskursboard** (Nachvollziehen), zunächst nur ansehen: Zeit läuft nach unten, jeder Chat eine Spur
    (wie `git log --graph`), Nutzernachrichten als Knoten, Abzweige als Kanten. Klick auf einen Knoten öffnet den
    Chat in der Zelle neben dem Board an dieser Stelle. Board = eigener Zelleninhalt (`leaf.board`).
-   Offen: Merges (kommen mit Schritt 6), verworfene Äste ausgegraut (dafür fehlt noch ein „verwerfen“).
+   Offen: verworfene Äste ausgegraut (dafür fehlt noch ein „verwerfen“).
 4. **Semantischer Zoom:** weit = Abschnitte (Turns zwischen zwei Abzweig-/Merge-Punkten) als Kasten mit
    Zusammenfassung; mittel = Turns mit Kurztitel; nah = Frage/Antwort, Screens als Miniaturen.
    Kurztitel und Zusammenfassungen im Hintergrund durch ein kleines Modell (einfache Variante: erste Zeile der Frage).
 5. **Vom Board aus abzweigen**, auch an früheren Stellen (Codex: `thread/fork` mit `lastTurnId`; Claude: prüfen).
-6. **Merge:** Ergebnis eines Asts zurück in einen anderen – Squash (Zusammenfassung des Diffs seit dem Abzweig,
-   Normalfall), voll (Turns wörtlich), Cherry-Pick (einzelne Stelle als Bezug-Chip, auch chatübergreifend),
-   Gegenrichtung (Ast holt sich den Fortschritt des Ursprungs). Der empfangende Chat löst Widersprüche selbst;
-   die Rückmeldung nennt den Abzweigpunkt.
+6. ✓ **Merge:** Knoten im Board auf eine andere Spur ziehen (bis zu diesem Knoten) oder „⤴ Zurückführen“ im
+   Nebenchat. Dialog mit zwei Prompts – Aufarbeitung in B, Übernahme in A (leer = Standard aus den Einstellungen,
+   Platzhalter {Titel}/{Ziel}); optional Vorschau zum Bearbeiten; oder Verlauf direkt übernehmen (ohne Modellaufruf).
+   Übernahme kommt bei beschäftigtem A in dessen Warteschlange. Board zeigt Aufarbeitung (⤴), Übernahme (⤵, gefüllt)
+   und die Kante. Noch offen: Cherry-Pick (einzelne Stelle als Bezug-Chip, chatübergreifend), Gegenrichtung
+   (Ast holt sich den Fortschritt des Ursprungs), Ast nach dem Merge als „zurückgeführt“ markieren/einklappen.
 
 Offene Punkte: Der Arbeitsordner verzweigt sich nicht mit – für Programmierarbeit evtl. eigener Git-Worktree je Ast.
 Später denkbar: das Modell legt selbst Äste an (MCP-Werkzeug), sichtbare und ansprechbare „Subagenten“.

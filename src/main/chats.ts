@@ -16,7 +16,8 @@ import {
   type LayoutState,
   type PermissionMode,
   type Settings,
-  type Transcript
+  type Transcript,
+  type MergeMark
 } from '@shared/types'
 import { createClaudeSession } from './agents/claude'
 import { createCodexSession } from './agents/codex'
@@ -230,7 +231,7 @@ export class ChatManager {
     return [...this.sessions.entries()].filter(([, s]) => s.busy).map(([id]) => id)
   }
 
-  send(id: string, text: string, attachments: Attachment[] = []): void {
+  send(id: string, text: string, attachments: Attachment[] = [], merge?: MergeMark): void {
     const chat = this.chats.get(id)
     if (!chat) throw new Error('Unbekannter Chat')
     if (this.isBusy(id)) throw new Error('Chat ist beschäftigt')
@@ -242,7 +243,7 @@ export class ChatManager {
     chat.updatedAt = Date.now()
     this.saveChats()
 
-    this.emit(id, { kind: 'user', id: randomUUID(), text, ts: Date.now(), ...(attachments.length ? { attachments } : {}) })
+    this.emit(id, { kind: 'user', id: randomUUID(), text, ts: Date.now(), ...(attachments.length ? { attachments } : {}), ...(merge ? { merge } : {}) })
     this.session(chat).send(text, attachments)
   }
 

@@ -4,11 +4,12 @@ import { setComposites, type CompositeDef } from '@shared/a2ui-composites'
 import { setDraft } from './drafts'
 import * as L from '@shared/layout'
 import { composeMessage, forkTitle, type QuoteRef } from '@shared/quotes'
-import { rootOf } from '@shared/board'
+import { messageLabel, rootOf } from '@shared/board'
+import * as M from '@shared/merge'
 import { parseUpdateState, type UpdateState } from '@shared/update'
 import * as Q from '@shared/queue'
 import { applyEvent } from '@shared/transcript'
-import type { AgentEvent, AgentKind, Attachment, Chat, LayoutState, Settings, Transcript } from '@shared/types'
+import { DEFAULT_MERGE, type AgentEvent, type AgentKind, type Attachment, type Chat, type LayoutState, type MergeMark, type Settings, type Transcript } from '@shared/types'
 
 export const CHAT_MIME = 'application/x-claude2ui-chat'
 export const BOARD_MIME = 'application/x-claude2ui-board'
@@ -48,7 +49,34 @@ interface State {
   activeChatId: string | null
   /** Je Chat die Nutzernachricht, deren Turn gerade oben im sichtbaren Bereich steht (fürs Board). */
   viewTurn: Record<string, string | undefined>
+  /** Dialog zum Zusammenführen (Einrichten, Aufarbeitung prüfen, Fehler). */
+  mergeDialog: MergeDialogState | null
+  /** Nebenchats, deren Aufarbeitung für eine Zusammenführung gerade läuft (→ Ziel). */
+  merging: Record<string, string | undefined>
 }
+
+/** Zusammenführen: Nebenchat B (bis zu einer Nachricht) in Chat A. */
+export interface MergeRequest {
+  sourceId: string
+  /** Nutzernachricht in B, bis zu der übernommen wird (fehlt = bis zum Ende). */
+  sourceItemId?: string
+  targetId: string
+}
+
+export interface MergeOptions {
+  /** Eigene Prompts; leer = Standard aus den Einstellungen. */
+  prepare: string
+  adopt: string
+  /** Aufarbeitung vor der Übernahme zeigen. */
+  preview: boolean
+  /** Verlauf von B direkt übernehmen (ohne Aufarbeitung). */
+  direct: boolean
+}
+
+export type MergeDialogState =
+  | ({ stage: 'setup' } & MergeRequest)
+  | ({ stage: 'review'; adopt: string; text: string; fromItemId?: string } & MergeRequest)
+  | ({ stage: 'error'; error: string } & MergeRequest)
 
 /** Ziel eines Sprungs: Markierung eines Nebenchats im Ursprung, sonst ein Transkript-Eintrag. */
 export interface JumpTarget {
@@ -74,7 +102,12 @@ interface Actions {
   openInNewCell(chatId: string, besideCellId?: string): Promise<void>
   deleteChat(chatId: string): Promise<void>
   renameChat(chatId: string, title: string): Promise<void>
-  send(chatId: string, text: string, attachments?: Attachment[]): Promise<void>
+  send(chatId: string, text: string, attachments?: Attachment[], merge?: MergeMark): Promise<void>
+  /** Zusammenführen: Dialog öffnen/schließen, starten, Aufarbeitung nach A übernehmen. */
+  openMerge(req: MergeRequest): void
+  closeMerge(): void
+  startMerge(req: MergeRequest, opts: MergeOptions): Promise<void>
+  adoptMerge(req: MergeRequest, adopt: string, text: string, fromItemId?: string): Promise<void>
   /** Dateien (Einfügen, Drag&Drop) als Anhänge des Chats übernehmen. */
   addFiles(chatId: string, files: File[]): Promise<string[]>
   removeAttachment(chatId: string, path: string): void
@@ -114,6 +147,8 @@ interface Actions {
 }
 
 const loading = new Set<string>()
+/** Laufende Aufarbeitungen: Nebenchat → was danach passiert. */
+const pendingMerges = new Map<string, { req: MergeRequest; adopt: string; preview: boolean; prepareItemId?: string }>()
 /** Board-Zelle → Zelle, in die es zuletzt einen Chat geöffnet hat. */
 const boardTargets = new Map<string, string>()
 
@@ -167,7 +202,7 @@ export const useStore = create<State & Actions>((set, get) => {
     // Sofort als beschäftigt markieren, damit eine Eingabe in der Lücke eingereiht statt parallel gesendet wird.
     set((s) => ({ busy: { ...s.busy, [chatId]: true } }))
     try {
-      await get().send(chatId, composeMessage(next.refs, next.text), next.attachments)
+      await get().send(chatId, composeMessage(next.refs, next.text), next.attachments, next.merge)
     } catch (e) {
       set((s) => ({ busy: { ...s.busy, [chatId]: false } }))
       setQueue(chatId, Q.sendFailed(queueOf(chatId), next, ipcError(e)))
@@ -182,6 +217,25 @@ export const useStore = create<State & Actions>((set, get) => {
     const t = get().transcripts[chatId]
     if (!t) return
     set((s) => ({ transcripts: { ...s.transcripts, [chatId]: applyEvent(t, e) } }))
+    onMergeEvent(chatId, e)
+  }
+
+  /** Aufarbeitung in B verfolgen: Nachricht merken, nach dem Turn die Antwort weitergeben. */
+  function onMergeEvent(chatId: string, e: AgentEvent): void {
+    const p = pendingMerges.get(chatId)
+    if (!p) return
+    if (e.kind === 'user' && e.merge?.role === 'prepare') p.prepareItemId = e.id
+    if (e.kind !== 'turn-end' || !p.prepareItemId) return
+    pendingMerges.delete(chatId)
+    set((s) => ({ merging: { ...s.merging, [chatId]: undefined } }))
+    const text = e.isError ? '' : M.answerAfter(get().transcripts[chatId] ?? [], p.prepareItemId)
+    if (!text) {
+      const error = e.isError ? `Die Aufarbeitung ist fehlgeschlagen${e.errorText ? `: ${e.errorText}` : '.'}` : 'Die Aufarbeitung hat keinen Text geliefert.'
+      set({ mergeDialog: { ...p.req, stage: 'error', error } })
+      return
+    }
+    if (p.preview) set({ mergeDialog: { ...p.req, stage: 'review', adopt: p.adopt, text, fromItemId: p.prepareItemId } })
+    else void get().adoptMerge(p.req, p.adopt, text, p.prepareItemId)
   }
 
   return {
@@ -205,6 +259,8 @@ export const useStore = create<State & Actions>((set, get) => {
     jump: null,
     activeChatId: null,
     viewTurn: {},
+    mergeDialog: null,
+    merging: {},
 
     async init() {
       // Eigene Komponenten zuerst – sie werden beim Anzeigen der Screens aufgelöst.
@@ -387,9 +443,77 @@ export const useStore = create<State & Actions>((set, get) => {
       if (t) await window.api.updateChat(chatId, { title: t })
     },
 
-    async send(chatId, text, attachments) {
+    async send(chatId, text, attachments, merge) {
       await loadTranscript(chatId)
-      await window.api.send(chatId, text, attachments)
+      await window.api.send(chatId, text, attachments, merge)
+    },
+
+    openMerge(req) {
+      if (req.sourceId === req.targetId) return
+      set({ mergeDialog: { ...req, stage: 'setup' } })
+    },
+
+    closeMerge() {
+      set({ mergeDialog: null })
+    },
+
+    async startMerge(req, o) {
+      const src = chat(req.sourceId)
+      const dst = chat(req.targetId)
+      if (!src || !dst) return set({ mergeDialog: null })
+      const fail = (error: string): void => set({ mergeDialog: { ...req, stage: 'error', error } })
+      const defaults = get().settings?.merge ?? DEFAULT_MERGE
+      const vars = { source: src.title, target: dst.title }
+      const adopt = M.fillPrompt(M.promptOr(o.adopt, defaults.adopt), vars)
+      await loadTranscript(src.id)
+      const t = get().transcripts[src.id] ?? []
+      if (o.direct) {
+        const text = M.transcriptExcerpt(t, req.sourceItemId)
+        if (!text) return fail(`In „${src.title}“ gibt es noch nichts zu übernehmen.`)
+        const fromItemId = req.sourceItemId ?? M.turnStarts(t).at(-1)?.id
+        if (o.preview) return set({ mergeDialog: { ...req, stage: 'review', adopt, text, fromItemId } })
+        return get().adoptMerge(req, adopt, text, fromItemId)
+      }
+      if (get().busy[src.id] || pendingMerges.has(src.id)) return fail(`„${src.title}“ arbeitet gerade. Bitte nach dem laufenden Turn erneut zusammenführen.`)
+      let prompt = M.fillPrompt(M.promptOr(o.prepare, defaults.prepare), vars)
+      if (!M.isLastTurn(t, req.sourceItemId)) {
+        const upTo = t.find((it) => it.id === req.sourceItemId)
+        if (upTo?.type === 'user') prompt += M.scopeNote(messageLabel(upTo.text))
+      }
+      pendingMerges.set(src.id, { req, adopt, preview: o.preview })
+      set((s) => ({ mergeDialog: null, merging: { ...s.merging, [src.id]: dst.id } }))
+      try {
+        await get().send(src.id, prompt, undefined, { role: 'prepare', targetId: dst.id, targetTitle: dst.title })
+      } catch (e) {
+        pendingMerges.delete(src.id)
+        set((s) => ({ merging: { ...s.merging, [src.id]: undefined } }))
+        fail(ipcError(e))
+      }
+    },
+
+    async adoptMerge(req, adopt, text, fromItemId) {
+      const src = chat(req.sourceId)
+      const dst = chat(req.targetId)
+      set({ mergeDialog: null })
+      if (!src || !dst) return
+      const msg = M.adoptMessage(adopt, src.title, text)
+      const merge: MergeMark = { role: 'adopt', fromChatId: src.id, fromTitle: src.title, ...(fromItemId ? { fromItemId } : {}) }
+      await loadTranscript(dst.id)
+      // Arbeitet A gerade, kommt die Übernahme in seine Warteschlange.
+      if (Q.shouldQueue(queueOf(dst.id), !!get().busy[dst.id])) {
+        get().enqueue(dst.id, { text: msg, refs: [], attachments: [], merge })
+      } else {
+        try {
+          await get().send(dst.id, msg, undefined, merge)
+        } catch (e) {
+          get().enqueue(dst.id, { text: msg, refs: [], attachments: [], merge })
+          setQueue(dst.id, { ...queueOf(dst.id), error: ipcError(e) })
+        }
+      }
+      // A sichtbar machen, falls es nirgends offen ist (neben B, sonst nur markieren).
+      if (!L.findCellOfChat(get().layout.root, dst.id) && L.findCellOfChat(get().layout.root, src.id)) {
+        await get().openBeside(dst.id, src.id, 'before')
+      }
     },
 
     async addFiles(chatId, files) {

@@ -20,7 +20,7 @@ export interface BoardNode {
   label: string
   /** Eigener Text der Nachricht (ohne Zitatzeilen), ungekürzt bis 600 Zeichen – für den Tooltip. */
   text: string
-  kind: 'message' | 'steer' | 'action'
+  kind: 'message' | 'steer' | 'action' | 'prepare' | 'merge'
 }
 
 export interface BoardLane {
@@ -43,6 +43,16 @@ export interface BoardEdge {
   childId: string
 }
 
+/** Zusammenführung: vom Stand im Nebenchat (Aufarbeitung bzw. übernommene Nachricht) zur Übernahme im Ziel. */
+export interface BoardMerge {
+  from: { lane: number; row: number }
+  to: { lane: number; row: number }
+  /** Nebenchat, aus dem übernommen wurde (für die Farbe). */
+  sourceId: string
+  /** Übernahme-Nachricht im Ziel. */
+  itemId: string
+}
+
 /** Eingeklappter Ast: an der Abzweigstelle im Ursprung steht ein Chip zum Aufklappen. */
 export interface BoardCollapsed {
   chatId: string
@@ -61,6 +71,7 @@ export interface BoardModel {
   lanes: BoardLane[]
   nodes: BoardNode[]
   edges: BoardEdge[]
+  merges: BoardMerge[]
   collapsed: BoardCollapsed[]
 }
 
@@ -120,7 +131,7 @@ export function boardModel(
     return undefined
   }
   const root = find(tree)
-  if (!root) return { rootId, lanes: [], nodes: [], edges: [], collapsed: [] }
+  if (!root) return { rootId, lanes: [], nodes: [], edges: [], merges: [], collapsed: [] }
 
   // Spuren in Baum-Reihenfolge (vorne zuerst): Ursprung links, Nebenchats rechts davon.
   // Eingeklappte Äste (nie die Wurzel) bekommen keine Spur; ihr Teilbaum wird mitgezählt.
@@ -149,8 +160,23 @@ export function boardModel(
   const nodes: BoardNode[] = []
   for (const c of order) {
     userItems(c.id).forEach((it, k) => {
-      const kind: BoardNode['kind'] = it.steer ? 'steer' : it.text.startsWith(A2UI_ACTION_PREFIX) ? 'action' : 'message'
-      nodes.push({ chatId: c.id, itemId: it.id, k, ts: it.ts, lane: laneOf.get(c.id)!.lane, row: 0, label: messageLabel(it.text), text: messageLabel(it.text, 600), kind })
+      const kind: BoardNode['kind'] =
+        it.merge?.role === 'adopt'
+          ? 'merge'
+          : it.merge?.role === 'prepare'
+            ? 'prepare'
+            : it.steer
+              ? 'steer'
+              : it.text.startsWith(A2UI_ACTION_PREFIX)
+                ? 'action'
+                : 'message'
+      const label =
+        it.merge?.role === 'adopt'
+          ? `Übernommen aus „${it.merge.fromTitle}“`
+          : it.merge?.role === 'prepare'
+            ? `Aufarbeitung für „${it.merge.targetTitle}“`
+            : messageLabel(it.text)
+      nodes.push({ chatId: c.id, itemId: it.id, k, ts: it.ts, lane: laneOf.get(c.id)!.lane, row: 0, label, text: messageLabel(it.text, 600), kind })
     })
   }
   nodes.sort((a, b) => a.ts - b.ts || a.lane - b.lane || a.k - b.k)
@@ -185,6 +211,21 @@ export function boardModel(
     edges.push({ from: { lane: parent.lane, row: at.row }, to: { lane: laneOf.get(c.id)!.lane, row: childFirst.row }, childId: c.id })
   }
 
+  // Zusammenführungen: aus dem Stand im Nebenchat (fehlt er, dessen letzter Knoten davor) zur Übernahme.
+  const merges: BoardMerge[] = []
+  for (const c of order) {
+    for (const it of userItems(c.id)) {
+      const m = it.merge
+      if (m?.role !== 'adopt') continue
+      const to = byChat.get(c.id)?.find((n) => n.itemId === it.id)
+      const src = byChat.get(m.fromChatId)
+      if (!to || !src?.length) continue
+      const from = (m.fromItemId && src.find((n) => n.itemId === m.fromItemId)) || [...src].reverse().find((n) => n.ts <= it.ts)
+      if (!from) continue
+      merges.push({ from: { lane: from.lane, row: from.row }, to: { lane: to.lane, row: to.row }, sourceId: m.fromChatId, itemId: it.id })
+    }
+  }
+
   const collapsed: BoardCollapsed[] = []
   for (const { node, parent, color } of folded) {
     const all: Chat[] = []
@@ -204,5 +245,5 @@ export function boardModel(
       chats: all.length
     })
   }
-  return { rootId, lanes, nodes, edges, collapsed }
+  return { rootId, lanes, nodes, edges, merges, collapsed }
 }

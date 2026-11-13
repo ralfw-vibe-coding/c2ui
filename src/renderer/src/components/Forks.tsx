@@ -111,6 +111,8 @@ function MarkerRow({ chatId, forks }: { chatId: string; forks: Chat[] }) {
 export function ForkBreadcrumb({ chatId }: { chatId: string }) {
   const chats = useStore((s) => s.chats)
   const chain = useMemo(() => forkChain(chats, chatId), [chats, chatId])
+  const parentId = chats.find((c) => c.id === chatId)?.forkFrom?.chatId
+  const parent = chats.find((c) => c.id === parentId)
   if (!chain.length) return null
   const open = (target: string, childId: string): void => {
     const st = useStore.getState()
@@ -136,6 +138,18 @@ export function ForkBreadcrumb({ chatId }: { chatId: string }) {
           </span>
         ))}
         <span className="muted"> – der bisherige Verlauf ist bekannt. Screens von dort erscheinen hier nicht.</span>
+        {parent && (
+          <>
+            {' '}
+            <button
+              className="crumb merge-back"
+              title={`Ergebnisse dieses Nebenchats nach „${parent.title}“ zurückführen`}
+              onClick={() => useStore.getState().openMerge({ sourceId: chatId, targetId: parent.id })}
+            >
+              ⤴ Zurückführen
+            </button>
+          </>
+        )}
       </span>
     </div>
   )

@@ -973,7 +973,8 @@ body.resizing-row * {
   color: var(--text-muted);
 }
 .modal input,
-.modal select {
+.modal select,
+.modal textarea {
   border: 1px solid var(--border-strong);
   border-radius: 6px;
   padding: 6px 8px;
@@ -2446,4 +2447,98 @@ li > .fork-slot {
   height: 16px;
   border-radius: 2px;
   margin-right: -2px;
+}
+
+/* Zusammenführen */
+.modal textarea {
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.45;
+  resize: vertical;
+}
+.modal textarea:disabled {
+  opacity: 0.5;
+}
+.merge-route {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+.merge-chat {
+  max-width: 46%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  display: inline-block;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  background: var(--bg);
+}
+.merge-arrow {
+  color: var(--text-muted);
+}
+.merge-text {
+  min-height: 200px;
+}
+.merge-error {
+  margin: 0;
+  color: var(--danger, #c0392b);
+}
+.merge-setting-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.link-btn {
+  border: 0;
+  padding: 0;
+  background: none;
+  color: var(--accent);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+/* Board: Zusammenführen */
+.board-row.merge-target {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+.board-merge-hint {
+  flex: none;
+  padding: 1px 8px;
+  border-radius: 10px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 11px;
+}
+.board-row.merge,
+.board-row.prepare {
+  color: var(--text-muted);
+}
+.fork-crumbs .crumb.merge-back {
+  margin-left: 4px;
+  padding: 1px 8px;
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.fork-crumbs .crumb.merge-back:hover {
+  background: var(--accent);
+  color: #fff;
+}
+.merge-label .crumb {
+  border: 0;
+  padding: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.merge-chat .agent-logo {
+  vertical-align: -2px;
 }

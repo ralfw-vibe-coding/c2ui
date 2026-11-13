@@ -39,6 +39,11 @@ Desktop-App (Electron), in der mehrere Chats mit der Claude CLI oder der Codex C
   Zelle daneben (bzw. der zuletzt vom Board geöffneten) und springt zur Nachricht; ⌘-Klick öffnet in einer neuen Zelle
   rechts davon; oder die Zeile auf eine beliebige Zelle ziehen (Mitte/Rand wie oben). Klick auf den Knoten einer
   Abzweigstelle (−/+) klappt die dort abgehenden Äste ein/aus. Aktualisiert sich live; übersteht einen Neustart.
+- **Zusammenführen (Merge):** Im Board einen Knoten eines Asts auf eine andere Spur ziehen, oder im Nebenchat
+  „⤴ Zurückführen“. Der Dialog hat zwei Prompts: Aufarbeitung im Nebenchat B und Übernahme in den Zielchat A
+  (leer = Standard, in den Einstellungen änderbar; Platzhalter `{Titel}` = B, `{Ziel}` = A). B arbeitet seine
+  Ergebnisse auf, auf Wunsch erst in einer Vorschau zum Bearbeiten, dann geht alles als Nachricht an A
+  („⤵ Übernommen aus …“, bei beschäftigtem A über die Warteschlange). Alternativ wird der Verlauf von B direkt übernommen.
 - Seitenleiste: Breite am rechten Rand ziehen (Doppelklick = Standard), pro Rechner gemerkt.
 - Ein Chat ist höchstens in einer Zelle offen. Layout, Chatliste und Transkripte überstehen einen Neustart.
 - Wird ein arbeitender Chat geschlossen, fragt die App nach: im Hintergrund weiterlaufen lassen, abbrechen oder nicht schließen.

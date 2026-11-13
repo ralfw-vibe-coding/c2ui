@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer, webFrame, webUtils, type IpcRendererEvent } from 'electron'
 import type { CompositeDef } from '@shared/a2ui-composites'
-import type { AgentEvent, AgentKind, Attachment, Chat, ChatPatch, LayoutState, ModelList, PermissionMode, Settings, Transcript } from '@shared/types'
+import type { AgentEvent, AgentKind, Attachment, Chat, ChatPatch, LayoutState, MergeMark, ModelList, PermissionMode, Settings, Transcript } from '@shared/types'
 
 export interface InitState {
   settings: Settings
@@ -29,8 +29,8 @@ const api = {
   createWorkshopChat: (component?: string): Promise<Chat> => ipcRenderer.invoke('chats:createWorkshop', component),
   deleteChat: (id: string): Promise<void> => ipcRenderer.invoke('chats:delete', id),
   transcript: (id: string): Promise<Transcript> => ipcRenderer.invoke('transcript:get', id),
-  send: (id: string, text: string, attachments?: Attachment[]): Promise<void> =>
-    ipcRenderer.invoke('agent:send', id, text, attachments),
+  send: (id: string, text: string, attachments?: Attachment[], merge?: MergeMark): Promise<void> =>
+    ipcRenderer.invoke('agent:send', id, text, attachments, merge),
   saveAttachment: (chatId: string, name: string, data: Uint8Array): Promise<Attachment> =>
     ipcRenderer.invoke('attachments:save', chatId, name, data),
   importAttachment: (chatId: string, path: string): Promise<Attachment> =>

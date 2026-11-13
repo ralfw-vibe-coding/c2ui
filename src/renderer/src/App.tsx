@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { Grid } from './components/Grid'
+import { MergeDialog } from './components/MergeDialog'
 import { SettingsDialog } from './components/SettingsDialog'
 import { Sidebar, SidebarToggle } from './components/Sidebar'
 import { useStore } from './store'
@@ -46,6 +47,7 @@ export function App() {
         <SidebarToggle />
       </div>
       {settingsOpen && <SettingsDialog />}
+      <MergeDialog />
     </div>
   )
 }

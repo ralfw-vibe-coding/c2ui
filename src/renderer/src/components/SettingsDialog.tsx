@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { parseUpdateState, type UpdateState } from '@shared/update'
-import { AGENT_KINDS, AGENTS, type AgentKind, type AgentSettings, type Settings } from '@shared/types'
+import { AGENT_KINDS, AGENTS, DEFAULT_MERGE, type AgentKind, type AgentSettings, type MergeSettings, type Settings } from '@shared/types'
 import { useModelList } from '../models'
 import { useStore } from '../store'
 import { AgentLogo } from './AgentLogo'
@@ -65,6 +65,7 @@ export function SettingsDialog() {
           />
           <span>Arbeitsschritte (Werkzeugaufrufe, Zwischentexte) im Chat einklappen</span>
         </label>
+        <MergeSection value={draft.merge} onChange={(merge) => setDraft({ ...draft, merge })} />
         <ComponentsSection />
         <UpdateSection />
         <p className="muted small">Änderungen gelten für neu gestartete CLI-Prozesse.</p>
@@ -132,6 +133,37 @@ function ModelSelect({ agent, value, onChange }: { agent: AgentKind; value: stri
       )}
       {list?.error && <span className="muted small">{list.error}</span>}
     </div>
+  )
+}
+
+/** Standard-Prompts fürs Zusammenführen (Nebenchat B → Chat A). */
+function MergeSection({ value, onChange }: { value: MergeSettings; onChange: (m: MergeSettings) => void }) {
+  const field = (key: 'prepare' | 'adopt', label: string, rows: number) => (
+    <label>
+      <span className="merge-setting-head">
+        {label}
+        {value[key] !== DEFAULT_MERGE[key] && (
+          <button className="link-btn" onClick={() => onChange({ ...value, [key]: DEFAULT_MERGE[key] })}>
+            Zurücksetzen
+          </button>
+        )}
+      </span>
+      <textarea rows={rows} value={value[key]} onChange={(e) => onChange({ ...value, [key]: e.target.value })} />
+    </label>
+  )
+  return (
+    <fieldset className="agent-settings">
+      <legend>Zusammenführen</legend>
+      {field('prepare', 'Aufarbeitung im Nebenchat (B)', 4)}
+      {field('adopt', 'Übernahme im Zielchat (A)', 2)}
+      <label className="check-row">
+        <input type="checkbox" checked={value.preview} onChange={(e) => onChange({ ...value, preview: e.target.checked })} />
+        <span>Aufarbeitung vor der Übernahme zeigen (Voreinstellung im Dialog)</span>
+      </label>
+      <span className="muted small">
+        Platzhalter: {'{Titel}'} = Nebenchat, {'{Ziel}'} = Zielchat. Gilt, wenn das Feld im Dialog leer bleibt.
+      </span>
+    </fieldset>
   )
 }
 

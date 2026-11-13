@@ -1,5 +1,5 @@
 import type { QuoteRef } from './quotes'
-import type { Attachment } from './types'
+import type { Attachment, MergeMark } from './types'
 
 /** Eine eingereihte Nachricht: wird gesendet, sobald der Chat frei ist. */
 export interface QueuedMessage {
@@ -7,6 +7,8 @@ export interface QueuedMessage {
   text: string
   refs: QuoteRef[]
   attachments: Attachment[]
+  /** Übernahme aus einer Zusammenführung (für die Markierung im Verlauf). */
+  merge?: MergeMark
 }
 
 /**

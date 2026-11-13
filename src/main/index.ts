@@ -2,7 +2,7 @@ import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { app, BrowserWindow, dialog, ipcMain, nativeImage, net, protocol, shell } from 'electron'
 import { LOCAL_FILE_SCHEME } from '@shared/a2ui'
-import type { AgentKind, Attachment, ChatPatch, LayoutState, PermissionMode, Settings } from '@shared/types'
+import type { AgentKind, Attachment, ChatPatch, LayoutState, MergeMark, PermissionMode, Settings } from '@shared/types'
 import { ChatManager } from './chats'
 import { ensureComponentsDir, loadComposites } from './componentsLoader'
 import { existsSync, watch } from 'node:fs'
@@ -186,8 +186,8 @@ function registerIpc(): void {
   ipcMain.handle('chats:update', (_e, id: string, patch: ChatPatch) => manager.update(id, patch))
   ipcMain.handle('chats:delete', (_e, id: string) => manager.delete(id))
   ipcMain.handle('transcript:get', (_e, id: string) => manager.transcript(id))
-  ipcMain.handle('agent:send', (_e, id: string, text: string, attachments?: Attachment[]) =>
-    manager.send(id, text, attachments ?? [])
+  ipcMain.handle('agent:send', (_e, id: string, text: string, attachments?: Attachment[], merge?: MergeMark) =>
+    manager.send(id, text, attachments ?? [], merge)
   )
   ipcMain.handle('attachments:save', (_e, chatId: string, name: string, data: Uint8Array) =>
     manager.saveAttachment(chatId, name, data)

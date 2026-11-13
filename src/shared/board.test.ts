@@ -68,6 +68,23 @@ describe('Diskursboard', () => {
     expect(boardModel(chats, transcripts, 'r', new Set(['r'])).lanes.length).toBe(4)
   })
 
+  it('zeigt Zusammenführungen als Kante vom Nebenchat zur Übernahme', () => {
+    const t: Record<string, Transcript> = {
+      ...transcripts,
+      a: [...transcripts.a, user('a3', 57, 'Fasse zusammen', { merge: { role: 'prepare', targetId: 'r', targetTitle: 'T-r' } })],
+      r: [...transcripts.r, user('r4', 58, 'Nimm auf', { merge: { role: 'adopt', fromChatId: 'a', fromItemId: 'a3', fromTitle: 'T-a' } })]
+    }
+    const m = boardModel(chats, t, 'r')
+    const from = m.nodes.find((n) => n.itemId === 'a3')!
+    const to = m.nodes.find((n) => n.itemId === 'r4')!
+    expect(from.kind).toBe('prepare')
+    expect(to.kind).toBe('merge')
+    expect(to.label).toBe('Übernommen aus „T-a“')
+    expect(m.merges).toEqual([{ from: { lane: 1, row: from.row }, to: { lane: 0, row: to.row }, sourceId: 'a', itemId: 'r4' }])
+    // Eingeklappter Nebenchat: keine Kante
+    expect(boardModel(chats, t, 'r', new Set(['a'])).merges).toEqual([])
+  })
+
   it('findet die Wurzel eines Chats', () => {
     expect(rootOf(chats, 'b')).toBe('r')
     expect(rootOf(chats, 'r')).toBe('r')

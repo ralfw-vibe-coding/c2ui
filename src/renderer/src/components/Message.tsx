@@ -6,18 +6,48 @@ import { Icon } from './Icon'
 import { ChatMarkdown, LocalImage } from './LocalImage'
 import { SentAttachments } from './Attachments'
 import { UserText } from './QuoteRefs'
+import { useStore } from '../store'
+
+/** „⤵ Übernommen aus …“ – Klick öffnet den Nebenchat daneben an der übernommenen Stelle. */
+function MergeSourceLabel({ chatId, fromChatId, fromItemId, title }: { chatId: string; fromChatId: string; fromItemId?: string; title: string }) {
+  const exists = useStore((s) => s.chats.some((c) => c.id === fromChatId))
+  const open = (): void => {
+    const st = useStore.getState()
+    void st.openBeside(fromChatId, chatId, 'after').then(() => fromItemId && st.jumpTo({ chatId: fromChatId, itemId: fromItemId }))
+  }
+  return (
+    <div className="steer-label merge-label">
+      ⤵ Übernommen aus{' '}
+      {exists ? (
+        <button className="crumb" title="Nebenchat daneben öffnen" onClick={open}>
+          „{title}“
+        </button>
+      ) : (
+        <span>„{title}“</span>
+      )}
+    </div>
+  )
+}
 
 export const TranscriptItemView = memo(function TranscriptItemView({ item, chatId }: { item: TranscriptItem; chatId: string }) {
   switch (item.type) {
     case 'user':
       if (item.text.startsWith(A2UI_ACTION_PREFIX)) return <ActionMessage text={item.text} />
-      if (item.attachments?.length || item.steer) {
+      if (item.attachments?.length || item.steer || item.merge) {
         return (
           <div className={`msg msg-user msg-user-col${item.steer ? ' steer' : ''}`}>
             {item.steer && (
               <div className="steer-label" title="Während der Antwort eingeworfen (Steer)">
                 <Icon name="steer" size={11} /> Zwischenruf
               </div>
+            )}
+            {item.merge?.role === 'prepare' && (
+              <div className="steer-label merge-label" title="Aufarbeitung für eine Zusammenführung">
+                ⤴ Aufarbeitung für „{item.merge.targetTitle}“
+              </div>
+            )}
+            {item.merge?.role === 'adopt' && (
+              <MergeSourceLabel chatId={chatId} fromChatId={item.merge.fromChatId} fromItemId={item.merge.fromItemId} title={item.merge.fromTitle} />
             )}
             {item.attachments?.length ? <SentAttachments attachments={item.attachments} /> : null}
             {item.text && <div className="bubble"><UserText text={item.text} /></div>}
