@@ -21,8 +21,8 @@ Konzept): man kann dem Diskurs folgen; als Export ein Entstehungsprotokoll (z. B
 
 Schritte, jeweils erst ausprobieren, bevor der nächste kommt:
 
-1. **Baum in der Seitenleiste:** jeder Knoten ein Chat, voll aufklappbar wie ein Verzeichnisbaum (Navigation).
-   Dabei schon den **Abzweigpunkt** speichern (`forkFrom` + Turn), Grundlage für alles Weitere.
+1. ✓ **Baum in der Seitenleiste:** jeder Knoten ein Chat, voll aufklappbar wie ein Verzeichnisbaum (Navigation).
+   **Abzweigpunkt** wird gespeichert: `forkFrom.at` = Turn-Anzahl, Transkript-Eintrag (`itemId`) und Zitat.
 2. **Abzweigungen im Verlauf:** Markierung an der Stelle („↳ 2 Nachfragen“), Klick öffnet den Nebenchat;
    im Nebenchat Brotkrumen zurück zur Stelle.
 3. **Diskursboard** (Nachvollziehen), zunächst nur ansehen: Zeit läuft nach unten, jeder Chat eine Spur
@@ -77,3 +77,4 @@ Später denkbar: das Modell legt selbst Äste an (MCP-Werkzeug), sichtbare und a
 - Zwischenruf (Steer) aus der Warteschlange in die laufende Antwort (Claude)
 - Codex über `codex app-server`: Streaming, Zwischenrufe, echtes Abzweigen, Fortsetzen auch „paginated“ Threads
   (neueste CLI wird automatisch gewählt, z. B. aus ChatGPT.app); Kosten liefert Codex nicht (Abo)
+- Diskurs Schritt 1: Chat-Baum in der Seitenleiste (auf-/zuklappbar), Abzweigpunkt gespeichert

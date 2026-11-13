@@ -7,6 +7,8 @@ const OVERLAY_WIDTH = 340
 
 interface Sel {
   quote: string
+  /** Eintrag im Transkript, in dem die Markierung beginnt (für den Abzweigpunkt). */
+  itemId?: string
   /** Position relativ zum Chat-Panel */
   left: number
   top?: number
@@ -45,12 +47,14 @@ export function QuoteSelection({ chatId, scrollRef }: { chatId: string; scrollRe
         if (!root.contains(range.commonAncestorContainer)) return
         const quote = cleanQuote(s.toString())
         if (!quote || !panel) return
+        const startEl = range.startContainer instanceof Element ? range.startContainer : range.startContainer.parentElement
+        const itemId = (startEl?.closest('[data-item-id]') as HTMLElement | null)?.dataset.itemId
         const r = range.getBoundingClientRect()
         const pr = panel.getBoundingClientRect()
         const left = Math.max(8, Math.min(r.left + r.width / 2 - pr.left - 70, pr.width - OVERLAY_WIDTH - 8))
         // Unten zu wenig Platz → über der Markierung anzeigen.
         const below = r.bottom - pr.top + 6
-        const next: Sel = below > pr.height - 200 ? { quote, left, bottom: pr.bottom - r.top + 6 } : { quote, left, top: below }
+        const next: Sel = below > pr.height - 200 ? { quote, itemId, left, bottom: pr.bottom - r.top + 6 } : { quote, itemId, left, top: below }
         setSel(next)
         setEditing(false)
         setNote('')
@@ -90,7 +94,7 @@ export function QuoteSelection({ chatId, scrollRef }: { chatId: string; scrollRe
     )
   }
   const fork = (): void => {
-    void useStore.getState().askInNewChat(chatId, sel.quote, note)
+    void useStore.getState().askInNewChat(chatId, sel.quote, note, sel.itemId)
     window.getSelection()?.removeAllRanges()
     close()
   }

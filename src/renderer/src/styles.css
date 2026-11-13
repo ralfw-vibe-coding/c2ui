@@ -2113,3 +2113,50 @@ fieldset.agent-settings {
   font-size: 11px;
   color: var(--accent);
 }
+
+/* Chat-Baum in der Seitenleiste */
+.chat-item {
+  position: relative;
+}
+.chat-item.nested::before {
+  /* Führungslinie zum Ursprung */
+  content: '';
+  position: absolute;
+  left: var(--depth-x);
+  top: 0;
+  bottom: 50%;
+  width: 7px;
+  border-left: 1px solid var(--border-strong);
+  border-bottom: 1px solid var(--border-strong);
+  border-bottom-left-radius: 4px;
+}
+.tree-toggle {
+  flex: none;
+  width: 14px;
+  height: 18px;
+  margin-right: -4px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 11px;
+  cursor: pointer;
+}
+.tree-toggle:hover {
+  color: var(--text);
+}
+.tree-toggle.placeholder {
+  cursor: default;
+}
+.tree-count {
+  margin-left: 6px;
+  padding: 0 5px;
+  border-radius: 8px;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  font-size: 10px;
+}
+.chat-meta > .icon,
+.tree-count {
+  flex: none;
+}

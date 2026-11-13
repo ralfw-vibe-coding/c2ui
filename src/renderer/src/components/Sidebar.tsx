@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, useSyncExternalStore } from 'react'
+import { chatTree, visibleRows } from '@shared/chatTree'
 import * as L from '@shared/layout'
 import { AGENT_KINDS, AGENTS, type Chat } from '@shared/types'
 import { baseName, CHAT_MIME, shortPath, useStore } from '../store'
@@ -15,6 +16,11 @@ export function Sidebar() {
   const selectedCellId = useStore((s) => s.layout.selectedCellId)
   const busy = useStore((s) => s.busy)
   const open = new Map(L.leaves(root).filter((l) => l.chatId).map((l) => [l.chatId!, l.id]))
+  const collapsed = useSyncExternalStore(subscribeCollapsed, getCollapsed)
+  const tree = chatTree(chats)
+  const rows = visibleRows(tree, collapsed)
+  // Platz für die Auf-/Zu-Pfeile nur, wenn es überhaupt Nebenchats gibt.
+  const hasTree = tree.some((n) => n.children.length > 0)
 
   return (
     <aside className="sidebar">
@@ -34,13 +40,17 @@ export function Sidebar() {
         ))}
       </div>
       <ul className="chat-list">
-        {chats.map((c) => (
+        {rows.map(({ node, depth }) => (
           <ChatItem
-            key={c.id}
-            chat={c}
-            open={open.has(c.id)}
-            inSelected={open.get(c.id) === selectedCellId}
-            busy={!!busy[c.id]}
+            key={node.chat.id}
+            chat={node.chat}
+            depth={depth}
+            childCount={node.children.length ? node.descendants : 0}
+            showToggle={hasTree}
+            collapsed={collapsed.has(node.chat.id)}
+            open={open.has(node.chat.id)}
+            inSelected={open.get(node.chat.id) === selectedCellId}
+            busy={!!busy[node.chat.id]}
           />
         ))}
         {chats.length === 0 && <li className="muted small pad">Noch keine Chats.</li>}
@@ -55,13 +65,66 @@ export function Sidebar() {
   )
 }
 
-function ChatItem({ chat, open, inSelected, busy }: { chat: Chat; open: boolean; inSelected: boolean; busy: boolean }) {
+// Zugeklappte Teilbäume (pro Rechner, im localStorage).
+const COLLAPSED_KEY = 'c2ui.collapsedChats'
+let collapsedSet: Set<string> = (() => {
+  try {
+    return new Set<string>(JSON.parse(localStorage.getItem(COLLAPSED_KEY) ?? '[]'))
+  } catch {
+    return new Set<string>()
+  }
+})()
+const collapsedListeners = new Set<() => void>()
+function subscribeCollapsed(l: () => void): () => void {
+  collapsedListeners.add(l)
+  return () => collapsedListeners.delete(l)
+}
+const getCollapsed = (): Set<string> => collapsedSet
+function toggleCollapsed(id: string): void {
+  collapsedSet = new Set(collapsedSet)
+  if (collapsedSet.has(id)) collapsedSet.delete(id)
+  else collapsedSet.add(id)
+  try {
+    localStorage.setItem(COLLAPSED_KEY, JSON.stringify([...collapsedSet]))
+  } catch {
+    /* egal */
+  }
+  collapsedListeners.forEach((l) => l())
+}
+
+const INDENT = 14
+
+function ChatItem({
+  chat,
+  depth,
+  childCount,
+  collapsed,
+  showToggle,
+  open,
+  inSelected,
+  busy
+}: {
+  chat: Chat
+  depth: number
+  /** Anzahl aller Nebenchats darunter (0 = keine). */
+  childCount: number
+  collapsed: boolean
+  showToggle: boolean
+  open: boolean
+  inSelected: boolean
+  busy: boolean
+}) {
   const home = useStore((s) => s.home)
   const [editing, setEditing] = useState(false)
+  const fork = chat.forkFrom
+  const forkInfo = fork
+    ? `\nAbgezweigt aus „${fork.title}“${fork.at ? ` nach ${fork.at.turn} ${fork.at.turn === 1 ? 'Turn' : 'Turns'}` : ''}${fork.at?.quote ? `:\n„${fork.at.quote.slice(0, 120)}${fork.at.quote.length > 120 ? '…' : ''}“` : ''}`
+    : ''
 
   return (
     <li
-      className={`chat-item${open ? ' open' : ''}${inSelected ? ' in-selected' : ''}`}
+      className={`chat-item${open ? ' open' : ''}${inSelected ? ' in-selected' : ''}${depth ? ' nested' : ''}`}
+      style={depth ? { paddingLeft: 6 + depth * INDENT, ['--depth-x' as string]: `${depth * INDENT - 1}px` } : undefined}
       draggable={!editing}
       onDragStart={(e) => {
         e.dataTransfer.setData(CHAT_MIME, chat.id)
@@ -70,8 +133,22 @@ function ChatItem({ chat, open, inSelected, busy }: { chat: Chat; open: boolean;
       }}
       onDragEnd={() => useStore.getState().setDragging(null)}
       onClick={() => !editing && useStore.getState().openChat(chat.id)}
-      title={`${chat.title}\n${chat.cwd}\nDoppelklick: umbenennen · Ziehen: in Zelle legen`}
+      title={`${chat.title}\n${chat.cwd}${forkInfo}\nDoppelklick: umbenennen · Ziehen: in Zelle legen`}
     >
+      {childCount > 0 ? (
+        <button
+          className="tree-toggle"
+          title={collapsed ? `${childCount} Nebenchat${childCount === 1 ? '' : 's'} zeigen` : 'Nebenchats einklappen'}
+          onClick={(e) => {
+            e.stopPropagation()
+            toggleCollapsed(chat.id)
+          }}
+        >
+          {collapsed ? '▸' : '▾'}
+        </button>
+      ) : (
+        showToggle && <span className="tree-toggle placeholder" />
+      )}
       <span className="chat-status">
         {busy ? <span className="spinner" /> : <AgentLogo agent={chat.agent} size={14} />}
         {open && !busy && <span className="dot" />}
@@ -88,6 +165,11 @@ function ChatItem({ chat, open, inSelected, busy }: { chat: Chat; open: boolean;
           <Icon name="folder" size={12} /> {baseName(shortPath(chat.cwd, home))} · {formatDate(chat.updatedAt)}
         </span>
       </div>
+      {collapsed && childCount > 0 && (
+        <span className="tree-count" title={`${childCount} Nebenchat${childCount === 1 ? '' : 's'} eingeklappt`}>
+          +{childCount}
+        </span>
+      )}
       {!editing && (
         <button
           className="icon-btn hover-only"

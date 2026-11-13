@@ -60,9 +60,9 @@ export interface Chat {
   purpose?: 'component-workshop'
   /**
    * Abgezweigt aus einem anderen Chat („in neuem Chat fragen“): Der erste Turn bringt dessen Verlauf mit.
-   * Claude setzt dafür die Session fort (`--resume <sessionId> --fork-session`), Codex bekommt den Verlauf als Text.
+   * Claude setzt dafür die Session fort (`--resume <sessionId> --fork-session`), Codex per `thread/fork`.
    */
-  forkFrom?: { chatId: string; title: string; sessionId?: string }
+  forkFrom?: { chatId: string; title: string; sessionId?: string; at?: ForkPoint }
   /** Session-ID der CLI (Claude: vorab vergeben; Codex: Thread-ID nach dem ersten Turn). */
   sessionId: string
   /** true, sobald die CLI-Session existiert (dann wird fortgesetzt statt neu begonnen). */
@@ -163,6 +163,16 @@ export type TranscriptItem =
     }
 
 export type Transcript = TranscriptItem[]
+
+/** Stelle im Ursprungs-Chat, an der abgezweigt wurde. */
+export interface ForkPoint {
+  /** Anzahl der Turns (Nutzernachrichten) im Ursprung zum Zeitpunkt des Abzweigens. */
+  turn: number
+  /** Eintrag im Transkript des Ursprungs, aus dem das Zitat stammt. */
+  itemId?: string
+  /** Zitierte Stelle (gekürzt). */
+  quote?: string
+}
 
 /** Normalisierte Events, die ein Agent-Adapter liefert. */
 export type AgentEvent =

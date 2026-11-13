@@ -174,7 +174,9 @@ function registerIpc(): void {
   ipcMain.handle('chats:create', (_e, cwd: string, agent: AgentKind, mode?: PermissionMode) =>
     manager.create(cwd, agent, mode)
   )
-  ipcMain.handle('chats:fork', (_e, sourceId: string, title: string) => manager.fork(sourceId, title))
+  ipcMain.handle('chats:fork', (_e, sourceId: string, title: string, at?: { itemId?: string; quote?: string }) =>
+    manager.fork(sourceId, title, at)
+  )
   ipcMain.handle('chats:createWorkshop', (_e, component?: string) =>
     manager.create(componentsDir, 'claude', undefined, {
       title: component ? `Werkstatt: ${component}` : 'Komponenten-Werkstatt',

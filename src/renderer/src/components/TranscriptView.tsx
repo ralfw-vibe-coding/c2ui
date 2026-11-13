@@ -15,10 +15,20 @@ export function TranscriptView({ chatId, transcript, busy }: { chatId: string; t
   return (
     <>
       {units.map((u) => (
-        <UnitView key={u.key} unit={u} chatId={chatId} running={busy && u.kind === 'steps' && u.lastTurn} />
+        // display: contents – nur für die Zuordnung (Abzweigpunkt), ohne das Layout zu ändern.
+        <div key={u.key} className="unit" data-item-id={itemIdOf(u)}>
+          <UnitView unit={u} chatId={chatId} running={busy && u.kind === 'steps' && u.lastTurn} />
+        </div>
       ))}
     </>
   )
+}
+
+/** Transkript-Eintrag, zu dem eine Darstellungseinheit gehört. */
+function itemIdOf(u: Unit): string {
+  if (u.kind === 'item') return u.item.id
+  const key = u.kind === 'block' ? u.key : u.blocks[0]?.key ?? u.key
+  return key.slice(0, key.lastIndexOf(':') >= 0 ? key.lastIndexOf(':') : key.length)
 }
 
 const UnitView = memo(function UnitView({ unit, chatId, running }: { unit: Unit; chatId: string; running: boolean }) {

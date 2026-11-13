@@ -140,7 +140,7 @@ export class ChatManager {
    * Neuer Chat, der den Kontext eines bestehenden mitbringt („in neuem Chat fragen“): gleicher Agent,
    * gleiches Verzeichnis, Modus und Modell. Die Quelle bleibt unverändert.
    */
-  fork(sourceId: string, title: string): Chat {
+  fork(sourceId: string, title: string, at: { itemId?: string; quote?: string } = {}): Chat {
     const src = this.chats.get(sourceId)
     if (!src) throw new Error('Unbekannter Chat')
     const now = Date.now()
@@ -154,7 +154,12 @@ export class ChatManager {
       forkFrom: {
         chatId: src.id,
         title: src.title,
-        ...(src.sessionStarted ? { sessionId: src.sessionId } : {})
+        ...(src.sessionStarted ? { sessionId: src.sessionId } : {}),
+        at: {
+          turn: this.transcript(src.id).filter((i) => i.type === 'user').length,
+          ...(at.itemId ? { itemId: at.itemId } : {}),
+          ...(at.quote ? { quote: at.quote.slice(0, 300) } : {})
+        }
       },
       sessionId: randomUUID(),
       sessionStarted: false,

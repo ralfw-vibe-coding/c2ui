@@ -64,7 +64,7 @@ interface Actions {
   takeRefs(chatId: string): QuoteRef[]
   restoreRefs(chatId: string, refs: QuoteRef[]): void
   /** Neuer Chat mit dem Kontext dieses Chats, rechts daneben geöffnet; fragt dort sofort nach. */
-  askInNewChat(sourceChatId: string, quote: string, note: string): Promise<void>
+  askInNewChat(sourceChatId: string, quote: string, note: string, itemId?: string): Promise<void>
   /** Nachricht einreihen; wird gesendet, sobald der Chat frei ist. */
   enqueue(chatId: string, msg: Omit<Q.QueuedMessage, 'id'>): void
   removeQueued(chatId: string, id: string): void
@@ -375,8 +375,8 @@ export const useStore = create<State & Actions>((set, get) => {
       set((s) => ({ pendingRefs: { ...s.pendingRefs, [chatId]: [...refs, ...(s.pendingRefs[chatId] ?? [])] } }))
     },
 
-    async askInNewChat(sourceChatId, quote, note) {
-      const c = await window.api.forkChat(sourceChatId, forkTitle({ quote, note }))
+    async askInNewChat(sourceChatId, quote, note, itemId) {
+      const c = await window.api.forkChat(sourceChatId, forkTitle({ quote, note }), { itemId, quote })
       set((s) => ({ chats: s.chats.some((x) => x.id === c.id) ? s.chats : [c, ...s.chats] }))
       // In eine neue Zelle rechts neben dem Ausgangs-Chat.
       const { layout } = get()
