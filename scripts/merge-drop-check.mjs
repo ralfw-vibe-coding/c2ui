@@ -33,6 +33,8 @@ const item = page.locator('.chat-item', { hasText: 'Ursprung' })
 await item.hover()
 await item.locator('.icon-btn[title*="Diskursboard"]').click()
 await page.locator('.board-row').first().waitFor()
+// Alle Transkripte geladen: drei Zeilen (sonst verschieben sich die Zeilen noch)
+await page.waitForFunction(() => document.querySelectorAll('.board-row').length === 3)
 log('Zeilen:', await page.locator('.board-row').allInnerTexts())
 
 // Ziel: Text der Zeile bzw. der Knotenpunkt der Abzweigstelle (liegt im Graphen über der Zeile)
