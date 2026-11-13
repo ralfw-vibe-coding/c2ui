@@ -64,21 +64,40 @@ check(rows === 11, '11 Nachrichten aus vier Chats')
 check(lanes === 4 && (await page.locator('.board-chip').first().innerText()).includes('Hausarbeit'), 'vier Spuren, Wurzel zuerst')
 check((await page.locator('.board-legend').count()) === 0, 'keine Legende')
 
-// Ast einklappen: Quellenlage samt Archivbeständen verschwindet, an der Abzweigstelle steht ein Chip
-await page.locator('.board-row', { hasText: 'Welche Quellen' }).locator('.board-fold').click()
+// Ast einklappen per Klick auf den Knoten der Abzweigstelle („−“): Quellenlage samt Archivbeständen verschwindet
+check((await page.locator('.board-fold').count()) === 0, 'kein Klappknopf mehr am Text')
+check((await page.locator('.board-fork[data-state="open"]').count()) === 3, 'drei Abzweigstellen mit „−“')
+const forkY = await page.evaluate(() => {
+  const row = [...document.querySelectorAll('.board-row')].find((r) => r.textContent.includes('Welche Kapitel'))
+  return row.getBoundingClientRect().top + row.getBoundingClientRect().height / 2
+})
+const forkAt = page.locator('.board-fork').filter({ has: page.locator('circle') })
+let hit = null
+for (const f of await forkAt.all()) {
+  const b = await f.boundingBox()
+  if (b && Math.abs(b.y + b.height / 2 - forkY) < 4) hit = f
+}
+await hit.click()
 check((await page.locator('.board-row').count()) === 6, 'Ast eingeklappt: 5 Nachrichten (2 Chats) ausgeblendet')
 const folded = (await page.locator('.board-folded').textContent()).replace(/\s+/g, ' ')
 log('Chip:', folded)
 check(/Quellenlage · 5/.test(folded), 'Chip an der Abzweigstelle nennt Ast und Anzahl')
 check((await page.locator('.board-row', { hasText: 'Welche Kapitel' }).locator('.board-folded').count()) === 1, 'Chip steht an der Abzweigstelle')
-check((await page.locator('.board-graph g path').count()) === 1, '„+“ im Knoten der Abzweigstelle')
+check((await page.locator('.board-fork[data-state="closed"]').count()) === 1, '„+“ im Knoten der Abzweigstelle')
 await page.screenshot({ path: join(out, '1c-eingeklappt.png') })
 await page.reload()
 await page.locator('.board-row').first().waitFor()
 check((await page.locator('.board-row').count()) === 6, 'eingeklappt bleibt nach Neuladen')
 await page.locator('.board-folded').click()
 check((await page.locator('.board-row').count()) === 11, 'Chip klappt den Ast wieder auf')
-check((await page.locator('.board-graph path').count()) === 3, 'drei Abzweig-Kanten')
+// Knoten klappt ein und wieder auf, ohne den Chat zu öffnen
+const cellsBefore = await page.locator('.cell').count()
+await page.locator('.board-fork[data-state="open"]').first().click()
+check((await page.locator('.board-fork[data-state="closed"]').count()) === 1, 'Knotenklick klappt ein')
+await page.locator('.board-fork[data-state="closed"]').click()
+check((await page.locator('.board-row').count()) === 11, '„+“-Knoten klappt wieder auf')
+check((await page.locator('.cell').count()) === cellsBefore, 'Knotenklick öffnet keinen Chat')
+check((await page.locator('.board-graph > path').count()) === 3, 'drei Abzweig-Kanten')
 check((await page.locator('.cell-title', { hasText: 'Diskurs: Hausarbeit' }).count()) === 1, 'Zellentitel nennt den Diskurs')
 await page.screenshot({ path: join(out, '1-board.png') })
 const chips = await page.evaluate(() =>

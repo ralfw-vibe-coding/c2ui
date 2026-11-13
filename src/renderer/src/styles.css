@@ -2410,19 +2410,15 @@ li > .fork-slot {
 }
 
 /* Board: Äste ein-/ausklappen */
-.board-fold {
-  flex: none;
-  width: 16px;
-  margin-right: -4px;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: var(--text-muted);
-  font-size: 11px;
+.board-fork {
+  pointer-events: all;
   cursor: pointer;
 }
-.board-fold:hover {
-  color: var(--text);
+.board-fork-hit {
+  fill: transparent;
+}
+.board-fork:hover .board-node {
+  fill: var(--bg-elev);
 }
 .board-folded {
   flex: none;

@@ -16,20 +16,21 @@ const y = (row: number): number => row * ROW + ROW / 2
 /**
  * Diskursboard (nur ansehen): Graph eines Chat-Baums wie `git log --graph`. Zeit läuft nach unten,
  * jede Spur ein Chat, jeder Knoten eine Nutzernachricht. Klick öffnet den Chat an dieser Stelle
- * in der Zelle neben dem Board.
+ * in der Zelle neben dem Board; Klick auf den Knoten einer Abzweigstelle klappt die dort abgehenden Äste
+ * ein bzw. auf.
  */
 export function Board({ rootId, cellId }: { rootId: string; cellId: string }) {
   const chats = useStore((s) => s.chats)
   const transcripts = useStore((s) => s.transcripts)
   const busy = useStore((s) => s.busy)
   const [hidden, setHidden] = useState<Set<string>>(() => readHidden(rootId))
-  const toggle = (chatId: string): void => {
+  const update = (fn: (next: Set<string>) => void): void => {
     const next = new Set(hidden)
-    if (next.has(chatId)) next.delete(chatId)
-    else next.add(chatId)
+    fn(next)
     setHidden(next)
     writeHidden(rootId, next)
   }
+  const toggle = (chatId: string): void => update((h) => (h.has(chatId) ? h.delete(chatId) : h.add(chatId)))
   // Hervorgehoben wird der zuletzt markierte Chat – aber nur, solange er in einer Zelle offen ist.
   const active = useStore((s) => (s.activeChatId && L.findCellOfChat(s.layout.root, s.activeChatId) ? s.activeChatId : null))
   const model = useMemo(() => boardModel(chats, transcripts, rootId, hidden), [chats, transcripts, rootId, hidden])
@@ -67,7 +68,13 @@ export function Board({ rootId, cellId }: { rootId: string; cellId: string }) {
           <div className="muted center-hint">Noch keine Nachrichten.</div>
         ) : (
           <div className="board-canvas" style={{ height }}>
-            <Graph model={model} width={width} height={height} activeNode={activeNode} />
+            <Graph
+              model={model}
+              width={width}
+              height={height}
+              activeNode={activeNode}
+              onFork={(f) => update((h) => (f.open.length ? f.open.forEach((id) => h.add(id)) : f.closed.forEach((id) => h.delete(id))))}
+            />
             {model.nodes.map((n) => {
               const lane = model.lanes[n.lane]
               const running = busy[n.chatId] && lastOfLane.get(n.chatId) === n.row
@@ -86,18 +93,6 @@ export function Board({ rootId, cellId }: { rootId: string; cellId: string }) {
                   onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), open())}
                 >
                   <span className="board-bar" style={{ background: colorOf(lane.color) }} />
-                  {first && n.lane > 0 && (
-                    <button
-                      className="board-fold"
-                      title="Ast einklappen"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        toggle(n.chatId)
-                      }}
-                    >
-                      ▾
-                    </button>
-                  )}
                   {first && (
                     <span className={`board-chip${titleRepeats ? ' bare' : ''}`} style={{ borderColor: colorOf(lane.color) }}>
                       <AgentLogo agent={lane.agent} size={11} />
@@ -152,10 +147,37 @@ function writeHidden(rootId: string, ids: Set<string>): void {
   }
 }
 
-function Graph({ model, width, height, activeNode }: { model: BoardModel; width: number; height: number; activeNode?: BoardNode }) {
-  const folded = new Set(model.collapsed.map((f) => f.row).filter((r) => r !== undefined))
+/** Abzweigstelle: Zeile im Ursprung mit den dort abgehenden Ästen (offen bzw. eingeklappt). */
+interface Fork {
+  row: number
+  open: string[]
+  closed: string[]
+}
+
+function forksOf(model: BoardModel): Map<number, Fork> {
+  const forks = new Map<number, Fork>()
+  const at = (row: number): Fork => forks.get(row) ?? (forks.set(row, { row, open: [], closed: [] }).get(row) as Fork)
+  for (const e of model.edges) at(e.from.row).open.push(e.childId)
+  for (const f of model.collapsed) if (f.row !== undefined) at(f.row).closed.push(f.chatId)
+  return forks
+}
+
+function Graph({
+  model,
+  width,
+  height,
+  activeNode,
+  onFork
+}: {
+  model: BoardModel
+  width: number
+  height: number
+  activeNode?: BoardNode
+  onFork: (f: Fork) => void
+}) {
+  const forks = forksOf(model)
   return (
-    <svg className="board-graph" width={width} height={height} aria-hidden>
+    <svg className="board-graph" width={width} height={height}>
       {/* Wo man im aktiven Chat gerade ist: gelber Hof um den Knoten */}
       {activeNode && <circle className="board-active-node" cx={x(activeNode.lane)} cy={y(activeNode.row)} r={10} />}
       {/* Spuren */}
@@ -165,36 +187,46 @@ function Graph({ model, width, height, activeNode }: { model: BoardModel; width:
         ) : null
       )}
       {/* Abzweigungen: aus dem Ursprung in die Spur des Nebenchats, dann senkrecht bis zum ersten Knoten */}
-      {model.edges.map((e) => {
-        return (
-          <path
-            key={e.childId}
-            d={edgePath(e)}
-            fill="none"
-            stroke={colorOf(model.lanes[e.to.lane].color)}
-            strokeWidth={2}
-          />
-        )
-      })}
-      {/* Knoten */}
-      {model.nodes.map((n) =>
-        n.kind === 'action' ? (
-          <rect key={n.itemId} x={x(n.lane) - 4} y={y(n.row) - 4} width={8} height={8} rx={2} className="board-node" stroke={colorOf(model.lanes[n.lane].color)} />
-        ) : (
-          <g key={n.itemId}>
-            <circle cx={x(n.lane)} cy={y(n.row)} r={folded.has(n.row) ? 6.5 : n.kind === 'steer' ? 3.5 : 5} className="board-node" stroke={colorOf(model.lanes[n.lane].color)} />
-            {/* Hier ist etwas eingeklappt: „+“ im Knoten */}
-            {folded.has(n.row) && (
+      {model.edges.map((e) => (
+        <path key={e.childId} d={edgePath(e)} fill="none" stroke={colorOf(model.lanes[e.to.lane].color)} strokeWidth={2} />
+      ))}
+      {/* Knoten; an Abzweigstellen mit „−“ (Äste offen) bzw. „+“ (eingeklappt) – Klick klappt um */}
+      {model.nodes.map((n) => {
+        const color = colorOf(model.lanes[n.lane].color)
+        const fork = forks.get(n.row)
+        if (fork) {
+          const open = fork.open.length > 0
+          const cx = x(n.lane)
+          const cy = y(n.row)
+          return (
+            <g
+              key={n.itemId}
+              className="board-fork"
+              role="button"
+              aria-label={open ? 'Äste einklappen' : 'Äste aufklappen'}
+              data-state={open ? 'open' : 'closed'}
+              onClick={(e) => {
+                e.stopPropagation()
+                onFork(fork)
+              }}
+            >
+              <circle cx={cx} cy={cy} r={9} className="board-fork-hit" />
+              <circle cx={cx} cy={cy} r={6.5} className="board-node" stroke={color} />
               <path
-                d={`M ${x(n.lane) - 3} ${y(n.row)} h 6 M ${x(n.lane)} ${y(n.row) - 3} v 6`}
-                stroke={colorOf(model.lanes[n.lane].color)}
+                d={`M ${cx - 3} ${cy} h 6${open ? '' : ` M ${cx} ${cy - 3} v 6`}`}
+                stroke={color}
                 strokeWidth={1.8}
                 strokeLinecap="round"
               />
-            )}
-          </g>
+            </g>
+          )
+        }
+        return n.kind === 'action' ? (
+          <rect key={n.itemId} x={x(n.lane) - 4} y={y(n.row) - 4} width={8} height={8} rx={2} className="board-node" stroke={color} />
+        ) : (
+          <circle key={n.itemId} cx={x(n.lane)} cy={y(n.row)} r={n.kind === 'steer' ? 3.5 : 5} className="board-node" stroke={color} />
         )
-      )}
+      })}
     </svg>
   )
 }
