@@ -11,6 +11,10 @@ import { applyEvent } from '@shared/transcript'
 import type { AgentEvent, AgentKind, Attachment, Chat, LayoutState, Settings, Transcript } from '@shared/types'
 
 export const CHAT_MIME = 'application/x-claude2ui-chat'
+export const BOARD_MIME = 'application/x-claude2ui-board'
+
+/** Was gerade gezogen wird: ein Chat (ggf. mit Sprungziel, vom Board) oder ein Board. */
+export type Drag = { fromCell?: string } & ({ chatId: string; itemId?: string; board?: undefined } | { board: string; chatId?: undefined; itemId?: undefined })
 
 interface State {
   ready: boolean
@@ -20,8 +24,8 @@ interface State {
   layout: LayoutState
   transcripts: Record<string, Transcript | undefined>
   busy: Record<string, boolean>
-  /** Chat, der gerade gezogen wird (für Drop-Overlays). */
-  dragging: string | null
+  /** Was gerade gezogen wird (für Drop-Overlays). */
+  dragging: Drag | null
   settingsOpen: boolean
   sidebarCollapsed: boolean
   /** Eigene A2UI-Komponenten aus dem Komponenten-Ordner. */
@@ -65,7 +69,9 @@ interface Actions {
   closeChat(cellId: string): Promise<void>
   removeCell(cellId: string): Promise<void>
   splitCell(cellId: string, direction: 'row' | 'column'): void
-  drop(chatId: string, cellId: string, zone: L.DropZone): Promise<void>
+  drop(what: Drag, cellId: string, zone: L.DropZone): Promise<void>
+  /** Chat in einer neuen Zelle öffnen (rechts neben `besideCellId` bzw. der markierten Zelle). */
+  openInNewCell(chatId: string, besideCellId?: string): Promise<void>
   deleteChat(chatId: string): Promise<void>
   renameChat(chatId: string, title: string): Promise<void>
   send(chatId: string, text: string, attachments?: Attachment[]): Promise<void>
@@ -95,13 +101,13 @@ interface Actions {
   /** Board aus der Zelle entfernen (Zelle bleibt). */
   closeBoard(cellId: string): void
   /** Vom Board aus einen Chat an einer Nachricht öffnen – in der Zelle neben dem Board. */
-  openFromBoard(boardCellId: string, chatId: string, itemId: string): Promise<void>
+  openFromBoard(boardCellId: string, chatId: string, itemId: string, newCell?: boolean): Promise<void>
   /** Transkripte laden (z. B. alle Chats eines Boards). */
   ensureTranscripts(chatIds: string[]): void
   /** Im Verlauf eines Chats an eine Stelle springen (nachdem er geöffnet ist). */
   jumpTo(target: Omit<JumpTarget, 'n'>): void
   clearJump(n: number): void
-  setDragging(chatId: string | null): void
+  setDragging(what: Drag | null): void
   setSettingsOpen(open: boolean): void
   toggleSidebar(): void
   saveSettings(patch: Partial<Settings>): Promise<void>
@@ -328,7 +334,14 @@ export const useStore = create<State & Actions>((set, get) => {
       get().setLayout({ root, selectedCellId: nl.id })
     },
 
-    async drop(chatId, cellId, zone) {
+    async drop(what, cellId, zone) {
+      if (what.board) {
+        const r = L.dropContent(get().layout.root, { board: what.board }, cellId, zone)
+        get().setLayout({ root: r.root, selectedCellId: r.cellId })
+        return
+      }
+      const { itemId, fromCell } = what
+      const chatId = what.chatId as string
       const { layout } = get()
       const target = L.findLeaf(layout.root, cellId)
       const source = L.findCellOfChat(layout.root, chatId)
@@ -339,6 +352,18 @@ export const useStore = create<State & Actions>((set, get) => {
       void loadTranscript(chatId)
       const r = L.dropChat(get().layout.root, chatId, cellId, zone)
       get().setLayout({ root: r.root, selectedCellId: r.cellId })
+      // Vom Board gezogen: dorthin öffnet das Board künftig per Klick, und es geht an die Nachricht.
+      if (fromCell && L.findLeaf(r.root, fromCell)?.board) boardTargets.set(fromCell, r.cellId)
+      if (itemId) get().jumpTo({ chatId, itemId })
+    },
+
+    async openInNewCell(chatId, besideCellId) {
+      const { layout } = get()
+      if (L.findCellOfChat(layout.root, chatId)) return get().openChat(chatId)
+      const beside = besideCellId && L.findLeaf(layout.root, besideCellId) ? besideCellId : layout.selectedCellId
+      const nl = L.leaf()
+      get().setLayout({ root: L.splitCell(layout.root, beside, 'row', 'after', nl), selectedCellId: nl.id })
+      await get().openChat(chatId, nl.id)
     },
 
     async deleteChat(chatId) {
@@ -472,12 +497,19 @@ export const useStore = create<State & Actions>((set, get) => {
       get().setLayout({ ...get().layout, root: L.setChat(get().layout.root, cellId, null) })
     },
 
-    async openFromBoard(boardCellId, chatId, itemId) {
+    async openFromBoard(boardCellId, chatId, itemId, newCell) {
       const { layout } = get()
-      if (!L.findCellOfChat(layout.root, chatId)) {
+      const prevCell = boardTargets.get(boardCellId)
+      if (newCell && !L.findCellOfChat(layout.root, chatId)) {
+        // ⌘-Klick: neue Zelle rechts neben der zuletzt vom Board geöffneten (sonst neben dem Board).
+        const beside = prevCell && L.findLeaf(layout.root, prevCell) ? prevCell : boardCellId
+        const nl = L.leaf()
+        get().setLayout({ root: L.splitCell(layout.root, beside, 'row', 'after', nl), selectedCellId: nl.id })
+        boardTargets.set(boardCellId, nl.id)
+        await get().openChat(chatId, nl.id)
+      } else if (!L.findCellOfChat(layout.root, chatId)) {
         // Bevorzugt die Zelle, in die das Board zuletzt geöffnet hat (sonst neue Zelle rechts daneben).
-        const prev = boardTargets.get(boardCellId)
-        const target = prev ? L.findLeaf(layout.root, prev) : undefined
+        const target = prevCell ? L.findLeaf(layout.root, prevCell) : undefined
         if (target && !target.board) {
           await get().openChat(chatId, target.id)
         } else {
@@ -515,8 +547,8 @@ export const useStore = create<State & Actions>((set, get) => {
       }
     },
 
-    setDragging(chatId) {
-      set({ dragging: chatId })
+    setDragging(what) {
+      set({ dragging: what })
     },
 
     setSettingsOpen(open) {

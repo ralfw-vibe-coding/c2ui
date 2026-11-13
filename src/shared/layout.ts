@@ -163,38 +163,46 @@ function replaceNode(root: LayoutNode, id: string, repl: LayoutNode): LayoutNode
   return { ...root, children: root.children.map((c) => replaceNode(c, id, repl)) }
 }
 
+/** Was per Drag&Drop bewegt wird: ein Chat oder ein Board. */
+export type CellContent = { chatId: string; board?: undefined } | { board: string; chatId?: undefined }
+
 /**
- * Legt einen Chat per Drag&Drop auf eine Zielzelle.
- * - center: Chat kommt in die Zielzelle. Kam er aus einer anderen Zelle, wird getauscht.
- * - Rand: Zielzelle wird geteilt, der Chat kommt in die neue Zelle. Die Herkunftszelle
+ * Legt einen Chat oder ein Board per Drag&Drop auf eine Zielzelle.
+ * - center: Inhalt kommt in die Zielzelle. Kam er aus einer anderen Zelle, wird getauscht.
+ * - Rand: Zielzelle wird geteilt, der Inhalt kommt in die neue Zelle. Die Herkunftszelle
  *   (falls vorhanden) verschwindet, damit ein Verschieben die Zellenzahl nicht ändert.
- * Liefert den neuen Baum und die ID der Zelle, in der der Chat jetzt liegt.
+ * Liefert den neuen Baum und die ID der Zelle, in der der Inhalt jetzt liegt.
  */
-export function dropChat(
+export function dropContent(
   root: LayoutNode,
-  chatId: string,
+  content: CellContent,
   targetCellId: string,
   zone: DropZone
 ): { root: LayoutNode; cellId: string } {
-  const source = findCellOfChat(root, chatId)
+  const source = content.board ? findCellOfBoard(root, content.board) : findCellOfChat(root, content.chatId!)
   const target = findLeaf(root, targetCellId)
   if (!target) return { root, cellId: source?.id ?? targetCellId }
   if (source && source.id === target.id) return { root, cellId: target.id }
+  const put = (n: Leaf): Leaf => withContent(n, content.chatId ?? null, content.board)
 
   if (zone === 'center') {
     let r = root
     // Tauschen: Was in der Zielzelle war (Chat oder Board), wandert in die Herkunftszelle.
     if (source) r = mapNodes(r, (n) => (n.type === 'leaf' && n.id === source.id ? withContent(n, target.chatId, target.board) : n))
-    r = mapNodes(r, (n) => (n.type === 'leaf' && n.id === target.id ? withContent(n, chatId) : n))
+    r = mapNodes(r, (n) => (n.type === 'leaf' && n.id === target.id ? put(n) : n))
     return { root: r, cellId: target.id }
   }
 
   const direction = zone === 'left' || zone === 'right' ? 'row' : 'column'
   const position = zone === 'left' || zone === 'top' ? 'before' : 'after'
-  const nl = leaf(chatId)
+  const nl = put(leaf())
   let r = splitCell(root, target.id, direction, position, nl)
   if (source) r = removeCell(r, source.id)
   return { root: r, cellId: nl.id }
+}
+
+export function dropChat(root: LayoutNode, chatId: string, targetCellId: string, zone: DropZone): { root: LayoutNode; cellId: string } {
+  return dropContent(root, { chatId }, targetCellId, zone)
 }
 
 /** Stellt sicher, dass ein geladenes Layout konsistent ist. */

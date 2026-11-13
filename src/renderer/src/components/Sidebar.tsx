@@ -185,11 +185,15 @@ function ChatItem({
       onDragStart={(e) => {
         e.dataTransfer.setData(CHAT_MIME, chat.id)
         e.dataTransfer.effectAllowed = 'move'
-        useStore.getState().setDragging(chat.id)
+        useStore.getState().setDragging({ chatId: chat.id })
       }}
       onDragEnd={() => useStore.getState().setDragging(null)}
-      onClick={() => !editing && useStore.getState().openChat(chat.id)}
-      title={`${chat.title}\n${chat.cwd}${forkInfo}\nDoppelklick: umbenennen · Ziehen: in Zelle legen`}
+      onClick={(e) => {
+        if (editing) return
+        const st = useStore.getState()
+        void (e.metaKey ? st.openInNewCell(chat.id) : st.openChat(chat.id))
+      }}
+      title={`${chat.title}\n${chat.cwd}${forkInfo}\nKlick: öffnen · ⌘-Klick: in neuer Zelle · Ziehen: in Zelle legen · Doppelklick: umbenennen`}
     >
       {childCount > 0 ? (
         <button

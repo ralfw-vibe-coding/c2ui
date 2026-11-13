@@ -8,6 +8,8 @@ Desktop-App (Electron), in der mehrere Chats mit der Claude CLI oder der Codex C
 
 - Frei teilbares Panel-Grid (Split-Baum wie in VS Code): Zellen rechts/unten teilen, Trenner verschieben, Zellen entfernen (Geschwister füllen den Platz).
 - Chats per Drag&Drop aus der Sidebar oder am Zellen-Header in Zellen ziehen: Mitte = hineinlegen/tauschen, Rand = Zelle teilen.
+  Boards lassen sich genauso am Kopf verschieben. ⌘-Klick auf einen Chat in der Seitenleiste öffnet ihn in einer neuen
+  Zelle rechts der markierten.
 - Sidebar mit eigener Chatliste (Doppelklick = umbenennen). Klick öffnet den Chat in der markierten Zelle.
 - Neuer Chat mit Claude oder Codex: Buttons oben in der Sidebar oder in einer leeren Zelle, danach Arbeitsverzeichnis wählen. Leere Zellen bieten außerdem frühere Chats an.
 - Pro Chat ein Arbeitsverzeichnis und ein Berechtigungs- bzw. Sandbox-Modus; Standard, Modell und Binary-Pfad je Agent in den Einstellungen.
@@ -34,7 +36,9 @@ Desktop-App (Electron), in der mehrere Chats mit der Claude CLI oder der Codex C
 - **Diskursboard:** In der Seitenleiste an jedem Chat eines Baums (Symbol „Verzweigung“): öffnet eine Zelle mit dem
   ganzen Baum als Graph wie `git log --graph` – Zeit nach unten, jeder Chat eine farbige Spur, jede Nutzernachricht
   ein Knoten (⚡ Zwischenruf, ■ A2UI-Aktion), Abzweigungen als Kurven. Klick auf eine Zeile öffnet den Chat in der
-  Zelle daneben und springt zur Nachricht. Aktualisiert sich live; übersteht einen Neustart.
+  Zelle daneben (bzw. der zuletzt vom Board geöffneten) und springt zur Nachricht; ⌘-Klick öffnet in einer neuen Zelle
+  rechts davon; oder die Zeile auf eine beliebige Zelle ziehen (Mitte/Rand wie oben). Klick auf den Knoten einer
+  Abzweigstelle (−/+) klappt die dort abgehenden Äste ein/aus. Aktualisiert sich live; übersteht einen Neustart.
 - Seitenleiste: Breite am rechten Rand ziehen (Doppelklick = Standard), pro Rechner gemerkt.
 - Ein Chat ist höchstens in einer Zelle offen. Layout, Chatliste und Transkripte überstehen einen Neustart.
 - Wird ein arbeitender Chat geschlossen, fragt die App nach: im Hintergrund weiterlaufen lassen, abbrechen oder nicht schließen.

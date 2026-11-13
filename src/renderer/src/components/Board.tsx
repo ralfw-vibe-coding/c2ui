@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { boardModel, sameAsTitle, type BoardModel, type BoardNode } from '@shared/board'
 import * as L from '@shared/layout'
-import { useStore } from '../store'
+import { CHAT_MIME, useStore } from '../store'
 import { AgentLogo } from './AgentLogo'
 
 const ROW = 30
@@ -16,7 +16,7 @@ const y = (row: number): number => row * ROW + ROW / 2
 /**
  * Diskursboard (nur ansehen): Graph eines Chat-Baums wie `git log --graph`. Zeit läuft nach unten,
  * jede Spur ein Chat, jeder Knoten eine Nutzernachricht. Klick öffnet den Chat an dieser Stelle
- * in der Zelle neben dem Board; Klick auf den Knoten einer Abzweigstelle klappt die dort abgehenden Äste
+ * in der Zelle neben dem Board (⌘-Klick: in einer neuen Zelle; oder Knoten auf eine Zelle ziehen); Klick auf den Knoten einer Abzweigstelle klappt die dort abgehenden Äste
  * ein bzw. auf.
  */
 export function Board({ rootId, cellId }: { rootId: string; cellId: string }) {
@@ -81,7 +81,7 @@ export function Board({ rootId, cellId }: { rootId: string; cellId: string }) {
               const first = firstOfLane.has(`${n.chatId}:${n.row}`)
               // Titel nur zeigen, wenn er mehr sagt als die Nachricht selbst (Standardtitel = Anfang der ersten Nachricht).
               const titleRepeats = sameAsTitle(lane.title, n.text)
-              const open = (): void => void useStore.getState().openFromBoard(cellId, n.chatId, n.itemId)
+              const open = (newCell = false): void => void useStore.getState().openFromBoard(cellId, n.chatId, n.itemId, newCell)
               return (
                 <div
                   key={`${n.chatId}:${n.itemId}`}
@@ -89,8 +89,15 @@ export function Board({ rootId, cellId }: { rootId: string; cellId: string }) {
                   tabIndex={0}
                   className={`board-row ${n.kind}${n === activeNode ? ' active' : ''}`}
                   style={{ top: n.row * ROW, height: ROW, paddingLeft: width + 6 }}
-                  onClick={open}
-                  onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), open())}
+                  draggable
+                  onDragStart={(e) => {
+                    e.dataTransfer.setData(CHAT_MIME, n.chatId)
+                    e.dataTransfer.effectAllowed = 'move'
+                    useStore.getState().setDragging({ chatId: n.chatId, itemId: n.itemId, fromCell: cellId })
+                  }}
+                  onDragEnd={() => useStore.getState().setDragging(null)}
+                  onClick={(e) => open(e.metaKey)}
+                  onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), open(e.metaKey))}
                 >
                   <span className="board-bar" style={{ background: colorOf(lane.color) }} />
                   {first && (

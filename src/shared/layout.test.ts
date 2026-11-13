@@ -102,6 +102,20 @@ describe('Board-Zellen', () => {
     expect(L.findCellOfBoard(r, 'root')?.id).toBe(a.id)
   })
 
+  it('Board lässt sich verschieben: Mitte tauscht, Rand verschiebt ohne Zellenzuwachs', () => {
+    const a = L.leaf('c1')
+    const root = L.splitCell(a, a.id, 'row', 'after', L.leaf())
+    const b = L.leaves(root)[1]
+    let r = L.setBoard(root, b.id, 'root')
+    r = L.dropContent(r, { board: 'root' }, a.id, 'center').root
+    expect(L.findCellOfBoard(r, 'root')?.id).toBe(a.id)
+    expect(L.findCellOfChat(r, 'c1')?.id).toBe(b.id)
+    const res = L.dropContent(r, { board: 'root' }, b.id, 'bottom')
+    expect(L.leaves(res.root).length).toBe(2)
+    expect(L.findCellOfBoard(res.root, 'root')?.id).toBe(res.cellId)
+    expect(L.findLeaf(res.root, res.cellId)?.chatId).toBeNull()
+  })
+
   it('entfernt beim Laden Boards unbekannter Chats und doppelte', () => {
     const a = L.leaf()
     const root = L.splitCell(a, a.id, 'row', 'after', L.leaf())

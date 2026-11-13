@@ -179,6 +179,53 @@ await page.locator('.board-row').first().waitFor({ timeout: 10_000 }).catch(() =
 await page.waitForTimeout(300)
 log('Layout nach Neuladen:', JSON.stringify(await page.evaluate(async () => (await window.api.init()).layout)).slice(0, 300))
 check((await page.locator('.board-row').count()) === 11, 'Board nach Neuladen wieder da')
+
+// ⌘-Klick öffnet in einer neuen Zelle (immer weiter rechts); Klick nimmt die zuletzt geöffnete
+const cellsNow = () =>
+  page.evaluate(() =>
+    [...document.querySelectorAll('.cell')].map((c) => c.querySelector('.chat-panel')?.getAttribute('data-chat-id') ?? (c.querySelector('.board') ? 'BOARD' : '-'))
+  )
+log('Zellen vorher:', (await cellsNow()).join(' | '))
+await page.locator('.board-row', { hasText: 'Nur deutschsprachige' }).click({ modifiers: ['Meta'] })
+await page.waitForTimeout(400)
+await page.locator('.board-row', { hasText: 'Qualitativ' }).click({ modifiers: ['Meta'] })
+await page.waitForTimeout(400)
+log('nach 2× ⌘-Klick:', (await cellsNow()).join(' | '))
+check((await cellsNow()).join(' ') === 'BOARD quellen methode -', '⌘-Klick: neue Zellen rechts, nacheinander')
+await page.locator('.board-row', { hasText: 'Welche Kapitel' }).click()
+await page.waitForTimeout(400)
+check((await cellsNow()).join(' ') === 'BOARD quellen haus -', 'Klick ersetzt die zuletzt geöffnete Zelle')
+
+// Knoten auf eine Zelle ziehen: öffnet dort und springt an die Nachricht
+const emptyCell = page.locator('.cell').nth(3)
+const eb = await emptyCell.boundingBox()
+await page.locator('.board-row', { hasText: 'Wie komme ich' }).dragTo(emptyCell, { targetPosition: { x: eb.width / 2, y: eb.height / 2 } })
+await page.waitForTimeout(700)
+log('nach Ziehen:', (await cellsNow()).join(' | '))
+check((await cellsNow()).join(' ') === 'BOARD quellen haus archiv', 'Knoten in die leere Zelle gezogen')
+check(/Protokolle/.test((await page.locator('.cell').nth(3).locator('.jump-flash').first().textContent().catch(() => '')) ?? ''), 'gezogener Knoten: Nachricht hervorgehoben')
+// Knoten auf die Mitte des eigenen Boards: nichts passiert
+const bb = await page.locator('.cell').nth(0).boundingBox()
+await page.locator('.board-row', { hasText: 'Mach aus Kapitel' }).dragTo(page.locator('.cell').nth(0), { targetPosition: { x: bb.width / 2, y: bb.height / 2 } })
+await page.waitForTimeout(300)
+check((await cellsNow()).join(' ') === 'BOARD quellen haus archiv', 'Mitte des eigenen Boards nimmt keinen Knoten an')
+
+// Board am Kopf verschieben: an den rechten Rand der letzten Zelle
+const last = page.locator('.cell').nth(3)
+const lb = await last.boundingBox()
+await page.locator('.cell').nth(0).locator('.cell-title').dragTo(last, { targetPosition: { x: lb.width - 8, y: lb.height / 2 } })
+await page.waitForTimeout(400)
+log('Board verschoben:', (await cellsNow()).join(' | '))
+check((await cellsNow()).join(' ') === 'quellen haus archiv BOARD', 'Board verschoben, Zellenzahl gleich')
+
+// Seitenleiste: ⌘-Klick öffnet in neuer Zelle
+await page.locator('.cell').nth(0).click()
+await page.locator('.chat-item', { hasText: 'Anderer Chat' }).click({ modifiers: ['Meta'] })
+await page.waitForTimeout(400)
+log('nach ⌘-Klick in der Seitenleiste:', (await cellsNow()).join(' | '))
+check((await cellsNow()).join(' ') === 'quellen anderes haus archiv BOARD', 'Seitenleiste: ⌘-Klick öffnet neue Zelle rechts der markierten')
+await page.screenshot({ path: join(out, '4-zellen.png') })
+
 await app.close()
 log(failed ? 'FEHLGESCHLAGEN' : 'alles OK')
 process.exit(failed ? 1 : 0)
