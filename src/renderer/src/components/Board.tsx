@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from 'react'
-import { boardModel, type BoardModel } from '@shared/board'
+import { boardModel, sameAsTitle, type BoardModel } from '@shared/board'
 import { useStore } from '../store'
 import { AgentLogo } from './AgentLogo'
 
@@ -54,18 +54,20 @@ export function Board({ rootId, cellId }: { rootId: string; cellId: string }) {
             {model.nodes.map((n) => {
               const lane = model.lanes[n.lane]
               const running = busy[n.chatId] && lastOfLane.get(n.chatId) === n.row
+              // Titel nur zeigen, wenn er mehr sagt als die Nachricht selbst (Standardtitel = Anfang der ersten Nachricht).
+              const titleRepeats = sameAsTitle(lane.title, n.text)
               return (
                 <button
                   key={`${n.chatId}:${n.itemId}`}
                   className={`board-row ${n.kind}`}
                   style={{ top: n.row * ROW, height: ROW, paddingLeft: width + 6 }}
-                  title={`${lane.title}\n${n.label}\nKlick: Chat an dieser Stelle öffnen`}
+                  title={titleRepeats ? n.text : `${lane.title}\n\n${n.text}`}
                   onClick={() => void useStore.getState().openFromBoard(cellId, n.chatId, n.itemId)}
                 >
                   {firstOfLane.has(`${n.chatId}:${n.row}`) && (
-                    <span className="board-chip" style={{ borderColor: colorOf(n.lane) }}>
+                    <span className={`board-chip${titleRepeats ? ' bare' : ''}`} style={{ borderColor: colorOf(n.lane) }} title={lane.title}>
                       <AgentLogo agent={lane.agent} size={11} />
-                      {lane.title}
+                      {!titleRepeats && lane.title}
                     </span>
                   )}
                   <span className="board-label">

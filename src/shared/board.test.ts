@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { boardModel, messageLabel, rootOf } from './board'
+import { boardModel, messageLabel, rootOf, sameAsTitle } from './board'
 import { A2UI_ACTION_PREFIX } from './a2ui'
 import type { Chat, Transcript } from './types'
 
@@ -59,6 +59,11 @@ describe('Diskursboard', () => {
   it('findet die Wurzel eines Chats', () => {
     expect(rootOf(chats, 'b')).toBe('r')
     expect(rootOf(chats, 'r')).toBe('r')
+  })
+
+  it('erkennt Titel, die nur die Nachricht wiederholen', () => {
+    expect(sameAsTitle('erkläre mir die gewaltenteilun…', 'Erkläre mir die Gewaltenteilung.')).toBe(true)
+    expect(sameAsTitle('Quellenlage', 'Welche Quellen gibt es?')).toBe(false)
   })
 
   it('beschriftet Nachrichten knapp', () => {

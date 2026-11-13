@@ -18,6 +18,8 @@ export interface BoardNode {
   lane: number
   row: number
   label: string
+  /** Eigener Text der Nachricht (ohne Zitatzeilen), ungekürzt bis 600 Zeichen – für den Tooltip. */
+  text: string
   kind: 'message' | 'steer' | 'action'
 }
 
@@ -58,6 +60,13 @@ export function rootOf(chats: Chat[], chatId: string): string {
     id = p
   }
   return id
+}
+
+/** Sagt der Chat-Titel nur dasselbe wie die Nachricht (Standardtitel = Anfang der ersten Nachricht)? */
+export function sameAsTitle(title: string, text: string): boolean {
+  const norm = (s: string): string => s.replace(/…$/, '').replace(/\s+/g, ' ').trim().toLowerCase()
+  const t = norm(title)
+  return !!t && norm(text).startsWith(t)
 }
 
 /** Kurztext einer Nutzernachricht: ohne Zitatzeilen, erste Zeile, gekürzt. */
@@ -108,7 +117,7 @@ export function boardModel(chats: Chat[], transcripts: Record<string, Transcript
     for (const it of transcripts[c.id] ?? []) {
       if (it.type !== 'user') continue
       const kind: BoardNode['kind'] = it.steer ? 'steer' : it.text.startsWith(A2UI_ACTION_PREFIX) ? 'action' : 'message'
-      nodes.push({ chatId: c.id, itemId: it.id, k: k++, ts: it.ts, lane: laneOf.get(c.id)!.lane, row: 0, label: messageLabel(it.text), kind })
+      nodes.push({ chatId: c.id, itemId: it.id, k: k++, ts: it.ts, lane: laneOf.get(c.id)!.lane, row: 0, label: messageLabel(it.text), text: messageLabel(it.text, 600), kind })
     }
   }
   nodes.sort((a, b) => a.ts - b.ts || a.lane - b.lane || a.k - b.k)

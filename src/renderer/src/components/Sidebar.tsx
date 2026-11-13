@@ -210,22 +210,24 @@ function ChatItem({
         {open && !busy && <span className="dot" />}
       </span>
       <div className="chat-text">
-        <EditableTitle
-          chatId={chat.id}
-          title={chat.title}
-          className="chat-title"
-          editing={editing}
-          onEditingChange={setEditing}
-        />
+        <div className="chat-title-row">
+          <EditableTitle
+            chatId={chat.id}
+            title={chat.title}
+            className="chat-title"
+            editing={editing}
+            onEditingChange={setEditing}
+          />
+          {!editing && collapsed && childCount > 0 && (
+            <span className="tree-count" title={`${childCount} Nebenchat${childCount === 1 ? '' : 's'} eingeklappt`}>
+              +{childCount}
+            </span>
+          )}
+        </div>
         <span className="chat-meta">
           <Icon name="folder" size={12} /> {baseName(shortPath(chat.cwd, home))} · {formatDate(chat.updatedAt)}
         </span>
       </div>
-      {collapsed && childCount > 0 && (
-        <span className="tree-count" title={`${childCount} Nebenchat${childCount === 1 ? '' : 's'} eingeklappt`}>
-          +{childCount}
-        </span>
-      )}
       {!editing && (depth > 0 || childCount > 0) && (
         <button
           className="icon-btn hover-only"

@@ -2149,13 +2149,25 @@ fieldset.agent-settings {
 .tree-toggle.placeholder {
   cursor: default;
 }
+.chat-title-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.chat-title-row > .chat-title {
+  min-width: 0;
+}
+/* Anzahl eingeklappter Nebenchats: Chip in Akzentfarbe direkt hinter dem Titel */
 .tree-count {
-  margin-left: 6px;
-  padding: 0 5px;
+  flex: none;
+  padding: 0 6px;
   border-radius: 8px;
-  background: var(--bg-elev);
-  border: 1px solid var(--border);
-  font-size: 10px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 10.5px;
+  font-weight: 600;
+  line-height: 16px;
 }
 .chat-meta > .icon,
 .tree-count {
@@ -2370,4 +2382,8 @@ li > .fork-slot {
 .board-row .spinner {
   width: 10px;
   height: 10px;
+}
+
+.board-chip.bare {
+  padding: 1px 4px;
 }
