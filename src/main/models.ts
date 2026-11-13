@@ -5,6 +5,7 @@ import { homedir } from 'node:os'
 import { join } from 'node:path'
 import type { AgentKind, ModelList } from '@shared/types'
 import { childEnv } from './env'
+import { resolveCodexBinary } from './agents/codexBinary'
 
 /** Claude hat keinen abfragbaren Katalog; die CLI kennt diese Kurznamen für das jeweils neueste Modell. */
 const CLAUDE_ALIASES = [
@@ -58,7 +59,7 @@ async function codexModels(binPath: string, path: string): Promise<ModelList> {
   }
   try {
     const out = await new Promise<string>((resolve, reject) =>
-      execFile(binPath || 'codex', ['debug', 'models'], { env: childEnv(path), timeout: 20_000, maxBuffer: 20e6 }, (err, stdout) =>
+      execFile(resolveCodexBinary(binPath, path).path, ['debug', 'models'], { env: childEnv(path), timeout: 20_000, maxBuffer: 20e6 }, (err, stdout) =>
         err ? reject(err) : resolve(stdout)
       )
     )

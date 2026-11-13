@@ -10,7 +10,7 @@ export interface AgentSession {
   /** Startet einen Turn. Darf nur aufgerufen werden, wenn !busy. */
   send(text: string, attachments?: Attachment[]): void
   /** Zwischenruf in den laufenden Turn (nur wenn busy; nicht jeder Agent kann das). */
-  steer?(text: string, attachments?: Attachment[]): void
+  steer?(text: string, attachments?: Attachment[]): void | Promise<void>
   /** Bricht den laufenden Turn ab. */
   interrupt(): void
   /** Beendet einen eventuell laufenden Prozess. */

@@ -2,18 +2,13 @@
 
 ## Als Nächstes (in dieser Reihenfolge)
 
-1. **Codex über `codex app-server`** statt `codex exec`: Codex stellt Threads im Hintergrund auf ein
-   „paginated“-Format um, das `codex exec resume` nicht fortsetzen kann („paginated_threads is not supported yet“).
-   Derzeit fängt die App das ab und startet einen neuen Thread mit dem Verlauf aus ihrem Transkript (verliert
-   Detailkontext wie Befehlsausgaben). Der app-server (JSON-RPC, von der Codex-App genutzt) könnte das sauber lösen
-   und brächte auch Streaming, Bild-Events und Freigaben.
-   Damit auch Zwischenrufe (Steer) für Codex prüfen.
-2. **Codex**: Antworten streamen (derzeit nur ganze Absätze), Kosten anzeigen – voraussichtlich mit Punkt 1.
+(leer – nächste Schritte aus „Ideen“ oder „Konzept Diskurs“ wählen)
 
 ## Ideen (gesammelt, Reihenfolge offen)
 
 - **Benachrichtigungen,** wenn ein Chat im Hintergrund fertig ist oder hängt.
-- **Kontextfüllstand** je Chat (aus den Token-Angaben der CLIs); Verdichten machen die CLIs selbst.
+- **Kontextfüllstand** je Chat (aus den Token-Angaben der CLIs; Codex liefert `thread/tokenUsage/updated` mit
+  `modelContextWindow`); Verdichten machen die CLIs selbst.
 - **Screens anheften:** A2UI-Screen in eine eigene Zelle lösen, der Chat aktualisiert ihn weiter.
 - **Suche über alle Chats** (merken).
 
@@ -36,7 +31,7 @@ Schritte, jeweils erst ausprobieren, bevor der nächste kommt:
 4. **Semantischer Zoom:** weit = Abschnitte (Turns zwischen zwei Abzweig-/Merge-Punkten) als Kasten mit
    Zusammenfassung; mittel = Turns mit Kurztitel; nah = Frage/Antwort, Screens als Miniaturen.
    Kurztitel und Zusammenfassungen im Hintergrund durch ein kleines Modell (einfache Variante: erste Zeile der Frage).
-5. **Vom Board aus abzweigen**, auch an früheren Stellen (Codex: Verlauf dort abschneiden; Claude: prüfen).
+5. **Vom Board aus abzweigen**, auch an früheren Stellen (Codex: `thread/fork` mit `lastTurnId`; Claude: prüfen).
 6. **Merge:** Ergebnis eines Asts zurück in einen anderen – Squash (Zusammenfassung des Diffs seit dem Abzweig,
    Normalfall), voll (Turns wörtlich), Cherry-Pick (einzelne Stelle als Bezug-Chip, auch chatübergreifend),
    Gegenrichtung (Ast holt sich den Fortschritt des Ursprungs). Der empfangende Chat löst Widersprüche selbst;
@@ -80,3 +75,5 @@ Später denkbar: das Modell legt selbst Äste an (MCP-Werkzeug), sichtbare und a
 - Umbenennung in C2UI (Repo ralfw-vibe-coding/c2ui)
 - Warteschlange: Nachrichten einreihen, während der Agent arbeitet
 - Zwischenruf (Steer) aus der Warteschlange in die laufende Antwort (Claude)
+- Codex über `codex app-server`: Streaming, Zwischenrufe, echtes Abzweigen, Fortsetzen auch „paginated“ Threads
+  (neueste CLI wird automatisch gewählt, z. B. aus ChatGPT.app); Kosten liefert Codex nicht (Abo)

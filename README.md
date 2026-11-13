@@ -12,18 +12,18 @@ Desktop-App (Electron), in der mehrere Chats mit der Claude CLI oder der Codex C
 - Neuer Chat mit Claude oder Codex: Buttons oben in der Sidebar oder in einer leeren Zelle, danach Arbeitsverzeichnis wählen. Leere Zellen bieten außerdem frühere Chats an.
 - Pro Chat ein Arbeitsverzeichnis und ein Berechtigungs- bzw. Sandbox-Modus; Standard, Modell und Binary-Pfad je Agent in den Einstellungen.
 - Anhänge: Bilder per Einfügen (⌘V) und Dateien per Drag & Drop. Sie landen im Anhang-Ordner des Chats
-  (`<userData>/attachments/<chat>`); Claude bekommt Bilder als Bild und darf den Ordner lesen, Codex bekommt Bilder per `--image`.
+  (`<userData>/attachments/<chat>`); Claude bekommt Bilder als Bild und darf den Ordner lesen, Codex bekommt Bilder als `localImage`.
 - Arbeitsschritte (Werkzeugaufrufe, Zwischentexte) je Antwort einklappbar.
 - **Bezug auf Teile einer Antwort:** Text im Chat markieren → „Bezug nehmen“ → Anmerkung tippen.
   ↩ übernimmt Zitat + Anmerkung als Chip ins Eingabefeld (mehrere sammelbar, gesendet als `> Zitat` + Anmerkung).
   ⌘↩ bzw. „In neuem Chat fragen“ zweigt einen neuen Chat daneben ab, der den bisherigen Verlauf kennt
-  (Claude: `--resume <quelle> --fork-session --session-id <neu>`; Codex: Verlauf als Kontext im ersten Turn).
+  (Claude: `--resume <quelle> --fork-session --session-id <neu>`; Codex: `thread/fork`).
 - **Warteschlange:** Während ein Chat arbeitet, bleibt das Eingabefeld frei; Enter reiht die Nachricht ein
   (mit Bezügen und Anhängen). Eingereihtes geht nach jeder Antwort einzeln raus, lässt sich bis dahin zurück ins
   Eingabefeld holen oder entfernen. Nach Abbruch oder Fehler hält die Schlange an („Fortsetzen“).
-  Bei Claude kann eine eingereihte Nachricht per „Zwischenruf“ (Steer) sofort in die laufende Antwort gehen:
-  Claude nimmt sie beim nächsten Schritt auf (`--replay-user-messages` zeigt, wann); kommt sie zu spät,
-  beantwortet Claude sie direkt danach. Codex kann das (noch) nicht.
+  Eine eingereihte Nachricht kann per „Zwischenruf“ (Steer) sofort in die laufende Antwort gehen; der Agent
+  nimmt sie beim nächsten Schritt auf und erst dann erscheint sie im Verlauf (Claude: `--replay-user-messages`,
+  Codex: `turn/steer`). Kommt sie zu spät, beantwortet der Agent sie direkt danach.
 - Ein Chat ist höchstens in einer Zelle offen. Layout, Chatliste und Transkripte überstehen einen Neustart.
 - Wird ein arbeitender Chat geschlossen, fragt die App nach: im Hintergrund weiterlaufen lassen, abbrechen oder nicht schließen.
 
@@ -36,9 +36,17 @@ einstellbarem Leerlauf beendet. Der nächste Turn startet ihn mit `--resume <ses
 
 ## Anbindung der Codex CLI
 
-Pro Turn ein `codex exec --json`-Prozess im Arbeitsverzeichnis, ab dem zweiten Turn `codex exec resume <threadId>`.
-Der Sandbox-Modus geht als `-c sandbox_mode=…` mit, Rückfragen sind aus (`approval_policy="never"`),
-`--skip-git-repo-check` erlaubt Ordner ohne Git. Beide Adapter implementieren `src/main/agents/types.ts`.
+Pro Chat läuft bei Bedarf `codex app-server` (JSON-RPC über stdin/stdout, wie in der Codex-App) als Kindprozess
+von C2UI; er bedient mehrere Turns und wird nach Leerlauf beendet. Kein Daemon: läuft C2UI nicht, läuft auch
+kein Server. Threads liegen wie immer unter `~/.codex` und werden per `thread/resume` fortgesetzt,
+Nebenchats per `thread/fork`. Antworten kommen gestreamt (`item/agentMessage/delta`), Abbrechen per
+`turn/interrupt`, Zwischenrufe per `turn/steer`. Sandbox-Modus pro Thread, Rückfragen aus (`approvalPolicy: never`).
+
+**Welche Codex-CLI?** Ohne Pfad in den Einstellungen nimmt C2UI die neueste vorhandene: aus dem PATH oder die
+in ChatGPT.app mitgelieferte (`Contents/Resources/codex-cli/bin/codex`). Die Codex-App stellt Threads auf ein
+„paginated“-Format um, das ältere CLIs (z. B. 0.144) weder fortsetzen noch lesen können; die mitgelieferte
+kann es. Scheitert das Fortsetzen trotzdem, geht der Chat in einem neuen Thread mit dem Verlauf als Kontext weiter.
+Beide Adapter implementieren `src/main/agents/types.ts`.
 
 ## A2UI (Inkrement 2, erster Stand)
 
@@ -65,7 +73,7 @@ Ohne ausdrücklichen Wunsch antwortet Claude wie gewohnt mit Text.
   sichtbare Screens sind markiert, einklappbar.
 - **Codex**: Den Skill findet Codex über ein Schatten-Home (`<userData>/codex-home`, Symlinks auf das echte Home,
   nur `.agents/skills` ergänzt um den A2UI-Skill); `CODEX_HOME` bleibt `~/.codex`. Der MCP-Server kommt per
-  `-c mcp_servers.a2ui.…` mit Freigabe für `render_ui`.
+  `-c mcp_servers.a2ui.…` (beim Start des app-servers) mit Freigabe für `render_ui`.
 - Noch nicht: lokale Eingaben ohne Aktion überleben keinen Neustart (siehe `BACKLOG.md`).
 - Testansicht der Komponenten: Fenster mit `#a2ui-test` laden (`location.hash`).
 
@@ -81,6 +89,8 @@ node scripts/a2ui-e2e.mjs   # A2UI-E2E mit Claude Sonnet (nach npm run build)
 node scripts/a2ui-charts-e2e.mjs; node scripts/a2ui-widgets-e2e.mjs   # Charts/Widgets mit Claude
 node scripts/screens-strip-check.mjs   # Screen-Übersicht ohne Modellaufruf
 node scripts/a2ui-codex-e2e.mjs   # A2UI mit Codex
+node scripts/queue-e2e.mjs codex; node scripts/steer-e2e.mjs codex   # Warteschlange, Zwischenruf
+node scripts/codex-resume-e2e.mjs   # Codex-Chat über Neustart fortsetzen
 ```
 
 ### App bauen und installieren (macOS, Apple Silicon)

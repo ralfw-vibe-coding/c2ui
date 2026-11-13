@@ -193,9 +193,8 @@ function Composer({
 
   const queue = useStore((s) => s.queues[chatId]) ?? EMPTY_QUEUE
   const steering = useStore((s) => s.steering[chatId]) ?? NO_STEERING
-  // Zwischenrufe in eine laufende Antwort kann bisher nur Claude.
-  const agent = useChat(chatId)?.agent
-  const canSteer = busy && agent === 'claude'
+  // Zwischenrufe in eine laufende Antwort: Claude und Codex (app-server).
+  const canSteer = busy
 
   async function submit(): Promise<void> {
     const t = text.trim()

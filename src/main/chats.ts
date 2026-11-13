@@ -154,7 +154,7 @@ export class ChatManager {
       forkFrom: {
         chatId: src.id,
         title: src.title,
-        ...(src.agent === 'claude' && src.sessionStarted ? { sessionId: src.sessionId } : {})
+        ...(src.sessionStarted ? { sessionId: src.sessionId } : {})
       },
       sessionId: randomUUID(),
       sessionStarted: false,
@@ -242,10 +242,10 @@ export class ChatManager {
   }
 
   /** Zwischenruf in den laufenden Turn; erscheint im Verlauf, sobald der Agent ihn aufnimmt. */
-  steer(id: string, text: string, attachments: Attachment[] = []): void {
+  steer(id: string, text: string, attachments: Attachment[] = []): void | Promise<void> {
     const s = this.sessions.get(id)
     if (!s?.busy || !s.steer) throw new Error('Zwischenruf ist gerade nicht möglich')
-    s.steer(text, attachments)
+    return s.steer(text, attachments)
   }
 
   interrupt(id: string): void {

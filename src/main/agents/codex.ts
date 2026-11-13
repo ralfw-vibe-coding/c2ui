@@ -1,51 +1,45 @@
-import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
 import { readdirSync, statSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
+import { A2UI_SERVER } from '@shared/a2ui'
 import { chatModel, type Attachment, type Block } from '@shared/types'
-import { codexConfigDefaultModel } from '../models'
 import { childEnv } from '../env'
 import { codexA2uiLaunch } from './a2ui'
 import { inlineImages, textWithAttachments } from './attachments'
+import { resolveCodexBinary } from './codexBinary'
+import { CodexRpc } from './codexRpc'
 import type { AgentCallbacks, AgentContext, AgentFactory, AgentSession } from './types'
 
 const MAX_TOOL_RESULT = 20_000
-const RESUME_UNSUPPORTED = /thread\/resume failed|paginated_threads is not supported/i
 
 /**
- * Codex-CLI-Adapter.
- * Pro Turn ein `codex exec --json`-Prozess; ab dem zweiten Turn `codex exec resume <threadId>`.
- * Codex startet schnell genug, ein dauerhafter Prozess lohnt sich hier nicht.
- * Der Prompt geht über stdin (`-`), damit Länge und Sonderzeichen keine Rolle spielen.
+ * Codex-Adapter über `codex app-server` (JSON-RPC, wie die Codex-App selbst).
+ * Pro Chat ein Server-Prozess, der mehrere Turns bedient; nach Leerlauf wird er beendet und beim
+ * nächsten Turn neu gestartet (Thread per `thread/resume`). Bringt Streaming, Zwischenrufe
+ * (`turn/steer`), echtes Abzweigen (`thread/fork`) und sauberes Abbrechen (`turn/interrupt`).
  */
 class CodexSession implements AgentSession {
-  private proc: ChildProcessWithoutNullStreams | null = null
-  private buf = ''
-  private stderrTail = ''
+  private rpc: CodexRpc | null = null
+  private starting: Promise<CodexRpc> | null = null
+  /** Im laufenden Server geladener Thread. */
+  private threadId: string | null = null
+  private turnId: string | null = null
+  private turnIdWaiters: { resolve: (id: string) => void; reject: (e: Error) => void }[] = []
   private _busy = false
   private interrupted = false
-  private turnEnded = false
   private turnStartedAt = 0
-  /** Alle Items eines Turns landen in einer Assistant-Nachricht. */
-  private msgId = ''
-  private seenTools = new Set<string>()
   private turnModel: string | undefined
-  /**
-   * Ergebnis aus turn.completed/turn.failed. Der Turn gilt erst als beendet, wenn der Prozess
-   * sich beendet hat: Codex räumt danach noch auf und hält so lange die Session. Ein sofort
-   * gestarteter `resume` würde sonst ohne Ausgabe abbrechen.
-   */
-  private pendingEnd: { isError: boolean; errorText?: string } | null = null
-  private closeTimer: NodeJS.Timeout | null = null
-  private lastNotice = ''
-  /** Text des laufenden Turns (für den Neustart ohne resume). */
-  private turnText = ''
-  /** Der laufende Prozess setzt eine bestehende Session fort. */
-  private resuming = false
-  /** Bilder des laufenden Turns (per --image an Codex). */
-  private turnImages: string[] = []
-  private retried = false
+  /** Blöcke eines Turns landen in einer Assistant-Nachricht – bis ein Zwischenruf sie teilt. */
+  private msgId = ''
+  private nextIndex = 0
+  /** Item-ID → Nachricht und Position des zugehörigen Blocks. */
+  private blockOf = new Map<string, { msgId: string; index: number }>()
+  /** Zwischenrufe, die an Codex gingen, aber noch nicht im Verlauf aufgetaucht sind. */
+  private steers = new Map<string, { text: string; attachments: Attachment[] }>()
+  private sawImage = false
+  private idleTimer: NodeJS.Timeout | null = null
+  private interruptTimer: NodeJS.Timeout | null = null
 
   constructor(
     private readonly ctx: AgentContext,
@@ -58,161 +52,269 @@ class CodexSession implements AgentSession {
 
   send(text: string, attachments: Attachment[] = []): void {
     if (this._busy) throw new Error('Chat ist beschäftigt')
-    this.turnImages = inlineImages(attachments).map((i) => i.path)
-    text = textWithAttachments(text, attachments)
+    this.clearIdle()
     this.setBusy(true)
     this.interrupted = false
-    this.turnEnded = false
     this.turnStartedAt = Date.now()
-    this.msgId = 'codex-' + randomUUID()
-    this.seenTools.clear()
-    this.pendingEnd = null
-    this.lastNotice = ''
-    // Abgezweigter Chat, erster Turn: Codex kann headless nicht forken – Verlauf als Kontext mitgeben.
-    const chat = this.ctx.chat()
-    if (!chat.sessionStarted && chat.forkFrom) {
-      const history = this.ctx.forkHistory?.() ?? ''
-      if (history) {
-        text =
-          `Dieses Gespräch zweigt von einem früheren Chat („${chat.forkFrom.title}“) ab.\n` +
-          `Dessen Verlauf (vom Client mitgeschrieben, ggf. gekürzt):\n<verlauf>\n${history}\n</verlauf>\n\n` +
-          `Neue Nachricht des Nutzers:\n${text}`
-      }
-    }
-    this.turnText = text
-    this.retried = false
+    this.turnId = null
+    this.newMessage()
+    this.blockOf.clear()
+    this.sawImage = false
+    this.startTurn(text, attachments).catch((err) => this.endTurn(true, errorText(err)))
+  }
+
+  async steer(text: string, attachments: Attachment[] = []): Promise<void> {
+    if (!this._busy || this.interrupted || !this.rpc) throw new Error('Zwischenruf nur während einer laufenden Antwort möglich')
+    // Kommt der Zwischenruf, bevor der Turn läuft (Server/Thread starten noch), auf den Turn warten.
+    const turnId = this.turnId ?? (await new Promise<string>((resolve, reject) => this.turnIdWaiters.push({ resolve, reject })))
+    const rpc = this.rpc
+    const threadId = this.threadId
+    if (!rpc || !threadId || !this._busy) throw new Error('Zwischenruf nur während einer laufenden Antwort möglich')
+    const id = randomUUID()
+    this.steers.set(id, { text, attachments })
     try {
-      const p = this.spawn(false)
-      p.stdin.end(text)
+      await rpc.request('turn/steer', { threadId, expectedTurnId: turnId, clientUserMessageId: id, input: userInput(text, attachments) })
     } catch (err) {
-      this.endTurn(true, String((err as Error).message ?? err))
+      this.steers.delete(id)
+      throw new Error(`Zwischenruf nicht möglich: ${errorText(err)}`)
     }
   }
 
   interrupt(): void {
-    if (!this._busy || !this.proc) return
+    if (!this._busy || this.interrupted) return
     this.interrupted = true
-    const p = this.proc
-    p.kill('SIGINT')
-    setTimeout(() => {
-      if (p.exitCode === null && p.signalCode === null) p.kill('SIGKILL')
-    }, 3000)
+    const rpc = this.rpc
+    if (rpc && this.threadId && this.turnId) {
+      rpc.request('turn/interrupt', { threadId: this.threadId, turnId: this.turnId }).catch(() => {})
+    }
+    // Falls Codex nicht reagiert: Server beenden, der Turn endet dann als abgebrochen.
+    this.interruptTimer = setTimeout(() => {
+      if (this._busy) this.rpc?.kill()
+    }, 5000)
   }
 
   dispose(): void {
-    if (this.proc) {
-      this.proc.removeAllListeners()
-      this.proc.kill('SIGTERM')
-      this.proc = null
-    }
+    this.clearIdle()
+    this.stopServer()
     if (this._busy) this.setBusy(false)
   }
 
   // ---------------------------------------------------------------------------
 
-  /** @param fresh true = neue Session starten, auch wenn der Chat schon eine hat. */
-  private spawn(fresh: boolean): ChildProcessWithoutNullStreams {
-    const chat = this.ctx.chat()
-    const cfg = this.ctx.settings().agents.codex
-    const common = [
-      '--json',
-      '--skip-git-repo-check',
-      '-c', `sandbox_mode="${chat.permissionMode}"`,
-      '-c', 'approval_policy="never"'
-    ]
-    const model = chatModel(chat, this.ctx.settings())
-    if (model) common.push('-m', model)
-    this.turnModel = model || codexConfigDefaultModel()
-    // A2UI: Skill über Schatten-Home, MCP-Server per -c (bei jedem Start, auch bei resume).
-    const a2ui = this.ctx.a2ui?.()
-    const launch = a2ui ? codexA2uiLaunch(a2ui) : { args: [], env: {} }
-    common.push(...launch.args)
-    // --image nimmt mehrere Werte; mit "=" wird nichts Nachfolgendes verschluckt.
-    for (const img of this.turnImages) common.push(`--image=${img}`)
-    this.resuming = chat.sessionStarted && !fresh
-    const args = this.resuming
-      ? ['exec', 'resume', ...common, chat.sessionId, '-']
-      : ['exec', ...common, '-']
-
-    const cmd = cfg.path || 'codex'
-    const p = spawn(cmd, args, { cwd: chat.cwd, env: { ...childEnv(this.ctx.path), ...launch.env } })
-    this.proc = p
-    this.buf = ''
-    this.stderrTail = ''
-
-    p.stdout.setEncoding('utf8')
-    p.stdout.on('data', (d: string) => this.onData(d))
-    p.stderr.setEncoding('utf8')
-    p.stderr.on('data', (d: string) => {
-      this.stderrTail = (this.stderrTail + d).slice(-4000)
+  private async startTurn(text: string, attachments: Attachment[]): Promise<void> {
+    const rpc = await this.server()
+    const { threadId, prefix } = await this.thread(rpc)
+    if (this.interrupted) return this.endTurn(true, 'Abgebrochen.')
+    const r = await rpc.request('turn/start', {
+      threadId,
+      clientUserMessageId: randomUUID(),
+      input: userInput(prefix ? prefix + text : text, attachments)
     })
-    p.on('error', (err) => {
-      if (this.proc === p) this.proc = null
-      const msg =
-        (err as NodeJS.ErrnoException).code === 'ENOENT'
-          ? `Codex CLI nicht gefunden („${cmd}“). Pfad in den Einstellungen prüfen.`
-          : `Codex CLI konnte nicht gestartet werden: ${err.message}`
-      this.endTurn(true, msg)
-    })
-    // 'close' statt 'exit': erst dann sind alle stdout-Daten gelesen.
-    p.on('close', (code, signal) => {
-      if (this.buf.trim()) this.onData('\n')
-      if (this.proc === p) this.proc = null
-      if (this.closeTimer) clearTimeout(this.closeTimer)
-      this.closeTimer = null
-      if (this.turnEnded) return
-      if (!this.pendingEnd && !this.interrupted && this.resuming && !this.retried && RESUME_UNSUPPORTED.test(this.stderrTail)) {
-        this.restartWithHistory()
-        return
-      }
-      if (this.pendingEnd) {
-        this.emitGeneratedImages()
-        this.endTurn(this.pendingEnd.isError, this.pendingEnd.errorText)
-      }
-      else if (this.interrupted) this.endTurn(true, 'Abgebrochen.')
-      else {
-        const detail = this.lastNotice || lastErrorLines(this.stderrTail) || `Exit-Code ${code ?? signal}`
-        this.endTurn(true, `Codex CLI wurde ohne Abschluss beendet: ${detail}`)
-      }
-    })
-    return p
+    this.setTurnId(r?.turn?.id)
+    if (this.interrupted && this.turnId) rpc.request('turn/interrupt', { threadId, turnId: this.turnId }).catch(() => {})
   }
 
-  /**
-   * Codex kann manche Threads nicht per `exec resume` fortsetzen („paginated_threads is not
-   * supported yet“ – Codex stellt ältere Threads im Hintergrund auf ein neues Format um).
-   * Dann startet ein neuer Thread, der den bisherigen Verlauf aus dem Transkript der App erhält.
-   */
-  private restartWithHistory(): void {
-    this.retried = true
-    this.cb.onEvent({
-      kind: 'notice',
-      id: randomUUID(),
-      text:
-        'Codex kann diese Session nicht fortsetzen (Codex hat sie in ein Format überführt, das „codex exec resume“ noch nicht unterstützt). ' +
-        'Der Chat geht in einer neuen Codex-Session weiter, die den bisherigen Verlauf als Kontext bekommt.'
-    })
-    const history = this.ctx.history?.() ?? ''
-    const prompt = history
-      ? `Dies ist die Fortsetzung eines früheren Gesprächs, dessen Codex-Session nicht fortgesetzt werden konnte.\n` +
-        `Bisheriger Verlauf (vom Client mitgeschrieben, ggf. gekürzt):\n<verlauf>\n${history}\n</verlauf>\n\n` +
-        `Aktuelle Nachricht des Nutzers:\n${this.turnText}`
-      : this.turnText
+  /** Laufenden Server liefern oder einen starten (inkl. initialize). */
+  private server(): Promise<CodexRpc> {
+    if (this.rpc?.alive) return Promise.resolve(this.rpc)
+    if (this.starting) return this.starting
+    this.starting = (async () => {
+      const cfg = this.ctx.settings().agents.codex
+      const bin = resolveCodexBinary(cfg.path, this.ctx.path)
+      // A2UI: Skill über Schatten-Home, MCP-Server per -c.
+      const a2ui = this.ctx.a2ui?.()
+      const launch = a2ui ? codexA2uiLaunch(a2ui) : { args: [], env: {} }
+      const chat = this.ctx.chat()
+      const rpc: CodexRpc = new CodexRpc(
+        bin.path,
+        ['app-server', ...launch.args],
+        { cwd: chat.cwd, env: { ...childEnv(this.ctx.path), ...launch.env } },
+        {
+          notification: (m, p) => {
+            if (this.rpc === rpc) this.onNotification(m, p)
+          },
+          request: async (m) => {
+            throw new Error(`C2UI beantwortet „${m}“ nicht`)
+          },
+          exit: (info) => this.onExit(rpc, info)
+        }
+      )
+      this.rpc = rpc
+      this.threadId = null
+      await rpc.request('initialize', {
+        clientInfo: { name: 'c2ui', title: 'C2UI', version: '1' },
+        capabilities: { experimentalApi: false, requestAttestation: false }
+      })
+      rpc.notify('initialized')
+      return rpc
+    })()
     try {
-      const p = this.spawn(true)
-      p.stdin.end(prompt)
-    } catch (err) {
-      this.endTurn(true, String((err as Error).message ?? err))
+      return this.starting
+    } finally {
+      this.starting.catch(() => {}).finally(() => (this.starting = null))
     }
   }
 
   /**
-   * Die Bildgenerierung von Codex taucht nicht als eigenes Ereignis auf; Codex legt die Bilder
-   * unter $CODEX_HOME/generated_images/<thread>/ ab. Neue Bilder dieses Turns werden angezeigt.
+   * Thread im Server bereitstellen: fortsetzen, abzweigen oder neu anlegen. Geht das Fortsetzen
+   * nicht, startet ein neuer Thread; dann liefert `prefix` den bisherigen Verlauf als Kontext.
+   */
+  private async thread(rpc: CodexRpc): Promise<{ threadId: string; prefix: string }> {
+    if (this.threadId) return { threadId: this.threadId, prefix: '' }
+    const chat = this.ctx.chat()
+    const model = chatModel(chat, this.ctx.settings())
+    const common = { cwd: chat.cwd, sandbox: chat.permissionMode, approvalPolicy: 'never', ...(model ? { model } : {}) }
+    let prefix = ''
+    let r: any
+    try {
+      if (chat.sessionStarted) r = await rpc.request('thread/resume', { threadId: chat.sessionId, ...common })
+      else if (chat.forkFrom?.sessionId) r = await rpc.request('thread/fork', { threadId: chat.forkFrom.sessionId, excludeTurns: true, ...common })
+    } catch (err) {
+      const forking = !chat.sessionStarted
+      this.notice(
+        forking
+          ? `Codex konnte den Ursprungs-Chat nicht abzweigen (${errorText(err)}). Der Verlauf geht als Text mit.`
+          : `Codex kann diese Session nicht fortsetzen (${errorText(err)}). Der Chat geht in einer neuen Codex-Session weiter, die den bisherigen Verlauf als Kontext bekommt.`
+      )
+      const history = (forking ? this.ctx.forkHistory?.() : this.ctx.history?.()) ?? ''
+      if (history) {
+        prefix = forking
+          ? `Dieses Gespräch zweigt von einem früheren Chat („${chat.forkFrom?.title}“) ab.\n` +
+            `Dessen Verlauf (vom Client mitgeschrieben, ggf. gekürzt):\n<verlauf>\n${history}\n</verlauf>\n\nNeue Nachricht des Nutzers:\n`
+          : `Dies ist die Fortsetzung eines früheren Gesprächs, dessen Codex-Session nicht fortgesetzt werden konnte.\n` +
+            `Bisheriger Verlauf (vom Client mitgeschrieben, ggf. gekürzt):\n<verlauf>\n${history}\n</verlauf>\n\nAktuelle Nachricht des Nutzers:\n`
+      }
+      r = undefined
+    }
+    if (!r) r = await rpc.request('thread/start', common)
+    const id: string = r.thread.id
+    this.threadId = id
+    this.turnModel = r.model || model || undefined
+    if (!chat.sessionStarted || chat.sessionId !== id) this.cb.onEvent({ kind: 'session', sessionId: id })
+    return { threadId: id, prefix }
+  }
+
+  private onNotification(method: string, p: any): void {
+    if (p?.threadId && this.threadId && p.threadId !== this.threadId) return
+    switch (method) {
+      case 'turn/started':
+        this.setTurnId(p.turn?.id)
+        return
+      case 'item/started':
+        this.onItem(p.item, false)
+        return
+      case 'item/completed':
+        this.onItem(p.item, true)
+        return
+      case 'item/agentMessage/delta': {
+        if (!this._busy) return
+        const b = this.block(p.itemId)
+        this.cb.onEvent({ kind: 'text-delta', msgId: b.msgId, index: b.index, text: String(p.delta ?? ''), blockType: 'text' })
+        return
+      }
+      case 'mcpServer/startupStatus/updated':
+        if (p.name === A2UI_SERVER && p.status === 'failed') this.notice(`A2UI-Server für Codex nicht gestartet: ${p.error ?? ''}`)
+        return
+      case 'turn/completed': {
+        if (p.turn?.id && this.turnId && p.turn.id !== this.turnId) return
+        const status = p.turn?.status
+        if (status === 'completed') this.endTurn(false)
+        else if (status === 'interrupted') this.endTurn(true, 'Abgebrochen.')
+        else this.endTurn(true, p.turn?.error?.message ?? 'Turn fehlgeschlagen')
+        return
+      }
+    }
+  }
+
+  private onItem(item: any, completed: boolean): void {
+    if (!item?.type || !this._busy) return
+    switch (item.type) {
+      case 'userMessage': {
+        // Ein Zwischenruf ist aufgenommen: im Verlauf an dieser Stelle zeigen; was danach kommt,
+        // beginnt eine neue Assistant-Nachricht unter ihm.
+        const s = item.clientId ? this.steers.get(item.clientId) : undefined
+        if (!s || completed) return
+        this.steers.delete(item.clientId)
+        this.cb.onEvent({ kind: 'user', id: randomUUID(), text: s.text, ts: Date.now(), steer: true, ...(s.attachments.length ? { attachments: s.attachments } : {}) })
+        this.newMessage()
+        return
+      }
+      case 'agentMessage': {
+        const b = this.block(item.id)
+        if (completed && item.text) this.cb.onEvent({ kind: 'assistant', msgId: b.msgId, index: b.index, blocks: [{ type: 'text', text: item.text }] })
+        return
+      }
+      case 'reasoning': {
+        const text = [...(item.summary ?? []), ...(item.content ?? [])].join('\n').trim()
+        if (completed && text) this.addBlock(item.id, { type: 'thinking', text })
+        return
+      }
+      case 'imageGeneration':
+        if (completed && item.savedPath) {
+          this.sawImage = true
+          this.addBlock(item.id, { type: 'image', path: item.savedPath })
+        }
+        return
+      case 'contextCompaction':
+        if (completed) this.notice('Codex hat den bisherigen Verlauf verdichtet, um Platz im Kontext zu schaffen.')
+        return
+      default: {
+        const tool = toolOf(item)
+        if (!tool) return
+        const id = `codex-${item.id}`
+        if (!this.blockOf.has(item.id)) this.addBlock(item.id, { type: 'tool_use', id, name: tool.name, input: tool.input })
+        if (completed) this.cb.onEvent({ kind: 'tool-result', toolUseId: id, content: truncate(tool.result), isError: tool.isError })
+      }
+    }
+  }
+
+  /** Position des Blocks zu einem Item (beim ersten Auftauchen vergeben). */
+  private block(itemId: string): { msgId: string; index: number } {
+    let b = this.blockOf.get(itemId)
+    if (!b) {
+      b = { msgId: this.msgId, index: this.nextIndex++ }
+      this.blockOf.set(itemId, b)
+    }
+    return b
+  }
+
+  private addBlock(itemId: string, block: Block): void {
+    const b = this.block(itemId)
+    this.cb.onEvent({ kind: 'assistant', msgId: b.msgId, index: b.index, blocks: [block] })
+  }
+
+  private newMessage(): void {
+    this.msgId = 'codex-' + randomUUID()
+    this.nextIndex = 0
+  }
+
+  private setTurnId(id: string | undefined): void {
+    if (!id || this.turnId === id) return
+    this.turnId = id
+    for (const w of this.turnIdWaiters.splice(0)) w.resolve(id)
+  }
+
+  private onExit(rpc: CodexRpc, info: { code: number | null; signal: string | null; error?: Error; stderr: string }): void {
+    if (this.rpc !== rpc) return
+    this.rpc = null
+    this.threadId = null
+    if (!this._busy) return
+    if (this.interrupted) return this.endTurn(true, 'Abgebrochen.')
+    const cmd = resolveCodexBinary(this.ctx.settings().agents.codex.path, this.ctx.path).path
+    const detail =
+      (info.error as NodeJS.ErrnoException | undefined)?.code === 'ENOENT'
+        ? `Codex CLI nicht gefunden („${cmd}“). Pfad in den Einstellungen prüfen.`
+        : `Codex app-server wurde beendet: ${lastErrorLines(info.stderr) || `Exit-Code ${info.code ?? info.signal}`}`
+    this.endTurn(true, detail)
+  }
+
+  /**
+   * Fallback für Bilder, die nicht als `imageGeneration`-Item gemeldet wurden: Codex legt sie unter
+   * $CODEX_HOME/generated_images/<thread>/ ab.
    */
   private emitGeneratedImages(): void {
-    const thread = this.ctx.chat().sessionId
-    const dir = join(process.env.CODEX_HOME || join(homedir(), '.codex'), 'generated_images', thread)
+    if (this.sawImage || !this.threadId) return
+    const dir = join(process.env.CODEX_HOME || join(homedir(), '.codex'), 'generated_images', this.threadId)
     let files: string[] = []
     try {
       files = readdirSync(dir)
@@ -223,97 +325,21 @@ class CodexSession implements AgentSession {
     } catch {
       return
     }
-    if (files.length) this.addBlocks(files.map((path) => ({ type: 'image' as const, path })))
+    for (const path of files) this.addBlock(`img-${path}`, { type: 'image', path })
   }
 
-  private onData(d: string): void {
-    this.buf += d
-    let i: number
-    while ((i = this.buf.indexOf('\n')) >= 0) {
-      const line = this.buf.slice(0, i).trim()
-      this.buf = this.buf.slice(i + 1)
-      if (!line.startsWith('{')) continue
-      try {
-        this.handle(JSON.parse(line))
-      } catch {
-        /* unvollständige oder fremde Zeile */
-      }
-    }
-  }
-
-  private handle(m: any): void {
-    switch (m.type) {
-      case 'thread.started':
-        if (m.thread_id) this.cb.onEvent({ kind: 'session', sessionId: m.thread_id })
-        return
-      case 'item.started':
-      case 'item.updated':
-      case 'item.completed':
-        this.handleItem(m.item, m.type === 'item.completed')
-        return
-      case 'turn.completed':
-        this.finishAfterExit({ isError: false })
-        return
-      case 'turn.failed':
-        this.finishAfterExit({ isError: true, errorText: m.error?.message ?? 'Turn fehlgeschlagen' })
-        return
-      case 'error':
-        // Codex meldet auch Warnungen so (z. B. Modellwechsel beim Fortsetzen). Ob es ein echter
-        // Fehler war, zeigt erst turn.failed bzw. ein Abbruch ohne turn.completed.
-        this.notice(String(m.message ?? 'Fehler'))
-        return
-    }
-  }
-
-  private handleItem(item: any, completed: boolean): void {
-    if (!item?.type) return
-    const id = `${this.msgId}-${item.id}`
-    switch (item.type) {
-      case 'agent_message':
-        if (completed && item.text) this.addBlocks([{ type: 'text', text: item.text }])
-        return
-      case 'reasoning':
-        if (completed && item.text) this.addBlocks([{ type: 'thinking', text: item.text }])
-        return
-      case 'error':
-        if (completed) this.notice(String(item.message ?? 'Fehler'), id)
-        return
-      default: {
-        const tool = toolOf(item)
-        if (!tool) return
-        if (!this.seenTools.has(id)) {
-          this.seenTools.add(id)
-          this.addBlocks([{ type: 'tool_use', id, name: tool.name, input: tool.input }])
-        }
-        if (completed) {
-          this.cb.onEvent({ kind: 'tool-result', toolUseId: id, content: truncate(tool.result), isError: tool.isError })
-        }
-      }
-    }
-  }
-
-  private notice(text: string, id: string = randomUUID()): void {
-    this.lastNotice = text
-    this.cb.onEvent({ kind: 'notice', id, text })
-  }
-
-  private finishAfterExit(end: { isError: boolean; errorText?: string }): void {
-    this.pendingEnd = end
-    const p = this.proc
-    if (!p) return this.endTurn(end.isError, end.errorText)
-    // Sicherheitsnetz, falls Codex nach dem Turn nicht von selbst endet.
-    this.closeTimer = setTimeout(() => {
-      if (p.exitCode === null && p.signalCode === null) p.kill('SIGTERM')
-    }, 5000)
-  }
-
-  private addBlocks(blocks: Block[]): void {
-    this.cb.onEvent({ kind: 'assistant', msgId: this.msgId, blocks })
+  private notice(text: string): void {
+    this.cb.onEvent({ kind: 'notice', id: randomUUID(), text })
   }
 
   private endTurn(isError: boolean, errorText?: string): void {
-    if (this.turnEnded || !this._busy) return
-    this.turnEnded = true
+    if (!this._busy) return
+    if (this.interruptTimer) clearTimeout(this.interruptTimer)
+    this.interruptTimer = null
+    if (!isError) this.emitGeneratedImages()
+    // Nicht mehr aufgenommene Zwischenrufe melden statt still zu verlieren.
+    for (const s of this.steers.values()) this.notice(`Zwischenruf nicht mehr angekommen: „${s.text}“`)
+    this.steers.clear()
     this.cb.onEvent({
       kind: 'turn-end',
       id: randomUUID(),
@@ -322,52 +348,95 @@ class CodexSession implements AgentSession {
       errorText,
       model: this.turnModel
     })
+    this.turnId = null
+    for (const w of this.turnIdWaiters.splice(0)) w.reject(new Error('Die Antwort ist schon zu Ende'))
     this.setBusy(false)
+    this.armIdle()
   }
 
   private setBusy(b: boolean): void {
     this._busy = b
     this.cb.onBusy(b)
   }
+
+  private stopServer(): void {
+    const rpc = this.rpc
+    this.rpc = null
+    this.threadId = null
+    rpc?.kill()
+  }
+
+  private armIdle(): void {
+    this.clearIdle()
+    const ms = Math.max(1, this.ctx.settings().idleTimeoutMinutes) * 60_000
+    this.idleTimer = setTimeout(() => {
+      if (!this._busy) this.stopServer()
+    }, ms)
+  }
+
+  private clearIdle(): void {
+    if (this.idleTimer) clearTimeout(this.idleTimer)
+    this.idleTimer = null
+  }
+}
+
+/** Eingabe für turn/start bzw. turn/steer: Text plus Bilder als lokale Dateien. */
+function userInput(text: string, attachments: Attachment[]): unknown[] {
+  return [
+    { type: 'text', text: textWithAttachments(text, attachments), text_elements: [] },
+    ...inlineImages(attachments).map((i) => ({ type: 'localImage', path: i.path }))
+  ]
 }
 
 /** Übersetzt Codex-Items, die Werkzeugen entsprechen, in einen Tool-Block. */
-function toolOf(item: any): { name: string; input: unknown; result: string; isError: boolean } | null {
+export function toolOf(item: any): { name: string; input: unknown; result: string; isError: boolean } | null {
   switch (item.type) {
-    case 'command_execution':
+    case 'commandExecution':
       return {
         name: 'Shell',
         input: { command: unwrapShell(item.command) },
-        result: item.aggregated_output ?? '',
-        isError: item.status === 'failed' || (typeof item.exit_code === 'number' && item.exit_code !== 0)
+        result: item.aggregatedOutput ?? '',
+        isError: item.status === 'failed' || item.status === 'declined' || (typeof item.exitCode === 'number' && item.exitCode !== 0)
       }
-    case 'file_change':
+    case 'fileChange':
       return {
         name: 'Dateien',
-        input: { description: (item.changes ?? []).map((c: any) => `${c.kind ?? ''} ${c.path ?? ''}`.trim()).join(', '), changes: item.changes },
+        input: {
+          description: (item.changes ?? []).map((c: any) => `${changeKind(c.kind)} ${c.path ?? ''}`.trim()).join(', '),
+          changes: item.changes
+        },
         result: item.status ?? '',
-        isError: item.status === 'failed'
+        isError: item.status === 'failed' || item.status === 'declined'
       }
-    case 'mcp_tool_call':
+    case 'mcpToolCall':
       // Benennung wie bei Claude (mcp__server__tool), damit z. B. A2UI-Aufrufe gleich erkannt werden.
       return {
         name: `mcp__${item.server ?? 'mcp'}__${item.tool ?? ''}`,
         input: item.arguments ?? {},
         result: item.error?.message ?? mcpResultText(item.result),
-        isError: item.status === 'failed' || !!item.error || !!item.result?.is_error || !!item.result?.isError
+        isError: item.status === 'failed' || !!item.error || !!item.result?.isError || !!item.result?.is_error
       }
-    case 'web_search':
-      return { name: 'WebSearch', input: { query: item.query }, result: '', isError: false }
-    case 'todo_list':
+    case 'dynamicToolCall':
       return {
-        name: 'Plan',
-        input: { description: `${(item.items ?? []).length} Schritte`, items: item.items },
-        result: (item.items ?? []).map((t: any) => `${t.completed ? '✓' : '○'} ${t.text}`).join('\n'),
-        isError: false
+        name: item.tool ?? 'Werkzeug',
+        input: item.arguments ?? {},
+        result: (item.contentItems ?? []).map((c: any) => (c?.type === 'inputText' || c?.text ? c.text : JSON.stringify(c))).join('\n'),
+        isError: item.success === false || item.status === 'failed'
       }
+    case 'webSearch':
+      return { name: 'WebSearch', input: { query: item.query }, result: '', isError: false }
+    case 'plan':
+      return { name: 'Plan', input: { description: 'Plan' }, result: item.text ?? '', isError: false }
+    case 'collabAgentToolCall':
+      return { name: 'Agent', input: { description: item.prompt ?? item.tool ?? '' }, result: '', isError: item.status === 'failed' }
     default:
       return null
   }
+}
+
+function changeKind(k: any): string {
+  const t = typeof k === 'string' ? k : k?.type
+  return ({ add: 'neu', delete: 'gelöscht', update: 'geändert' } as Record<string, string>)[t] ?? (t ?? '')
 }
 
 /** Text eines MCP-Ergebnisses ({content: [{type: 'text', text}]}) für die Anzeige. */
@@ -390,10 +459,14 @@ function truncate(s: string): string {
   return s.length > MAX_TOOL_RESULT ? s.slice(0, MAX_TOOL_RESULT) + '\n… (gekürzt)' : s
 }
 
+function errorText(err: unknown): string {
+  return String((err as Error)?.message ?? err)
+}
+
 function lastErrorLines(stderr: string): string {
   return stderr
     .split('\n')
-    .filter((l) => l.trim() && !/rmcp::transport/.test(l))
+    .filter((l) => l.trim() && !/rmcp::transport|WARN|INFO/.test(l))
     .slice(-3)
     .join('\n')
 }
