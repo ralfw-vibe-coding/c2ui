@@ -57,7 +57,37 @@ export function ChatPanel({ chatId, active }: { chatId: string; active: boolean 
   // ist der Inhalt evtl. inzwischen gewachsen – das ist kein Wegscrollen des Nutzers.
   const programmaticUntil = useRef(0)
 
+  // Welcher Turn steht oben im sichtbaren Bereich? (Das Board markiert ihn.)
+  const viewRaf = useRef(0)
+  const trackViewTurn = (): void => {
+    cancelAnimationFrame(viewRaf.current)
+    viewRaf.current = requestAnimationFrame(() => {
+      const root = scrollRef.current
+      if (!root) return
+      const rect = root.getBoundingClientRect()
+      // Maßgeblich ist das obere Drittel; ganz unten zählt alles Sichtbare (sonst wäre der letzte Turn nie dran).
+      const atEnd = root.scrollHeight - root.scrollTop - root.clientHeight < 30
+      const top = atEnd ? rect.bottom - 20 : rect.top + root.clientHeight / 3
+      let current: string | undefined
+      for (const u of root.querySelectorAll<HTMLElement>('.unit[data-user]')) {
+        const first = u.firstElementChild as HTMLElement | null
+        if (!first) continue
+        if (first.getBoundingClientRect().top <= top || !current) current = u.dataset.itemId
+        else break
+      }
+      if (current && useStore.getState().viewTurn[chatId] !== current) {
+        useStore.setState((s) => ({ viewTurn: { ...s.viewTurn, [chatId]: current } }))
+      }
+    })
+  }
+  useEffect(() => {
+    trackViewTurn()
+    return () => cancelAnimationFrame(viewRaf.current)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [transcript, chatId])
+
   function onScroll(): void {
+    trackViewTurn()
     const el = scrollRef.current
     if (!el) return
     const near = el.scrollHeight - el.scrollTop - el.clientHeight < NEAR_BOTTOM_PX

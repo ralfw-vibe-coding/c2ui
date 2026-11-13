@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from 'react'
-import { boardModel, sameAsTitle, type BoardModel } from '@shared/board'
+import { boardModel, sameAsTitle, type BoardModel, type BoardNode } from '@shared/board'
 import * as L from '@shared/layout'
 import { useStore } from '../store'
 import { AgentLogo } from './AgentLogo'
@@ -25,6 +25,11 @@ export function Board({ rootId, cellId }: { rootId: string; cellId: string }) {
   // Hervorgehoben wird der zuletzt markierte Chat – aber nur, solange er in einer Zelle offen ist.
   const active = useStore((s) => (s.activeChatId && L.findCellOfChat(s.layout.root, s.activeChatId) ? s.activeChatId : null))
   const model = useMemo(() => boardModel(chats, transcripts, rootId), [chats, transcripts, rootId])
+  // Markiert wird genau ein Knoten: der Turn, der im aktiven Chat gerade oben sichtbar ist (sonst sein erster).
+  const viewItem = useStore((s) => (active ? s.viewTurn[active] : undefined))
+  const activeNode = active
+    ? (model.nodes.find((n) => n.chatId === active && n.itemId === viewItem) ?? model.nodes.find((n) => n.chatId === active))
+    : undefined
   const laneIds = model.lanes.map((l) => l.chatId).join('|')
 
   // Alle Transkripte des Baums laden (auch die der Chats, die gerade in keiner Zelle offen sind).
@@ -53,7 +58,7 @@ export function Board({ rootId, cellId }: { rootId: string; cellId: string }) {
           <div className="muted center-hint">Noch keine Nachrichten.</div>
         ) : (
           <div className="board-canvas" style={{ height }}>
-            <Graph model={model} width={width} height={height} active={active} />
+            <Graph model={model} width={width} height={height} activeNode={activeNode} />
             {model.nodes.map((n) => {
               const lane = model.lanes[n.lane]
               const running = busy[n.chatId] && lastOfLane.get(n.chatId) === n.row
@@ -62,7 +67,7 @@ export function Board({ rootId, cellId }: { rootId: string; cellId: string }) {
               return (
                 <button
                   key={`${n.chatId}:${n.itemId}`}
-                  className={`board-row ${n.kind}${n.chatId === active ? ' active' : ''}`}
+                  className={`board-row ${n.kind}${n === activeNode ? ' active' : ''}`}
                   style={{ top: n.row * ROW, height: ROW, paddingLeft: width + 6 }}
                   onClick={() => void useStore.getState().openFromBoard(cellId, n.chatId, n.itemId)}
                 >
@@ -88,22 +93,11 @@ export function Board({ rootId, cellId }: { rootId: string; cellId: string }) {
   )
 }
 
-function Graph({ model, width, height, active }: { model: BoardModel; width: number; height: number; active: string | null }) {
-  const al = model.lanes.find((l) => l.chatId === active)
-  const activeEdge = model.edges.find((e) => e.childId === active)
+function Graph({ model, width, height, activeNode }: { model: BoardModel; width: number; height: number; activeNode?: BoardNode }) {
   return (
     <svg className="board-graph" width={width} height={height} aria-hidden>
-      {/* Aktiver Chat: gelbe Spur unter der farbigen (von der Abzweigstelle bis zum letzten Knoten) */}
-      {al?.first !== undefined && al.last !== undefined && (
-        <line
-          className="board-active-lane"
-          x1={x(al.lane)}
-          y1={activeEdge ? y(activeEdge.to.row) : y(al.first)}
-          x2={x(al.lane)}
-          y2={y(al.last)}
-        />
-      )}
-      {activeEdge && <path className="board-active-lane" d={edgePath(activeEdge)} fill="none" />}
+      {/* Wo man im aktiven Chat gerade ist: gelber Hof um den Knoten */}
+      {activeNode && <circle className="board-active-node" cx={x(activeNode.lane)} cy={y(activeNode.row)} r={10} />}
       {/* Spuren */}
       {model.lanes.map((l) =>
         l.first !== undefined && l.last !== undefined && l.last > l.first ? (

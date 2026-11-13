@@ -29,7 +29,7 @@ export function TranscriptView({ chatId, transcript, busy }: { chatId: string; t
     <>
       {units.map((u, i) => (
         // display: contents – nur für die Zuordnung (Abzweigpunkt), ohne das Layout zu ändern.
-        <div key={u.key} className="unit" data-item-id={itemIdOf(u)}>
+        <div key={u.key} className="unit" data-item-id={itemIdOf(u)} data-user={u.kind === 'item' && u.item.type === 'user' ? '1' : undefined}>
           {isFork && u.kind === 'item' && u.item.type === 'notice' && u.item.text.startsWith('Abgezweigt aus') ? (
             <ForkBreadcrumb chatId={chatId} />
           ) : (

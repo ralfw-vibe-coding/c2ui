@@ -26,7 +26,7 @@ const chats = [
   chat('anderes', 'Anderer Chat ohne Äste', 'claude', 100)
 ]
 const u = (id, m, text, extra = {}) => ({ type: 'user', id, ts: min(m), text, ...extra })
-const a = (id) => ({ type: 'assistant', id, blocks: [{ type: 'text', text: `Antwort ${id}` }] })
+const a = (id) => ({ type: 'assistant', id, blocks: [{ type: 'text', text: id.startsWith('ha') ? Array.from({ length: 14 }, (_, i) => `Antwort ${id}, Absatz ${i + 1}.`).join('\n\n') : `Antwort ${id}` }] })
 const tr = {
   haus: [u('h1', 1, 'Hilf mir bei der Gliederung meiner Hausarbeit über den Bundestag.'), a('ha1'),
     u('h2', 8, 'Welche Kapitel brauche ich mindestens?'), a('ha2'),
@@ -109,7 +109,7 @@ const activeRows = async () => page.locator('.board-row.active').allInnerTexts()
 log('Hervorgehoben:', (await activeRows()).map((t) => t.slice(0, 25)))
 check((await activeRows()).length === 1 && /Qualitativ/.test((await activeRows())[0]), 'aktiver Chat (Methode) hervorgehoben')
 check((await page.locator('.board-legend-item.active').innerText()).includes('Qualitativ'), 'Legende markiert den aktiven Chat')
-check((await page.locator('.board-active-lane').count()) >= 1, 'Spur des aktiven Chats gelb unterlegt')
+check((await page.locator('.board-active-node').count()) === 1, 'genau ein Knoten gelb markiert')
 // Klick ins Board (Board-Zelle markiert): Hervorhebung bleibt beim zuletzt aktiven Chat
 await page.locator('.board-legend').click()
 check((await activeRows()).length === 1 && /Qualitativ/.test((await activeRows())[0]), 'bleibt beim Klick ins Board')
@@ -118,12 +118,25 @@ await page.locator('.cell').nth(1).click()
 await page.locator('.chat-item', { hasText: 'Quellenlage' }).click()
 await page.waitForTimeout(300)
 log('Hervorgehoben nach Wechsel:', (await activeRows()).map((t) => t.slice(0, 25)))
-check((await activeRows()).length === 3 && (await activeRows()).some((t) => /deutschsprachige/.test(t)), 'Hervorhebung folgt dem Wechsel')
+check((await activeRows()).length === 1 && /Quellen|deutschsprachige|wichtigsten/.test((await activeRows())[0]), 'Hervorhebung folgt dem Wechsel (ein Knoten)')
+// Scrollen im Chat: Markierung wandert mit
+await page.locator('.cell').nth(1).click()
+await page.locator('.chat-item', { hasText: 'Hausarbeit' }).click()
+await page.waitForTimeout(300)
+const scrollTo = async (pos) => {
+  await page.evaluate((pos) => { const t = document.querySelectorAll('.cell')[1].querySelector('.transcript'); t.scrollTop = pos === 'top' ? 0 : t.scrollHeight }, pos)
+  await page.waitForTimeout(250)
+  return (await activeRows())[0] ?? ''
+}
+const atTop = await scrollTo('top')
+const atBottom = await scrollTo('bottom')
+log('Markierung oben/unten:', atTop.slice(0, 30), '|', atBottom.slice(0, 30))
+check(/Gliederung meiner Hausarbeit/.test(atTop) && /Kürze/.test(atBottom), 'Markierung folgt dem Scrollen im Chat (ganz unten: letzter Turn)')
 await page.screenshot({ path: join(out, '3-aktiv.png') })
 // Chat schließen (Zelle bleibt): keine Hervorhebung mehr
 await page.locator('.cell').nth(1).locator('.icon-btn[title^="Chat schließen"]').click()
 await page.waitForTimeout(200)
-check((await activeRows()).length === 0 && (await page.locator('.board-active-lane').count()) === 0, 'kein offener Chat → keine Hervorhebung')
+check((await activeRows()).length === 0 && (await page.locator('.board-active-node').count()) === 0, 'kein offener Chat → keine Hervorhebung')
 
 // Board übersteht Neuladen
 await page.waitForTimeout(800)

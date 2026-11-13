@@ -2391,10 +2391,8 @@ li > .fork-slot {
 }
 
 /* Board: aktiver Chat gelb hervorgehoben */
-.board-active-lane {
-  stroke: rgba(255, 200, 0, 0.55);
-  stroke-width: 10;
-  stroke-linecap: round;
+.board-active-node {
+  fill: rgba(255, 200, 0, 0.6);
 }
 .board-row.active {
   background: rgba(255, 214, 10, 0.16);

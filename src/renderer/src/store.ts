@@ -42,6 +42,8 @@ interface State {
   jump: JumpTarget | null
   /** Zuletzt markierter Chat (bleibt, wenn eine Zelle ohne Chat – z. B. ein Board – markiert wird). */
   activeChatId: string | null
+  /** Je Chat die Nutzernachricht, deren Turn gerade oben im sichtbaren Bereich steht (fürs Board). */
+  viewTurn: Record<string, string | undefined>
 }
 
 /** Ziel eines Sprungs: Markierung eines Nebenchats im Ursprung, sonst ein Transkript-Eintrag. */
@@ -196,6 +198,7 @@ export const useStore = create<State & Actions>((set, get) => {
     steering: {},
     jump: null,
     activeChatId: null,
+    viewTurn: {},
 
     async init() {
       // Eigene Komponenten zuerst – sie werden beim Anzeigen der Screens aufgelöst.
