@@ -11,14 +11,38 @@
 
 ## Ideen (gesammelt, Reihenfolge offen)
 
-- **Chat-Baum in der Seitenleiste:** Nebenchats (`forkFrom`) eingerückt unter ihrem Ursprung, zuklappbar.
-- **Abzweigungen im Verlauf:** Markierung an der zitierten Stelle („↳ 2 Nachfragen“), Klick öffnet den
-  Nebenchat; im Nebenchat Brotkrumen zurück zur Stelle.
 - **Benachrichtigungen,** wenn ein Chat im Hintergrund fertig ist oder hängt.
 - **Kontextfüllstand** je Chat (aus den Token-Angaben der CLIs); Verdichten machen die CLIs selbst.
 - **Screens anheften:** A2UI-Screen in eine eigene Zelle lösen, der Chat aktualisiert ihn weiter.
 - **Suche über alle Chats** (merken).
-- Später vielleicht: Ergebnis eines Nebenchats an den Ursprung zurückmelden (Zusammenfassung als Bezug-Chip).
+
+## Konzept „Diskurs“ (ausprobieren, erfühlen)
+
+Ein **Chat** ist ein Ast, ein lineares Gespräch. Verzweigt er sich (Nebenchats mit geerbtem Kontext) und fließen
+Ergebnisse wieder zurück, entsteht ein **Diskurs**. Vorbild Git: Diskurs = Repository, Chat = Branch, Turn = Commit,
+Nebenchat = Branch mit Abzweigpunkt, Zurückführen = Merge. Nutzen weit über Software hinaus (Hausarbeit, Präsentation,
+Konzept): man kann dem Diskurs folgen; als Export ein Entstehungsprotokoll (z. B. für die Dokumentation von KI-Einsatz).
+
+Schritte, jeweils erst ausprobieren, bevor der nächste kommt:
+
+1. **Baum in der Seitenleiste:** jeder Knoten ein Chat, voll aufklappbar wie ein Verzeichnisbaum (Navigation).
+   Dabei schon den **Abzweigpunkt** speichern (`forkFrom` + Turn), Grundlage für alles Weitere.
+2. **Abzweigungen im Verlauf:** Markierung an der Stelle („↳ 2 Nachfragen“), Klick öffnet den Nebenchat;
+   im Nebenchat Brotkrumen zurück zur Stelle.
+3. **Diskursboard** (Nachvollziehen), zunächst nur ansehen: Zeit läuft nach unten, jeder Chat eine Spur
+   (wie `git log --graph`), Turns als Knoten, Abzweige und Merges als Kanten, verworfene Äste ausgegraut.
+   Klick auf einen Knoten öffnet den Chat im Grid an dieser Stelle.
+4. **Semantischer Zoom:** weit = Abschnitte (Turns zwischen zwei Abzweig-/Merge-Punkten) als Kasten mit
+   Zusammenfassung; mittel = Turns mit Kurztitel; nah = Frage/Antwort, Screens als Miniaturen.
+   Kurztitel und Zusammenfassungen im Hintergrund durch ein kleines Modell (einfache Variante: erste Zeile der Frage).
+5. **Vom Board aus abzweigen**, auch an früheren Stellen (Codex: Verlauf dort abschneiden; Claude: prüfen).
+6. **Merge:** Ergebnis eines Asts zurück in einen anderen – Squash (Zusammenfassung des Diffs seit dem Abzweig,
+   Normalfall), voll (Turns wörtlich), Cherry-Pick (einzelne Stelle als Bezug-Chip, auch chatübergreifend),
+   Gegenrichtung (Ast holt sich den Fortschritt des Ursprungs). Der empfangende Chat löst Widersprüche selbst;
+   die Rückmeldung nennt den Abzweigpunkt.
+
+Offene Punkte: Der Arbeitsordner verzweigt sich nicht mit – für Programmierarbeit evtl. eigener Git-Worktree je Ast.
+Später denkbar: das Modell legt selbst Äste an (MCP-Werkzeug), sichtbare und ansprechbare „Subagenten“.
 
 ## A2UI (gesammelt, noch nicht eingeplant)
 
