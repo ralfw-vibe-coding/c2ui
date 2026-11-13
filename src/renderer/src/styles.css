@@ -2240,3 +2240,26 @@ fieldset.agent-settings {
 body.resizing-col .sidebar-resizer {
   background: color-mix(in srgb, var(--accent) 35%, transparent);
 }
+.fork-slot {
+  margin: 4px 0 2px;
+}
+li > .fork-slot {
+  margin: 2px 0 4px;
+}
+/* Sprung an eine Abzweigstelle: Zitat wie mit Textmarker, Knopf leuchtet mit */
+::highlight(c2-jump) {
+  background-color: rgba(255, 214, 10, 0.55);
+}
+.jump-flash {
+  animation: jump-flash 6.5s ease-out;
+}
+@keyframes jump-flash {
+  0%,
+  75% {
+    background: rgba(255, 214, 10, 0.55);
+    border-color: rgb(230, 180, 0);
+  }
+  100% {
+    background: var(--bg-elev);
+  }
+}

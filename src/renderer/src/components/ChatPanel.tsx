@@ -15,6 +15,7 @@ import { QuoteSelection, RefChips } from './QuoteRefs'
 import { composeMessage } from '@shared/quotes'
 import { EMPTY_QUEUE, shouldQueue } from '@shared/queue'
 import { QueueList } from './QueueList'
+import { findQuoteRange, highlightRange } from '../textRange'
 
 export function ChatPanel({ chatId, active }: { chatId: string; active: boolean }) {
   const transcript = useStore((s) => s.transcripts[chatId])
@@ -97,10 +98,16 @@ export function ChatPanel({ chatId, active }: { chatId: string; active: boolean 
       stickRef.current = false
       programmaticUntil.current = 0
       setAtBottom(false)
-      el.scrollIntoView({ block: 'center' })
-      el.classList.remove('a2ui-flash')
+      // Zitierte Stelle suchen: sie wird gelb markiert und in die Mitte gescrollt (sonst die Markierung).
+      const at = jump.forkChild ? useStore.getState().chats.find((c) => c.id === jump.forkChild)?.forkFrom?.at : undefined
+      const roots = at?.itemId ? [...(root?.querySelectorAll(`.unit[data-item-id="${CSS.escape(at.itemId)}"]`) ?? [])] : []
+      const range = at?.quote ? findQuoteRange(roots, at.quote) : null
+      const target = (range?.startContainer.parentElement as HTMLElement | null) ?? el
+      target.scrollIntoView({ block: 'center' })
+      if (range) highlightRange(range)
+      el.classList.remove('jump-flash')
       void el.offsetWidth
-      el.classList.add('a2ui-flash')
+      el.classList.add('jump-flash')
       useStore.getState().clearJump(jump.n)
     }
     raf = requestAnimationFrame(tryJump)

@@ -56,12 +56,17 @@ await page.locator('.chat-item', { hasText: 'Erkläre mir den Bundestag' }).clic
 await page.locator('.fork-markers').first().waitFor()
 const markers = await page.locator('.fork-markers').allInnerTexts()
 log('Markierungen:', markers.map((m) => m.replace(/\n/g, ' ')))
-check(markers.length === 2 && /2 Nachfragen/.test(markers[0]) && /Nachfrage/.test(markers[1]), 'zwei Stellen: 2 Nachfragen nach Antwort 1, eine nach Antwort 2')
-const afterA1 = await page.evaluate(() => {
-  const m = document.querySelector('.fork-markers')
-  return m?.parentElement?.getAttribute('data-item-id')
+check(markers.length === 2 && /2 Nachfragen/.test(markers[0]) && /Nachfrage/.test(markers[1]), 'zwei Stellen: 2 Nachfragen in Antwort 1, eine in Antwort 2')
+const placement = await page.evaluate(() => {
+  const prev = (id) => {
+    const slot = document.querySelector(`[data-fork-child="${id}"]`)?.closest('.fork-slot')
+    return slot ? slot.previousElementSibling?.textContent?.slice(0, 40) : null
+  }
+  return { f1: prev('f1'), f2: prev('f2'), f3: prev('f3') }
 })
-check(afterA1 === 'a1', 'erste Markierung steht bei Antwort 1')
+log('Platzierung:', JSON.stringify(placement))
+check(/^Die Fraktionen bilden/.test(placement.f1 ?? '') && placement.f1 === placement.f2, 'Ausschüsse/Fraktionen direkt hinter dem zitierten Absatz')
+check(/^Absatz 3:/.test(placement.f3 ?? ''), 'Bundesrat-Nachfrage mitten in Antwort 2, hinter „Absatz 3“')
 await page.screenshot({ path: join(out, '1-markierungen.png') })
 
 // Klick auf Nebenchat → öffnet rechts daneben
@@ -84,10 +89,13 @@ const pos = await page.evaluate(() => {
   const tr = pill?.closest('.transcript')
   if (!pill || !tr) return null
   const p = pill.getBoundingClientRect(), t = tr.getBoundingClientRect()
-  return { visible: p.top >= t.top && p.bottom <= t.bottom, atBottom: tr.scrollHeight - tr.scrollTop - tr.clientHeight < 60, flash: pill.classList.contains('a2ui-flash') }
+  const hl = CSS.highlights?.get('c2-jump')
+  const text = hl ? [...hl][0]?.toString() : null
+  return { visible: p.top >= t.top && p.bottom <= t.bottom, atBottom: tr.scrollHeight - tr.scrollTop - tr.clientHeight < 60, flash: pill.classList.contains('jump-flash'), text }
 })
 log('Zellen vorher/nachher:', cellsBefore, await page.locator('.cell').count(), '| Sprung:', JSON.stringify(pos))
-check(!!pos?.visible && !pos.atBottom && pos.flash, 'Ursprung geöffnet, an die Abzweigstelle gesprungen und markiert')
+check(!!pos?.visible && !pos.atBottom && pos.flash, 'Ursprung geöffnet, an die Abzweigstelle gesprungen, Knopf leuchtet')
+check(pos?.text === 'Die Fraktionen bilden Ausschüsse.', 'Zitat gelb markiert')
 const order = await page.evaluate(() => {
   const cells = [...document.querySelectorAll('.cell')]
   return { src: cells.findIndex((c) => c.querySelector('.fork-markers')), fork: cells.findIndex((c) => c.querySelector('.fork-crumbs')) }
