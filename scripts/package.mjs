@@ -30,7 +30,8 @@ if (git('status', '--porcelain')) log(`Achtung: nicht committete Änderungen –
 log('electron-vite build …')
 sh('npx', ['electron-vite', 'build'], { stdio: 'inherit' })
 log('electron-builder …')
-sh('npx', ['electron-builder', '--mac', '--dir'], { stdio: 'inherit' })
+// Electron aus node_modules nehmen: kein Download nötig (geht auch offline).
+sh('npx', ['electron-builder', '--mac', '--dir', '-c.electronDist=node_modules/electron/dist'], { stdio: 'inherit' })
 
 const app = join(root, 'dist', `mac-${ARCH}`, `${NAME}.app`)
 const info = { productName: NAME, version: pkg.version, build, commit, arch: ARCH }
