@@ -28,6 +28,8 @@ export interface BoardLane {
   lane: number
   title: string
   agent: Chat['agent']
+  /** Feste Farbe: Position im ganzen Baum (ändert sich nicht, wenn Äste eingeklappt werden). */
+  color: number
   /** Erste und letzte Zeile der Spur (fehlt, solange der Chat keine Nachricht hat). */
   first?: number
   last?: number
@@ -41,11 +43,25 @@ export interface BoardEdge {
   childId: string
 }
 
+/** Eingeklappter Ast: an der Abzweigstelle im Ursprung steht ein Chip zum Aufklappen. */
+export interface BoardCollapsed {
+  chatId: string
+  title: string
+  /** Spur und Zeile der Abzweigstelle im Ursprung (Zeile fehlt, wenn sie nicht bestimmbar ist). */
+  lane: number
+  row?: number
+  color: number
+  /** Verborgene Nachrichten bzw. Chats (Ast samt Unterästen). */
+  messages: number
+  chats: number
+}
+
 export interface BoardModel {
   rootId: string
   lanes: BoardLane[]
   nodes: BoardNode[]
   edges: BoardEdge[]
+  collapsed: BoardCollapsed[]
 }
 
 /** Wurzel des Baums, zu dem ein Chat gehört. */
@@ -87,7 +103,13 @@ export function messageLabel(text: string, max = 90): string {
   return s.length > max ? s.slice(0, max - 1) + '…' : s || '(ohne Text)'
 }
 
-export function boardModel(chats: Chat[], transcripts: Record<string, Transcript | undefined>, rootId: string): BoardModel {
+export function boardModel(
+  chats: Chat[],
+  transcripts: Record<string, Transcript | undefined>,
+  rootId: string,
+  /** Eingeklappte Äste: Chat-IDs, deren Spur samt Unterästen nicht gezeigt wird. */
+  hidden: ReadonlySet<string> = new Set()
+): BoardModel {
   const tree = chatTree(chats)
   const find = (ns: ChatNode[]): ChatNode | undefined => {
     for (const n of ns) {
@@ -98,27 +120,38 @@ export function boardModel(chats: Chat[], transcripts: Record<string, Transcript
     return undefined
   }
   const root = find(tree)
-  if (!root) return { rootId, lanes: [], nodes: [], edges: [] }
+  if (!root) return { rootId, lanes: [], nodes: [], edges: [], collapsed: [] }
 
   // Spuren in Baum-Reihenfolge (vorne zuerst): Ursprung links, Nebenchats rechts davon.
+  // Eingeklappte Äste (nie die Wurzel) bekommen keine Spur; ihr Teilbaum wird mitgezählt.
   const lanes: BoardLane[] = []
   const order: Chat[] = []
-  const walk = (n: ChatNode): void => {
-    lanes.push({ chatId: n.chat.id, lane: lanes.length, title: n.chat.title, agent: n.chat.agent })
+  const folded: { node: ChatNode; parent: Chat; color: number }[] = []
+  const colorOf = new Map<string, number>()
+  const number = (n: ChatNode): void => {
+    colorOf.set(n.chat.id, colorOf.size)
+    n.children.forEach(number)
+  }
+  number(root)
+  const walk = (n: ChatNode, parent?: Chat): void => {
+    if (parent && hidden.has(n.chat.id)) {
+      folded.push({ node: n, parent, color: colorOf.get(n.chat.id)! })
+      return
+    }
+    lanes.push({ chatId: n.chat.id, lane: lanes.length, title: n.chat.title, agent: n.chat.agent, color: colorOf.get(n.chat.id)! })
     order.push(n.chat)
-    n.children.forEach(walk)
+    n.children.forEach((k) => walk(k, n.chat))
   }
   walk(root)
   const laneOf = new Map(lanes.map((l) => [l.chatId, l]))
 
+  const userItems = (chatId: string) => (transcripts[chatId] ?? []).filter((it): it is Extract<Transcript[number], { type: 'user' }> => it.type === 'user')
   const nodes: BoardNode[] = []
   for (const c of order) {
-    let k = 0
-    for (const it of transcripts[c.id] ?? []) {
-      if (it.type !== 'user') continue
+    userItems(c.id).forEach((it, k) => {
       const kind: BoardNode['kind'] = it.steer ? 'steer' : it.text.startsWith(A2UI_ACTION_PREFIX) ? 'action' : 'message'
-      nodes.push({ chatId: c.id, itemId: it.id, k: k++, ts: it.ts, lane: laneOf.get(c.id)!.lane, row: 0, label: messageLabel(it.text), text: messageLabel(it.text, 600), kind })
-    }
+      nodes.push({ chatId: c.id, itemId: it.id, k, ts: it.ts, lane: laneOf.get(c.id)!.lane, row: 0, label: messageLabel(it.text), text: messageLabel(it.text, 600), kind })
+    })
   }
   nodes.sort((a, b) => a.ts - b.ts || a.lane - b.lane || a.k - b.k)
   nodes.forEach((n, i) => (n.row = i))
@@ -133,21 +166,43 @@ export function boardModel(chats: Chat[], transcripts: Record<string, Transcript
     }
   }
 
+  /** Abzweigstelle im Ursprung: Nachricht Nr. `turn`; ohne Angabe die letzte vor dem ersten Knoten des Asts. */
+  const forkNode = (c: Chat, parentId: string, firstTs: number | undefined): BoardNode | undefined => {
+    const pNodes = byChat.get(parentId) ?? []
+    const turn = c.forkFrom?.at?.turn
+    if (turn !== undefined && turn > 0) return pNodes.find((n) => n.k === turn - 1)
+    return firstTs === undefined ? undefined : [...pNodes].reverse().find((n) => n.ts <= firstTs)
+  }
+
   const edges: BoardEdge[] = []
   for (const c of order) {
     const p = c.forkFrom?.chatId
     const parent = p ? laneOf.get(p) : undefined
     const childFirst = byChat.get(c.id)?.[0]
     if (!parent || !childFirst) continue
-    const pNodes = byChat.get(parent.chatId) ?? []
-    // Abzweigstelle: Nachricht Nr. `turn` des Ursprungs; ohne Angabe die letzte vor dem Nebenchat.
-    const turn = c.forkFrom?.at?.turn
-    const at =
-      turn !== undefined && turn > 0
-        ? pNodes.find((n) => n.k === turn - 1)
-        : [...pNodes].reverse().find((n) => n.row < childFirst.row)
+    const at = forkNode(c, parent.chatId, childFirst.ts)
     if (!at) continue
     edges.push({ from: { lane: parent.lane, row: at.row }, to: { lane: laneOf.get(c.id)!.lane, row: childFirst.row }, childId: c.id })
   }
-  return { rootId, lanes, nodes, edges }
+
+  const collapsed: BoardCollapsed[] = []
+  for (const { node, parent, color } of folded) {
+    const all: Chat[] = []
+    const collect = (n: ChatNode): void => {
+      all.push(n.chat)
+      n.children.forEach(collect)
+    }
+    collect(node)
+    const at = forkNode(node.chat, parent.id, userItems(node.chat.id)[0]?.ts)
+    collapsed.push({
+      chatId: node.chat.id,
+      title: node.chat.title,
+      lane: laneOf.get(parent.id)!.lane,
+      row: at?.row,
+      color,
+      messages: all.reduce((n, c) => n + userItems(c.id).length, 0),
+      chats: all.length
+    })
+  }
+  return { rootId, lanes, nodes, edges, collapsed }
 }

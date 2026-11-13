@@ -56,6 +56,18 @@ describe('Diskursboard', () => {
     expect(m.lanes.find((l) => l.chatId === 'e')?.first).toBeUndefined()
   })
 
+  it('klappt Äste samt Unterästen ein und vermerkt sie an der Abzweigstelle', () => {
+    const m = boardModel(chats, transcripts, 'r', new Set(['a']))
+    expect(m.lanes.map((l) => l.chatId)).toEqual(['r', 'c'])
+    expect(m.nodes.map((n) => n.itemId)).toEqual(['r1', 'r2', 'r3', 'c1'])
+    expect(m.edges).toEqual([{ from: { lane: 0, row: 2 }, to: { lane: 1, row: 3 }, childId: 'c' }])
+    expect(m.collapsed).toEqual([{ chatId: 'a', title: 'T-a', lane: 0, row: 1, color: 1, messages: 3, chats: 2 }])
+    // Farben bleiben fest: c behält die Farbe 3, obwohl es jetzt Spur 1 ist
+    expect(m.lanes.map((l) => l.color)).toEqual([0, 3])
+    // Die Wurzel lässt sich nicht einklappen
+    expect(boardModel(chats, transcripts, 'r', new Set(['r'])).lanes.length).toBe(4)
+  })
+
   it('findet die Wurzel eines Chats', () => {
     expect(rootOf(chats, 'b')).toBe('r')
     expect(rootOf(chats, 'r')).toBe('r')
