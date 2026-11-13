@@ -65,6 +65,19 @@ check(lanes.length === 4 && lanes[0].includes('Hausarbeit'), 'vier Spuren, Wurze
 check((await page.locator('.board-graph path').count()) === 3, 'drei Abzweig-Kanten')
 check((await page.locator('.cell-title', { hasText: 'Diskurs: Hausarbeit' }).count()) === 1, 'Zellentitel nennt den Diskurs')
 await page.screenshot({ path: join(out, '1-board.png') })
+// Hover über einer Zeile darf den Graphen nicht verdecken
+await page.locator('.board-row', { hasText: 'Welche Quellen' }).hover()
+const onTop = await page.evaluate(() => {
+  const row = [...document.querySelectorAll('.board-row')].find((r) => r.textContent.includes('Welche Quellen'))
+  const c = document.querySelector('.board-graph circle')
+  const rr = row.getBoundingClientRect()
+  const g = document.querySelector('.board-graph').getBoundingClientRect()
+  // Punkt auf der Spur der Wurzel in dieser Zeile: was liegt oben?
+  const el = document.elementsFromPoint(g.left + 14, rr.top + rr.height / 2)
+  return el.findIndex((e) => e.closest('svg')) < el.findIndex((e) => e.classList.contains('board-row'))
+})
+check(onTop, 'Graph liegt beim Hover über dem Zeilenhintergrund')
+await page.screenshot({ path: join(out, '1b-hover.png') })
 
 // Knoten anklicken → Chat öffnet daneben an der Stelle
 await page.locator('.board-row', { hasText: 'Nur deutschsprachige' }).click()

@@ -2307,6 +2307,8 @@ li > .fork-slot {
   position: absolute;
   left: 0;
   top: 0;
+  /* über den Zeilen, damit deren Hover-Hintergrund den Graphen nicht verdeckt; Klicks gehen durch */
+  z-index: 1;
   pointer-events: none;
 }
 .board-node {
