@@ -153,6 +153,7 @@ function writeHidden(rootId: string, ids: Set<string>): void {
 }
 
 function Graph({ model, width, height, activeNode }: { model: BoardModel; width: number; height: number; activeNode?: BoardNode }) {
+  const folded = new Set(model.collapsed.map((f) => f.row).filter((r) => r !== undefined))
   return (
     <svg className="board-graph" width={width} height={height} aria-hidden>
       {/* Wo man im aktiven Chat gerade ist: gelber Hof um den Knoten */}
@@ -175,21 +176,23 @@ function Graph({ model, width, height, activeNode }: { model: BoardModel; width:
           />
         )
       })}
-      {/* Eingeklappte Äste: kurzer gestrichelter Ansatz an der Abzweigstelle */}
-      {model.collapsed.map((f) =>
-        f.row === undefined ? null : (
-          <g key={f.chatId}>
-            <path d={`M ${x(f.lane)} ${y(f.row)} q 3 9 13 11`} fill="none" stroke={colorOf(f.color)} strokeWidth={2.5} />
-            <circle cx={x(f.lane) + 14} cy={y(f.row) + 11} r={4.5} fill={colorOf(f.color)} />
-          </g>
-        )
-      )}
       {/* Knoten */}
       {model.nodes.map((n) =>
         n.kind === 'action' ? (
           <rect key={n.itemId} x={x(n.lane) - 4} y={y(n.row) - 4} width={8} height={8} rx={2} className="board-node" stroke={colorOf(model.lanes[n.lane].color)} />
         ) : (
-          <circle key={n.itemId} cx={x(n.lane)} cy={y(n.row)} r={n.kind === 'steer' ? 3.5 : 5} className="board-node" stroke={colorOf(model.lanes[n.lane].color)} />
+          <g key={n.itemId}>
+            <circle cx={x(n.lane)} cy={y(n.row)} r={folded.has(n.row) ? 6.5 : n.kind === 'steer' ? 3.5 : 5} className="board-node" stroke={colorOf(model.lanes[n.lane].color)} />
+            {/* Hier ist etwas eingeklappt: „+“ im Knoten */}
+            {folded.has(n.row) && (
+              <path
+                d={`M ${x(n.lane) - 3} ${y(n.row)} h 6 M ${x(n.lane)} ${y(n.row) - 3} v 6`}
+                stroke={colorOf(model.lanes[n.lane].color)}
+                strokeWidth={1.8}
+                strokeLinecap="round"
+              />
+            )}
+          </g>
         )
       )}
     </svg>

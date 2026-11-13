@@ -71,6 +71,7 @@ const folded = (await page.locator('.board-folded').textContent()).replace(/\s+/
 log('Chip:', folded)
 check(/Quellenlage · 5/.test(folded), 'Chip an der Abzweigstelle nennt Ast und Anzahl')
 check((await page.locator('.board-row', { hasText: 'Welche Kapitel' }).locator('.board-folded').count()) === 1, 'Chip steht an der Abzweigstelle')
+check((await page.locator('.board-graph g path').count()) === 1, '„+“ im Knoten der Abzweigstelle')
 await page.screenshot({ path: join(out, '1c-eingeklappt.png') })
 await page.reload()
 await page.locator('.board-row').first().waitFor()
