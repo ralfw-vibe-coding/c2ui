@@ -40,6 +40,8 @@ interface State {
   steering: Record<string, Q.QueuedMessage[] | undefined>
   /** Ausstehender Sprung an eine Stelle im Verlauf (z. B. Abzweigpunkt eines Nebenchats). */
   jump: JumpTarget | null
+  /** Zuletzt markierter Chat (bleibt, wenn eine Zelle ohne Chat – z. B. ein Board – markiert wird). */
+  activeChatId: string | null
 }
 
 /** Ziel eines Sprungs: Markierung eines Nebenchats im Ursprung, sonst ein Transkript-Eintrag. */
@@ -193,6 +195,7 @@ export const useStore = create<State & Actions>((set, get) => {
     queues: {},
     steering: {},
     jump: null,
+    activeChatId: null,
 
     async init() {
       // Eigene Komponenten zuerst – sie werden beim Anzeigen der Screens aufgelöst.
@@ -213,6 +216,7 @@ export const useStore = create<State & Actions>((set, get) => {
         settings: s.settings,
         chats: s.chats,
         layout,
+        activeChatId: L.findLeaf(layout.root, layout.selectedCellId)?.chatId ?? null,
         busy: Object.fromEntries(s.busy.map((id) => [id, true]))
       })
       window.api.onAgentEvent(onAgentEvent)
@@ -237,7 +241,8 @@ export const useStore = create<State & Actions>((set, get) => {
     },
 
     setLayout(l, persist = true) {
-      set({ layout: l })
+      const active = L.findLeaf(l.root, l.selectedCellId)?.chatId
+      set(active ? { layout: l, activeChatId: active } : { layout: l })
       if (persist) void window.api.setLayout(l)
     },
 

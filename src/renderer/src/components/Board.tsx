@@ -21,6 +21,7 @@ export function Board({ rootId, cellId }: { rootId: string; cellId: string }) {
   const chats = useStore((s) => s.chats)
   const transcripts = useStore((s) => s.transcripts)
   const busy = useStore((s) => s.busy)
+  const active = useStore((s) => s.activeChatId)
   const model = useMemo(() => boardModel(chats, transcripts, rootId), [chats, transcripts, rootId])
   const laneIds = model.lanes.map((l) => l.chatId).join('|')
 
@@ -39,7 +40,7 @@ export function Board({ rootId, cellId }: { rootId: string; cellId: string }) {
     <div className="board">
       <div className="board-legend">
         {model.lanes.map((l) => (
-          <span key={l.chatId} className="board-legend-item" title={l.title}>
+          <span key={l.chatId} className={`board-legend-item${l.chatId === active ? ' active' : ''}`} title={l.title}>
             <span className="board-swatch" style={{ background: colorOf(l.lane) }} />
             {l.title}
           </span>
@@ -50,7 +51,7 @@ export function Board({ rootId, cellId }: { rootId: string; cellId: string }) {
           <div className="muted center-hint">Noch keine Nachrichten.</div>
         ) : (
           <div className="board-canvas" style={{ height }}>
-            <Graph model={model} width={width} height={height} />
+            <Graph model={model} width={width} height={height} active={active} />
             {model.nodes.map((n) => {
               const lane = model.lanes[n.lane]
               const running = busy[n.chatId] && lastOfLane.get(n.chatId) === n.row
@@ -59,7 +60,7 @@ export function Board({ rootId, cellId }: { rootId: string; cellId: string }) {
               return (
                 <button
                   key={`${n.chatId}:${n.itemId}`}
-                  className={`board-row ${n.kind}`}
+                  className={`board-row ${n.kind}${n.chatId === active ? ' active' : ''}`}
                   style={{ top: n.row * ROW, height: ROW, paddingLeft: width + 6 }}
                   onClick={() => void useStore.getState().openFromBoard(cellId, n.chatId, n.itemId)}
                 >
@@ -85,9 +86,22 @@ export function Board({ rootId, cellId }: { rootId: string; cellId: string }) {
   )
 }
 
-function Graph({ model, width, height }: { model: BoardModel; width: number; height: number }) {
+function Graph({ model, width, height, active }: { model: BoardModel; width: number; height: number; active: string | null }) {
+  const al = model.lanes.find((l) => l.chatId === active)
+  const activeEdge = model.edges.find((e) => e.childId === active)
   return (
     <svg className="board-graph" width={width} height={height} aria-hidden>
+      {/* Aktiver Chat: gelbe Spur unter der farbigen (von der Abzweigstelle bis zum letzten Knoten) */}
+      {al?.first !== undefined && al.last !== undefined && (
+        <line
+          className="board-active-lane"
+          x1={x(al.lane)}
+          y1={activeEdge ? y(activeEdge.to.row) : y(al.first)}
+          x2={x(al.lane)}
+          y2={y(al.last)}
+        />
+      )}
+      {activeEdge && <path className="board-active-lane" d={edgePath(activeEdge)} fill="none" />}
       {/* Spuren */}
       {model.lanes.map((l) =>
         l.first !== undefined && l.last !== undefined && l.last > l.first ? (
@@ -96,15 +110,10 @@ function Graph({ model, width, height }: { model: BoardModel; width: number; hei
       )}
       {/* Abzweigungen: aus dem Ursprung in die Spur des Nebenchats, dann senkrecht bis zum ersten Knoten */}
       {model.edges.map((e) => {
-        const x1 = x(e.from.lane)
-        const y1 = y(e.from.row)
-        const x2 = x(e.to.lane)
-        const yb = Math.min(y(e.to.row), y1 + ROW * 0.9)
-        const mid = (y1 + yb) / 2
         return (
           <path
             key={e.childId}
-            d={`M ${x1} ${y1} C ${x1} ${mid}, ${x2} ${mid}, ${x2} ${yb} L ${x2} ${y(e.to.row)}`}
+            d={edgePath(e)}
             fill="none"
             stroke={colorOf(e.to.lane)}
             strokeWidth={2}
@@ -121,6 +130,16 @@ function Graph({ model, width, height }: { model: BoardModel; width: number; hei
       )}
     </svg>
   )
+}
+
+/** Abzweigung: aus dem Ursprung in die Spur des Nebenchats, dann senkrecht bis zu seinem ersten Knoten. */
+function edgePath(e: BoardModel['edges'][number]): string {
+  const x1 = x(e.from.lane)
+  const y1 = y(e.from.row)
+  const x2 = x(e.to.lane)
+  const yb = Math.min(y(e.to.row), y1 + ROW * 0.9)
+  const mid = (y1 + yb) / 2
+  return `M ${x1} ${y1} C ${x1} ${mid}, ${x2} ${mid}, ${x2} ${yb} L ${x2} ${y(e.to.row)}`
 }
 
 function time(ts: number): string {

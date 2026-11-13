@@ -105,6 +105,21 @@ await page.locator('.board-row', { hasText: 'Qualitativ' }).click()
 await page.waitForTimeout(600)
 check((await page.locator('.cell').count()) === cells, 'gleiche Zielzelle wiederverwendet')
 check((await page.locator('.chat-panel').first().getAttribute('data-chat-id')) === 'methode', 'jetzt Methode geöffnet')
+const activeRows = async () => page.locator('.board-row.active').allInnerTexts()
+log('Hervorgehoben:', (await activeRows()).map((t) => t.slice(0, 25)))
+check((await activeRows()).length === 1 && /Qualitativ/.test((await activeRows())[0]), 'aktiver Chat (Methode) hervorgehoben')
+check((await page.locator('.board-legend-item.active').innerText()).includes('Qualitativ'), 'Legende markiert den aktiven Chat')
+check((await page.locator('.board-active-lane').count()) >= 1, 'Spur des aktiven Chats gelb unterlegt')
+// Klick ins Board (Board-Zelle markiert): Hervorhebung bleibt beim zuletzt aktiven Chat
+await page.locator('.board-legend').click()
+check((await activeRows()).length === 1 && /Qualitativ/.test((await activeRows())[0]), 'bleibt beim Klick ins Board')
+// Chat wechseln: über die Seitenleiste Quellenlage in die Chat-Zelle legen
+await page.locator('.cell').nth(1).click()
+await page.locator('.chat-item', { hasText: 'Quellenlage' }).click()
+await page.waitForTimeout(300)
+log('Hervorgehoben nach Wechsel:', (await activeRows()).map((t) => t.slice(0, 25)))
+check((await activeRows()).length === 3 && (await activeRows()).some((t) => /deutschsprachige/.test(t)), 'Hervorhebung folgt dem Wechsel')
+await page.screenshot({ path: join(out, '3-aktiv.png') })
 
 // Board übersteht Neuladen
 await page.waitForTimeout(800)

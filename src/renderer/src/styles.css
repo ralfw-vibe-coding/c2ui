@@ -2389,3 +2389,23 @@ li > .fork-slot {
   padding: 0;
   border-color: transparent !important;
 }
+
+/* Board: aktiver Chat gelb hervorgehoben */
+.board-active-lane {
+  stroke: rgba(255, 200, 0, 0.55);
+  stroke-width: 10;
+  stroke-linecap: round;
+}
+.board-row.active {
+  background: rgba(255, 214, 10, 0.16);
+}
+.board-row.active:hover {
+  background: rgba(255, 214, 10, 0.26);
+}
+.board-legend-item.active {
+  color: var(--text);
+  font-weight: 600;
+  background: rgba(255, 214, 10, 0.35);
+  border-radius: 8px;
+  padding: 0 6px 0 4px;
+}
