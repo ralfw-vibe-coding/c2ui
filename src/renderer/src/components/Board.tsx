@@ -34,6 +34,26 @@ export function Board({ rootId, cellId }: { rootId: string; cellId: string }) {
     const d = useStore.getState().dragging
     return d?.chatId && d.fromCell === cellId ? { chatId: d.chatId, itemId: d.itemId } : null
   }
+  /** Ziehen über einer Zeile bzw. einem Knoten der Spur `chatId` (Zeile und Abzweigknoten teilen sich das). */
+  const laneDragOver = (chatId: string, e: React.DragEvent): void => {
+    const src = mergeSource()
+    if (!src || src.chatId === chatId) {
+      if (dropLane) setDropLane(null)
+      return
+    }
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    if (dropLane !== chatId) setDropLane(chatId)
+  }
+  const laneDrop = (chatId: string, e: React.DragEvent): void => {
+    const src = mergeSource()
+    if (!src || src.chatId === chatId) return
+    e.preventDefault()
+    e.stopPropagation()
+    useStore.getState().setDragging(null)
+    setDropLane(null)
+    useStore.getState().openMerge({ sourceId: src.chatId, sourceItemId: src.itemId, targetId: chatId })
+  }
   const update = (fn: (next: Set<string>) => void): void => {
     const next = new Set(hidden)
     fn(next)
@@ -84,6 +104,8 @@ export function Board({ rootId, cellId }: { rootId: string; cellId: string }) {
               width={width}
               height={height}
               activeNode={activeNode}
+              onLaneDragOver={laneDragOver}
+              onLaneDrop={laneDrop}
               onFork={(f) => update((h) => (f.open.length ? f.open.forEach((id) => h.add(id)) : f.closed.forEach((id) => h.delete(id))))}
             />
             {model.nodes.map((n) => {
@@ -107,24 +129,8 @@ export function Board({ rootId, cellId }: { rootId: string; cellId: string }) {
                     useStore.getState().setDragging({ chatId: n.chatId, itemId: n.itemId, fromCell: cellId })
                   }}
                   onDragEnd={() => useStore.getState().setDragging(null)}
-                  onDragOver={(e) => {
-                    const src = mergeSource()
-                    if (!src || src.chatId === n.chatId) {
-                      if (dropLane) setDropLane(null)
-                      return
-                    }
-                    e.preventDefault()
-                    e.dataTransfer.dropEffect = 'move'
-                    if (dropLane !== n.chatId) setDropLane(n.chatId)
-                  }}
-                  onDrop={(e) => {
-                    const src = mergeSource()
-                    if (!src || src.chatId === n.chatId) return
-                    e.preventDefault()
-                    useStore.getState().setDragging(null)
-                    setDropLane(null)
-                    useStore.getState().openMerge({ sourceId: src.chatId, sourceItemId: src.itemId, targetId: n.chatId })
-                  }}
+                  onDragOver={(e) => laneDragOver(n.chatId, e)}
+                  onDrop={(e) => laneDrop(n.chatId, e)}
                   onClick={(e) => open(e.metaKey)}
                   onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), open(e.metaKey))}
                 >
@@ -206,13 +212,17 @@ function Graph({
   width,
   height,
   activeNode,
-  onFork
+  onFork,
+  onLaneDragOver,
+  onLaneDrop
 }: {
   model: BoardModel
   width: number
   height: number
   activeNode?: BoardNode
   onFork: (f: Fork) => void
+  onLaneDragOver: (chatId: string, e: React.DragEvent) => void
+  onLaneDrop: (chatId: string, e: React.DragEvent) => void
 }) {
   const forks = forksOf(model)
   return (
@@ -262,6 +272,8 @@ function Graph({
                 e.stopPropagation()
                 onFork(fork)
               }}
+              onDragOver={(e) => onLaneDragOver(n.chatId, e)}
+              onDrop={(e) => onLaneDrop(n.chatId, e)}
             >
               <circle cx={cx} cy={cy} r={9} className="board-fork-hit" />
               <circle cx={cx} cy={cy} r={6.5} className="board-node" stroke={color} />
