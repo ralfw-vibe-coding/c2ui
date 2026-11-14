@@ -67,6 +67,8 @@ export interface Chat {
   sessionId: string
   /** true, sobald die CLI-Session existiert (dann wird fortgesetzt statt neu begonnen). */
   sessionStarted: boolean
+  /** Zuletzt gemeldeter Kontextfüllstand. */
+  context?: ContextUse
   createdAt: number
   updatedAt: number
 }
@@ -206,6 +208,15 @@ export type MergeMark =
   | { role: 'prepare'; targetId: string; targetTitle: string }
   | { role: 'adopt'; fromChatId: string; fromItemId?: string; fromTitle: string }
 
+/** Wie voll das Kontextfenster zuletzt war (nach dem letzten Turn). */
+export interface ContextUse {
+  /** Tokens im Kontext der letzten Anfrage (inkl. zwischengespeicherter). */
+  used: number
+  /** Größe des Kontextfensters, soweit die CLI sie nennt. */
+  max?: number
+  at: number
+}
+
 /** Stelle im Ursprungs-Chat, an der abgezweigt wurde. */
 export interface ForkPoint {
   /** Anzahl der Turns (Nutzernachrichten) im Ursprung zum Zeitpunkt des Abzweigens. */
@@ -237,6 +248,7 @@ export type AgentEvent =
   | { kind: 'error'; id: string; text: string }
   | { kind: 'notice'; id: string; text: string }
   | { kind: 'session'; sessionId: string }
+  | { kind: 'context'; used: number; max?: number }
 
 // ---------- Layout ----------
 

@@ -95,6 +95,7 @@ export function applyEvent(t: Transcript, e: AgentEvent): Transcript {
       return [...t, { type: 'notice', id: e.id, text: e.text }]
 
     case 'session':
+    case 'context':
       return t
   }
 }

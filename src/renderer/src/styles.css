@@ -2610,3 +2610,38 @@ li > .fork-slot {
   flex: none;
   white-space: nowrap;
 }
+
+/* Kontextfüllstand im Zellenkopf */
+.context-gauge {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.context-bar {
+  width: 34px;
+  height: 5px;
+  border-radius: 3px;
+  background: var(--border);
+  overflow: hidden;
+}
+.context-fill {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  background: var(--text-muted);
+}
+.context-gauge.high .context-fill {
+  background: var(--accent);
+}
+.context-gauge.full .context-fill,
+.context-gauge.full .context-text {
+  background: none;
+  color: var(--danger);
+}
+.context-gauge.full .context-fill {
+  background: var(--danger);
+}

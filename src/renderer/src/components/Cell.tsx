@@ -5,6 +5,7 @@ import { displayDir } from '@shared/paths'
 import { BOARD_MIME, CHAT_MIME, useChat, useStore } from '../store'
 import { AgentLogo } from './AgentLogo'
 import { ChatModelSelect } from './ChatModelSelect'
+import { ContextGauge } from './ContextGauge'
 import { Board } from './Board'
 import { ChatPanel } from './ChatPanel'
 import { EditableTitle } from './EditableTitle'
@@ -77,6 +78,7 @@ export function Cell({ cellId, chatId, board }: { cellId: string; chatId: string
           </span>
         )}
         {chat && <ChatModelSelect chat={chat} />}
+        {chat && <ContextGauge chat={chat} />}
         <div className="cell-spacer" />
         <div className="cell-actions">
           {chat && (

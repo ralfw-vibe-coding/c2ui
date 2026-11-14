@@ -397,6 +397,13 @@ export class ChatManager {
       }
       return
     }
+    if (e.kind === 'context') {
+      if (chat) {
+        this.chats.set(id, { ...chat, context: { used: e.used, ...(e.max ? { max: e.max } : {}), at: Date.now() } })
+        this.saveChats()
+      }
+      return
+    }
     const t = applyEvent(this.transcript(id), e)
     this.transcripts.set(id, t)
     // Während des Streamings selten, am Turn-Ende sofort speichern.

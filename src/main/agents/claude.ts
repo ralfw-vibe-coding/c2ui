@@ -27,6 +27,9 @@ class ClaudeSession implements AgentSession {
   private curIndex = 0
   /** Modell laut letzter Assistant-Nachricht (exakte ID von der API). */
   private lastModel: string | undefined
+  /** Kontextfüllstand der letzten Anfrage und Fenstergröße des Modells (aus der CLI). */
+  private lastContext: number | undefined
+  private contextMax: number | undefined
   /**
    * Nach stdin geschriebene Nachrichten, deren Echo (`--replay-user-messages`) noch aussteht – in
    * Reihenfolge. Das Echo zeigt, wann die CLI eine Nachricht tatsächlich aufnimmt: Zwischenrufe
@@ -217,6 +220,8 @@ class ClaudeSession implements AgentSession {
       case 'assistant': {
         const msgId: string = m.message?.id ?? randomUUID()
         if (typeof m.message?.model === 'string') this.lastModel = m.message.model
+        const used = contextTokens(m.message?.usage)
+        if (used) this.lastContext = used
         const blocks = (m.message?.content ?? []).map(toBlock).filter(Boolean) as Block[]
         if (blocks.length === 0) return
         const index = msgId === this.curMsgId ? this.curIndex : undefined
@@ -254,6 +259,11 @@ class ClaudeSession implements AgentSession {
           this.endTurn({ isError: true, errorText: 'Abgebrochen.' })
           return
         }
+        const used = contextTokens(m.usage)
+        if (used) this.lastContext = used
+        const win = m.modelUsage?.[this.lastModel ?? '']?.contextWindow ?? Object.values(m.modelUsage ?? {}).map((u: any) => u?.contextWindow).find((w: any) => typeof w === 'number')
+        if (typeof win === 'number' && win > 0) this.contextMax = win
+        if (this.lastContext) this.cb.onEvent({ kind: 'context', used: this.lastContext, max: this.contextMax })
         const isError = !!m.is_error || (m.subtype && m.subtype !== 'success')
         // Zwischenruf kam zu spät für diesen Turn: die CLI beginnt gleich von selbst einen weiteren.
         const continues = !isError && this.replays.some((r) => r.kind === 'steer')
@@ -332,6 +342,17 @@ function toBlock(c: any): Block | null {
     default:
       return null
   }
+}
+
+/**
+ * Tokens im Kontext der Anfrage: frische, neu zwischengespeicherte und gelesene Eingabe plus Ausgabe –
+ * zusammen das, was beim nächsten Turn wieder mitgeschickt wird.
+ */
+function contextTokens(u: any): number | undefined {
+  if (!u || typeof u !== 'object') return undefined
+  const n = (x: unknown): number => (typeof x === 'number' && x > 0 ? x : 0)
+  const sum = n(u.input_tokens) + n(u.cache_creation_input_tokens) + n(u.cache_read_input_tokens) + n(u.output_tokens)
+  return sum > 0 ? sum : undefined
 }
 
 function stringifyToolResult(content: unknown): string {

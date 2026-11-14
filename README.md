@@ -48,6 +48,9 @@ Desktop-App (Electron), in der mehrere Chats mit der Claude CLI oder der Codex C
   nehmen (Titel = erste Nachricht) – der Chat setzt sie fort (`claude --resume`), auch eine aus Claude Code. Der
   Verlauf ist dem Agenten bekannt, erscheint im Fenster aber nicht. Dieselbe Session nicht gleichzeitig anderswo
   weiterführen; C2UI selbst lässt sie kein zweites Mal übernehmen.
+- **Kontextfüllstand:** schmaler Balken im Zellenkopf mit dem Stand nach dem letzten Turn (Tooltip: Tokens von
+  Fenstergröße). Claude liefert die Zahlen im Ergebnis des Turns, Codex über `thread/tokenUsage/updated`.
+  Verdichtet wird nicht von C2UI – das machen die CLIs selbst.
 - Seitenleiste: Breite am rechten Rand ziehen (Doppelklick = Standard), pro Rechner gemerkt.
 - Ein Chat ist höchstens in einer Zelle offen. Layout, Chatliste und Transkripte überstehen einen Neustart.
 - Wird ein arbeitender Chat geschlossen, fragt die App nach: im Hintergrund weiterlaufen lassen, abbrechen oder nicht schließen.

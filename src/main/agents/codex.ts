@@ -212,6 +212,11 @@ class CodexSession implements AgentSession {
         this.cb.onEvent({ kind: 'text-delta', msgId: b.msgId, index: b.index, text: String(p.delta ?? ''), blockType: 'text' })
         return
       }
+      case 'thread/tokenUsage/updated': {
+        const { used, max } = codexContext(p)
+        if (used) this.cb.onEvent({ kind: 'context', used, ...(max ? { max } : {}) })
+        return
+      }
       case 'mcpServer/startupStatus/updated':
         if (p.name === A2UI_SERVER && p.status === 'failed') this.notice(`A2UI-Server für Codex nicht gestartet: ${p.error ?? ''}`)
         return
@@ -472,3 +477,23 @@ function lastErrorLines(stderr: string): string {
 }
 
 export const createCodexSession: AgentFactory = (ctx, cb) => new CodexSession(ctx, cb)
+
+const num = (x: unknown): number | undefined => (typeof x === 'number' && x > 0 ? x : undefined)
+
+/**
+ * Kontextfüllstand aus `thread/tokenUsage/updated`:
+ * `tokenUsage.last` ist die letzte Anfrage (das, was im Fenster steht), `total` die Summe des Threads.
+ * Beispiel: `{ tokenUsage: { last: { totalTokens, inputTokens, outputTokens … }, modelContextWindow } }`.
+ */
+export function codexContext(p: any): { used?: number; max?: number } {
+  const tu = p?.tokenUsage ?? p?.usage ?? p
+  const u = tu?.last ?? tu?.lastTokenUsage ?? tu
+  const max = num(tu?.modelContextWindow) ?? num(p?.modelContextWindow)
+  if (!u || typeof u !== 'object') return { max }
+  const n = (x: unknown): number => num(x) ?? 0
+  const used =
+    num(u.totalTokens) ??
+    num(u.total_tokens) ??
+    (n(u.inputTokens ?? u.input_tokens) + n(u.outputTokens ?? u.output_tokens) + n(u.reasoningOutputTokens ?? u.reasoning_output_tokens) || undefined)
+  return { used, max }
+}
