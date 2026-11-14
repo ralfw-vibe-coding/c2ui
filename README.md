@@ -57,11 +57,12 @@ Desktop-App (Electron), in der mehrere Chats mit der Claude CLI oder der Codex C
 - **Suche über alle Chats** (⌘F): durchsucht Titel und Verläufe, auch von Chats, die nicht offen sind. Treffer
   zeigen Rolle (Symbol) und Ausschnitt; Klick öffnet den Chat an der Stelle und markiert dort nur die Suchwörter, ⌘-Klick in einer neuen Zelle, Ziehen legt ihn
   in eine beliebige Zelle.
-- **Notizen am Rand (wie Kommentare in Word):** Stelle im Verlauf markieren → „Notiz“ im Overlay. Am rechten Rand
-  steht auf Höhe der Stelle ein Zettel-Symbol, die Stelle selbst ist gelb unterlegt; Klick auf das Symbol klappt die
-  Notiz auf (lesen, ändern mit ⌘↩, löschen), Klick daneben klappt sie wieder ein. Die Seitenleiste zeigt je Chat die
-  Zahl der Notizen, das Diskursboard markiert Knoten mit Notizen. Notizen liegen neben dem Verlauf (`comments/<chatId>`)
-  und gehen nie an die CLI.
+- **Notizen zu Stellen im Verlauf (wie Kommentare in Word):** Stelle markieren → „Notiz“ im Overlay. Die Stelle ist
+  gelb unterlegt, die Marke steht im Text am Ende der betroffenen Zeile (kein Seitenrand, verdeckt nichts); Klick
+  darauf klappt die Notiz auf (lesen, ändern mit ⌘↩, löschen), „x“ oder Escape klappt sie wieder ein. Das Feld legt
+  sich immer in den sichtbaren Teil der Zelle, auch wenn die Stelle ganz unten steht. Die Seitenleiste zeigt je Chat
+  die Zahl der Notizen, das Diskursboard markiert Knoten mit Notizen – eine Notiz zu einer Antwort erscheint am Knoten
+  ihrer Frage. Notizen liegen neben dem Verlauf (`comments/<chatId>`) und gehen nie an die CLI.
 - Seitenleiste: Breite am rechten Rand ziehen (Doppelklick = Standard), pro Rechner gemerkt.
 - Ein Chat ist höchstens in einer Zelle offen. Layout, Chatliste und Transkripte überstehen einen Neustart.
 - Wird ein arbeitender Chat geschlossen, fragt die App nach: im Hintergrund weiterlaufen lassen, abbrechen oder nicht schließen.

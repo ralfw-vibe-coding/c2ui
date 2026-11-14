@@ -1,22 +1,25 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { ChatComment } from '@shared/types'
 import { findQuoteRange } from '../textRange'
 import { useStore } from '../store'
 import { Icon } from './Icon'
 
 /**
- * Notizen am Rand („wie in Word“): eigene Ebene neben dem Verlauf, die CLI sieht sie nicht.
- * Am Rand steht zunächst nur ein Zettel-Symbol auf Höhe der Stelle; ein Klick klappt die Notiz auf –
- * dann lässt sie sich lesen, ändern und löschen wie beim Anlegen.
+ * Notizen zu Stellen im Verlauf („wie in Word“): eigene Ebene über dem Verlauf, die CLI sieht sie nicht.
+ * Die Marke steht direkt hinter der markierten Stelle im Text; ein Klick darauf klappt die Notiz auf –
+ * dann lässt sie sich lesen, ändern und löschen wie beim Anlegen. Das Feld wird so gelegt, dass es
+ * sichtbar bleibt, egal ob die Stelle oben oder unten in der Zelle steht.
  */
 
 const CARD = 250
-const GAP = 6
-/** Geschätzte Höhe eines eingeklappten Symbols (für das Auseinanderrücken). */
-const ICON_H = 24
+const PIN = 18
+/** Abstand zweier Marken an derselben Stelle. */
+const PIN_GAP = 20
 
-interface Placed {
+interface Pin {
   comment: ChatComment
+  /** Lage in der Ebene (= Innenfläche des Verlaufs). */
+  left: number
   top: number
   /** Die markierte Stelle wurde im Text wiedergefunden. */
   found: boolean
@@ -26,7 +29,7 @@ export function CommentLayer({ chatId, innerRef }: { chatId: string; innerRef: R
   const comments = useStore((s) => s.comments[chatId])
   const transcript = useStore((s) => s.transcripts[chatId])
   const editing = useStore((s) => s.editingComment)
-  const [placed, setPlaced] = useState<Placed[]>([])
+  const [pins, setPins] = useState<Pin[]>([])
   const [open, setOpen] = useState<string | null>(null)
   const layerRef = useRef<HTMLDivElement>(null)
 
@@ -37,53 +40,84 @@ export function CommentLayer({ chatId, innerRef }: { chatId: string; innerRef: R
     if (editing && comments?.some((c) => c.id === editing)) setOpen(editing)
   }, [editing, comments])
 
-  // Klick außerhalb klappt wieder ein (eine Notiz im Schreiben bleibt offen).
+  // Klick daneben und Escape klappen wieder ein (eine Notiz im Schreiben bleibt offen).
   useEffect(() => {
     if (!open) return
+    const zu = (): void => {
+      if (useStore.getState().editingComment !== open) setOpen(null)
+    }
     const onDown = (e: MouseEvent): void => {
-      if (layerRef.current?.contains(e.target as Node)) return
-      if (useStore.getState().editingComment === open) return
-      setOpen(null)
+      if (!layerRef.current?.contains(e.target as Node)) zu()
+    }
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') zu()
     }
     document.addEventListener('mousedown', onDown)
-    return () => document.removeEventListener('mousedown', onDown)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onDown)
+      document.removeEventListener('keydown', onKey)
+    }
   }, [open])
 
-  // Lage bestimmen: Höhe der markierten Stelle im Text, dann Überlappungen auflösen.
-  useLayoutEffect(() => {
+  // Lage bestimmen: hinter das Ende der markierten Stelle, umgerechnet in Koordinaten der Ebene.
+  const measure = useCallback((): void => {
     const inner = innerRef.current
     if (!inner || !comments?.length) {
-      setPlaced([])
+      setPins([])
       return
     }
-    const measure = (): void => {
-      const base = inner.getBoundingClientRect().top
-      const list: Placed[] = []
-      for (const c of comments) {
-        const unit = inner.querySelector<HTMLElement>(`.unit[data-item-id="${CSS.escape(c.itemId)}"]`)
-        if (!unit) continue
-        const range = c.quote ? findQuoteRange([unit], c.quote) : null
-        const box = range?.getBoundingClientRect() ?? unit.getBoundingClientRect()
-        list.push({ comment: c, top: (box.height ? box.top : unit.getBoundingClientRect().top) - base, found: !c.quote || !!range })
-      }
-      list.sort((a, b) => a.top - b.top)
-      let last = -Infinity
-      for (const p of list) {
-        p.top = Math.max(p.top, last)
-        last = p.top + ICON_H + GAP
-      }
-      setPlaced(list)
+    const base = inner.getBoundingClientRect()
+    const list: Pin[] = []
+    for (const c of comments) {
+      const unit = inner.querySelector<HTMLElement>(`.unit[data-item-id="${CSS.escape(c.itemId)}"]`)
+      if (!unit) continue
+      const range = c.quote ? findQuoteRange([unit], c.quote) : null
+      // Bei mehrzeiligen Stellen zählt die letzte Zeile der Stelle.
+      const rects = range ? [...range.getClientRects()].filter((r) => r.width || r.height) : []
+      const box = rects.length ? rects[rects.length - 1] : unit.getBoundingClientRect()
+      list.push({
+        comment: c,
+        left: lineEnd(range, box, unit) - base.left + 4,
+        top: box.top - base.top + box.height / 2 - PIN / 2,
+        found: !c.quote || !!range
+      })
+    }
+    list.sort((a, b) => a.top - b.top || a.left - b.left)
+    // Marken an derselben Stelle nebeneinander statt übereinander.
+    for (let i = 1; i < list.length; i++) {
+      const p = list[i]
+      const q = list[i - 1]
+      if (Math.abs(p.top - q.top) < PIN && p.left < q.left + PIN_GAP) p.left = q.left + PIN_GAP
+    }
+    const max = Math.max(0, base.width - PIN - 2)
+    for (const p of list) p.left = Math.min(Math.max(0, p.left), max)
+    setPins(list)
+  }, [comments, innerRef])
+
+  // Nachmessen, wenn sich am Verlauf etwas tut: Markdown, Bilder und Screens kommen verzögert,
+  // und die Breite der Zelle ändert sich jederzeit.
+  useLayoutEffect(() => {
+    const inner = innerRef.current
+    if (!inner) return
+    let frame = 0
+    const bald = (): void => {
+      cancelAnimationFrame(frame)
+      frame = requestAnimationFrame(measure)
     }
     measure()
-    // Bilder, Screens und Markdown kommen verzögert: noch einmal nachmessen und bei Größenänderung.
-    const t = setTimeout(measure, 400)
-    const ro = new ResizeObserver(measure)
+    const ro = new ResizeObserver(bald)
     ro.observe(inner)
+    const mo = new MutationObserver(bald)
+    mo.observe(inner, { childList: true, subtree: true, characterData: true })
+    const t = setTimeout(measure, 500)
     return () => {
+      cancelAnimationFrame(frame)
       clearTimeout(t)
       ro.disconnect()
+      mo.disconnect()
     }
-  }, [comments, transcript, innerRef])
+  }, [measure, transcript, innerRef])
 
   // Markierte Stellen im Text dauerhaft unterlegen.
   useEffect(() => {
@@ -99,44 +133,54 @@ export function CommentLayer({ chatId, innerRef }: { chatId: string; innerRef: R
       })
     )
     return () => setCommentRanges(chatId, [])
-  }, [chatId, comments, transcript, innerRef, placed.length])
+  }, [chatId, comments, transcript, innerRef, pins.length])
 
   if (!comments?.length) return null
   return (
     <div className="comment-layer" ref={layerRef}>
-      {placed.map((p) =>
-        open === p.comment.id ? (
-          <CommentCard key={p.comment.id} chatId={chatId} placed={p} editing={editing === p.comment.id} onClose={() => setOpen(null)} />
-        ) : (
+      {pins.map((p) => (
+        <span key={p.comment.id}>
           <button
-            key={p.comment.id}
-            className={`comment-dot${p.found ? '' : ' lost'}`}
-            style={{ top: p.top }}
-            title={p.comment.text}
-            onClick={() => setOpen(p.comment.id)}
+            className={`comment-pin${p.found ? '' : ' lost'}${open === p.comment.id ? ' on' : ''}`}
+            style={{ left: p.left, top: p.top }}
+            title={p.comment.text || 'Notiz'}
+            onClick={() => setOpen(open === p.comment.id ? null : p.comment.id)}
           >
-            <Icon name="note" size={13} />
+            <Icon name="note" size={11} />
           </button>
-        )
-      )}
+          {open === p.comment.id && (
+            <CommentCard
+              chatId={chatId}
+              pin={p}
+              innerRef={innerRef}
+              editing={editing === p.comment.id}
+              onClose={() => setOpen(null)}
+            />
+          )}
+        </span>
+      ))}
     </div>
   )
 }
 
 function CommentCard({
   chatId,
-  placed,
+  pin,
+  innerRef,
   editing,
   onClose
 }: {
   chatId: string
-  placed: Placed
+  pin: Pin
+  innerRef: React.RefObject<HTMLDivElement | null>
   editing: boolean
   onClose: () => void
 }) {
-  const c = placed.comment
+  const c = pin.comment
   const [text, setText] = useState(c.text)
+  const [box, setBox] = useState<{ left: number; top: number; width: number } | null>(null)
   const area = useRef<HTMLTextAreaElement>(null)
+  const card = useRef<HTMLDivElement>(null)
   const st = useStore.getState()
 
   useEffect(() => setText(c.text), [c.text, editing])
@@ -146,6 +190,38 @@ function CommentCard({
       area.current?.select()
     }
   }, [editing])
+
+  // Das Feld liegt bei der Marke – aber immer im sichtbaren Teil der Zelle: unter der Stelle,
+  // und wenn dort kein Platz ist, darüber.
+  useLayoutEffect(() => {
+    const inner = innerRef.current
+    const el = card.current
+    if (!inner || !el) return
+    const place = (): void => {
+      const scroller = inner.closest<HTMLElement>('.transcript')
+      const base = inner.getBoundingClientRect()
+      const width = Math.min(CARD, Math.max(140, base.width - 8))
+      // Sichtbarer Bereich, in Koordinaten der Ebene.
+      const view = scroller?.getBoundingClientRect()
+      const top0 = view ? view.top - base.top + 4 : 0
+      const top1 = view ? view.bottom - base.top - 4 : base.height
+      const h = el.offsetHeight
+      let top = pin.top + PIN + 4
+      if (top + h > top1) top = pin.top - h - 4
+      top = Math.min(Math.max(top, top0), Math.max(top0, top1 - h))
+      const left = Math.min(Math.max(pin.left - 6, 0), Math.max(0, base.width - width))
+      setBox({ left, top, width })
+    }
+    place()
+    const scroller = inner.closest<HTMLElement>('.transcript')
+    scroller?.addEventListener('scroll', place)
+    const ro = new ResizeObserver(place)
+    ro.observe(el)
+    return () => {
+      scroller?.removeEventListener('scroll', place)
+      ro.disconnect()
+    }
+  }, [pin.left, pin.top, innerRef, editing, text])
 
   const save = (): void => void st.updateComment(chatId, c.id, text)
   const cancel = (): void => {
@@ -159,10 +235,15 @@ function CommentCard({
 
   return (
     <div
-      className={`comment-note${editing ? ' editing' : ''}${placed.found ? '' : ' lost'}`}
-      style={{ top: placed.top, width: CARD }}
-      title={placed.found ? undefined : 'Die markierte Stelle wurde nicht gefunden – die Notiz steht beim Eintrag.'}
+      ref={card}
+      className={`comment-note${editing ? ' editing' : ''}${pin.found ? '' : ' lost'}`}
+      // Vor dem Messen unsichtbar, aber nicht „visibility: hidden“ – sonst lässt sich das Feld nicht ansteuern.
+      style={box ? { left: box.left, top: box.top, width: box.width } : { left: pin.left, top: pin.top, width: CARD, opacity: 0 }}
+      title={pin.found ? undefined : 'Die markierte Stelle wurde nicht gefunden – die Notiz steht beim Eintrag.'}
     >
+      <button className="icon-btn comment-close" title="Schließen (Esc)" onClick={onClose}>
+        <Icon name="close" size={12} />
+      </button>
       {c.quote && <div className="comment-quote">{c.quote}</div>}
       {editing ? (
         <>
@@ -173,7 +254,7 @@ function CommentCard({
             placeholder="Notiz …"
             onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Escape') (e.preventDefault(), cancel())
+              if (e.key === 'Escape') (e.preventDefault(), e.stopPropagation(), cancel())
               else if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) (e.preventDefault(), save())
             }}
           />
@@ -199,14 +280,30 @@ function CommentCard({
               <Icon name="trash" size={13} />
             </button>
             <span className="comment-meta muted small">{when(c.updatedAt)}</span>
-            <button className="btn small-btn" onClick={onClose} title="Einklappen">
-              Schließen
-            </button>
           </div>
         </>
       )}
     </div>
   )
+}
+
+/**
+ * Wo endet der Text der Zeile, in der die markierte Stelle aufhört? Dort steht die Marke –
+ * so verdeckt sie nichts, bleibt aber auf der Höhe der Stelle.
+ */
+function lineEnd(range: Range | null, box: DOMRect, unit: HTMLElement): number {
+  if (!range) return box.right
+  const node = range.endContainer
+  const el = (node.nodeType === 1 ? (node as HTMLElement) : node.parentElement) ?? unit
+  const block = el.closest<HTMLElement>('p, li, td, th, blockquote, pre, h1, h2, h3, h4, h5, h6, .unit') ?? unit
+  const all = document.createRange()
+  all.selectNodeContents(block)
+  let right = box.right
+  // Alle Textstücke derselben Zeile (fett, Code, Links ergeben eigene Rechtecke).
+  for (const r of all.getClientRects()) {
+    if (r.bottom > box.top + 2 && r.top < box.bottom - 2 && r.right > right) right = r.right
+  }
+  return right
 }
 
 function when(ts: number): string {

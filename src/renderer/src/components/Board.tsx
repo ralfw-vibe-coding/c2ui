@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-import { boardModel, sameAsTitle, type BoardModel, type BoardNode } from '@shared/board'
+import { boardModel, nodeOfItem, sameAsTitle, type BoardModel, type BoardNode } from '@shared/board'
+import type { ChatComment } from '@shared/types'
 import * as L from '@shared/layout'
 import { CHAT_MIME, useStore } from '../store'
 import { Icon } from './Icon'
@@ -81,6 +82,18 @@ export function Board({ rootId, cellId }: { rootId: string; cellId: string }) {
     return [...ids].join('|')
   }, [chats, rootId])
   const comments = useStore((s) => s.comments)
+  // Notizen je Knoten: eine Notiz zu einer Antwort gehört zum Knoten ihrer Frage.
+  const notesOf = useMemo(() => {
+    const map = new Map<string, ChatComment[]>()
+    for (const [chatId, list] of Object.entries(comments)) {
+      const node = nodeOfItem(transcripts[chatId] ?? [])
+      for (const c of list ?? []) {
+        const key = `${chatId}:${node.get(c.itemId) ?? c.itemId}`
+        map.set(key, [...(map.get(key) ?? []), c])
+      }
+    }
+    return map
+  }, [comments, transcripts])
   useEffect(() => {
     const ids = treeIds.split('|')
     useStore.getState().ensureTranscripts(ids)
@@ -150,7 +163,7 @@ export function Board({ rootId, cellId }: { rootId: string; cellId: string }) {
                     {n.label}
                   </span>
                   {(() => {
-                    const notes = comments[n.chatId]?.filter((c) => c.itemId === n.itemId) ?? []
+                    const notes = notesOf.get(`${n.chatId}:${n.itemId}`) ?? []
                     return notes.length ? (
                       <span className="board-notes" title={notes.map((c) => c.text).join('\n\n')}>
                         <Icon name="note" size={11} />

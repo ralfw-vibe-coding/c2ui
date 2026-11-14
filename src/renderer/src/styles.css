@@ -2744,46 +2744,39 @@ li > .fork-slot {
   padding: 2px 6px 0 22px;
 }
 
-/* Notizen am Rand (Kommentare) */
-.transcript-inner:has(.comment-layer) {
-  padding-right: 34px;
-}
+/* Notizen zu Stellen im Verlauf (Kommentare): Marke im Text, Feld als Overlay */
 .comment-layer {
   position: absolute;
-  top: 0;
-  right: 4px;
-  bottom: 0;
-  width: 24px;
+  inset: 0;
   z-index: 3;
   pointer-events: none;
 }
-.comment-dot {
+.comment-pin {
   position: absolute;
-  right: 0;
-  width: 22px;
-  height: 22px;
+  width: 18px;
+  height: 18px;
   display: grid;
   place-items: center;
   padding: 0;
   border: 1px solid #d9a441;
-  border-radius: 6px;
+  border-radius: 5px;
   background: var(--bg-elev);
   color: #b8860b;
   cursor: pointer;
   pointer-events: all;
-  transition: top 0.12s ease;
 }
-.comment-dot:hover {
-  background: rgba(217, 164, 65, 0.25);
+.comment-pin:hover,
+.comment-pin.on {
+  background: rgba(217, 164, 65, 0.3);
 }
-.comment-dot.lost {
+.comment-pin.lost {
   border-color: var(--border-strong);
   color: var(--text-muted);
 }
 .comment-note {
   position: absolute;
-  right: 0;
   padding: 8px 10px;
+  padding-right: 24px;
   border: 1px solid var(--border-strong);
   border-left: 3px solid #d9a441;
   border-radius: 8px;
@@ -2791,13 +2784,17 @@ li > .fork-slot {
   box-shadow: var(--shadow);
   font-size: 12px;
   pointer-events: all;
-  transition: top 0.12s ease;
 }
 .comment-note.lost {
   border-left-color: var(--text-muted);
 }
 .comment-note.editing {
   border-color: var(--accent);
+}
+.comment-close {
+  position: absolute;
+  top: 4px;
+  right: 4px;
 }
 .comment-quote {
   color: var(--text-muted);

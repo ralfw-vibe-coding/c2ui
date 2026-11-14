@@ -247,3 +247,20 @@ export function boardModel(
   }
   return { rootId, lanes, nodes, edges, merges, collapsed }
 }
+
+/**
+ * Zu welchem Knoten gehört ein Transkript-Eintrag? Knoten sind nur die Nutzernachrichten; die
+ * Antwort darauf (und alles bis zur nächsten Frage) gehört zum selben Knoten. Damit landen auch
+ * Notizen zu einer Antwort am richtigen Knoten. Einträge vor der ersten Frage zählen zu dieser.
+ */
+export function nodeOfItem(transcript: Transcript): Map<string, string> {
+  const first = transcript.find((it) => it.type === 'user')?.id
+  const map = new Map<string, string>()
+  if (!first) return map
+  let current = first
+  for (const it of transcript) {
+    if (it.type === 'user') current = it.id
+    map.set(it.id, current)
+  }
+  return map
+}

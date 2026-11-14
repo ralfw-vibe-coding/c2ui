@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { boardModel, messageLabel, rootOf, sameAsTitle } from './board'
+import { boardModel, messageLabel, nodeOfItem, rootOf, sameAsTitle } from './board'
 import { A2UI_ACTION_PREFIX } from './a2ui'
 import type { Chat, Transcript } from './types'
 
@@ -100,5 +100,18 @@ describe('Diskursboard', () => {
     expect(messageLabel('> nur ein Zitat')).toBe('„nur ein Zitat“')
     expect(messageLabel(A2UI_ACTION_PREFIX + JSON.stringify({ name: 'absenden' }))).toBe('Aktion „absenden“')
     expect(messageLabel('x'.repeat(200)).length).toBe(90)
+  })
+  it('ordnet jeden Eintrag dem Knoten seines Turns zu', () => {
+    const t: Transcript = [
+      { type: 'notice', id: 'n0', text: 'Abgezweigt' },
+      { type: 'user', id: 'u1', ts: 1, text: 'Frage?' },
+      { type: 'assistant', id: 'a1', blocks: [{ type: 'text', text: 'Antwort.' }] },
+      { type: 'turn', id: 't1', durationMs: 1, isError: false },
+      { type: 'user', id: 'u2', ts: 2, text: 'Und weiter?' },
+      { type: 'assistant', id: 'a2', blocks: [{ type: 'text', text: 'Mehr.' }] }
+    ] as unknown as Transcript
+    const m = nodeOfItem(t)
+    expect([...m.entries()]).toEqual([['n0', 'u1'], ['u1', 'u1'], ['a1', 'u1'], ['t1', 'u1'], ['u2', 'u2'], ['a2', 'u2']])
+    expect(nodeOfItem([])).toEqual(new Map())
   })
 })

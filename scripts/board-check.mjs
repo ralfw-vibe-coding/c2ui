@@ -46,10 +46,11 @@ const log = (...x) => console.log('[board]', ...x)
 let failed = false
 const check = (ok, what) => { log(ok ? 'OK  ' : 'FEHLER', what); if (!ok) failed = true }
 
-// Eine Notiz zu einer Nachricht (für die Anzeige am Knoten)
+// Notizen (für die Anzeige am Knoten): eine zur Frage, eine zur Antwort darauf – beide gehören zum selben Knoten
 mkdirSync(join(userData, 'comments'), { recursive: true })
 writeFileSync(join(userData, 'comments', 'haus.json'), JSON.stringify([
-  { id: 'k1', itemId: 'h2', quote: 'Welche Kapitel', text: 'Kapitelzahl prüfen', createdAt: min(9), updatedAt: min(9) }
+  { id: 'k1', itemId: 'h2', quote: 'Welche Kapitel', text: 'Kapitelzahl prüfen', createdAt: min(9), updatedAt: min(9) },
+  { id: 'k2', itemId: 'ha4', quote: 'Absatz 2', text: 'Einleitung zu lang', createdAt: min(56), updatedAt: min(56) }
 ]))
 
 const app = await electron.launch({ args: [root], cwd: root, env: { ...process.env, CLAUDE2UI_USER_DATA: userData } })
@@ -71,8 +72,12 @@ check(lanes === 4 && (await page.locator('.board-chip').first().innerText()).inc
 check((await page.locator('.board-legend').count()) === 0, 'keine Legende')
 const notizZeile = page.locator('.board-row', { hasText: 'Welche Kapitel' })
 check((await notizZeile.locator('.board-notes').count()) === 1, 'Knoten mit Notiz ist am Zeilenrand markiert')
-check((await page.locator('.board-notes').count()) === 1, 'nur dieser Knoten')
+check((await page.locator('.board-notes').count()) === 2, 'genau die zwei Knoten mit Notizen')
 check(/Kapitelzahl prüfen/.test((await notizZeile.locator('.board-notes').getAttribute('title')) ?? ''), 'Notiztext im Tooltip')
+// Eine Notiz zu einer Antwort erscheint am Knoten der zugehörigen Frage
+const antwortZeile = page.locator('.board-row', { hasText: 'Schreib die Einleitung' })
+check((await antwortZeile.locator('.board-notes').count()) === 1, 'Notiz zu einer Antwort markiert den Knoten der Frage')
+check(/Einleitung zu lang/.test((await antwortZeile.locator('.board-notes').getAttribute('title')) ?? ''), 'auch deren Text im Tooltip')
 
 // Ast einklappen per Klick auf den Knoten der Abzweigstelle („−“): Quellenlage samt Archivbeständen verschwindet
 check((await page.locator('.board-fold').count()) === 0, 'kein Klappknopf mehr am Text')
