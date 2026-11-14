@@ -248,6 +248,14 @@ class ClaudeSession implements AgentSession {
       }
 
       case 'user': {
+        // Meldungen über fertige Hintergrundbefehle schiebt die CLI als Nutzernachricht ein –
+        // und weil C2UI mit `--replay-user-messages` startet, kommen sie als Wiedergabe zurück.
+        // Sie sind keine Zwischenrufe und dürfen deshalb keinen Platz in `replays` verbrauchen.
+        const news = userText(m.message?.content)
+        if (news.includes('<task-notification>')) {
+          this.onTaskNews(news)
+          return
+        }
         if (m.isReplay) {
           const r = this.replays.shift()
           if (r?.kind === 'steer') {
@@ -256,13 +264,8 @@ class ClaudeSession implements AgentSession {
           return
         }
         const content = m.message?.content
-        if (typeof content === 'string') return this.onTaskNews(content)
         if (!Array.isArray(content)) return
         for (const c of content) {
-          if (c?.type === 'text' && typeof c.text === 'string') {
-            this.onTaskNews(c.text)
-            continue
-          }
           if (c?.type !== 'tool_result') continue
           const text = stringifyToolResult(c.content)
           // Die CLI vergibt dem Hintergrundbefehl eine eigene Id; sie steht in ihrer Startmeldung.
@@ -410,6 +413,16 @@ function toBlock(c: any): Block | null {
  * Füllstand des Kontexts aus der Nutzung **einer** Anfrage: alles, was das Modell gelesen hat
  * (frisch, Cache geschrieben, Cache gelesen) plus seine Antwort.
  */
+/** Text einer Nutzernachricht aus dem Strom, egal ob am Stück oder in Blöcken. */
+function userText(content: unknown): string {
+  if (typeof content === 'string') return content
+  if (!Array.isArray(content)) return ''
+  return content
+    .filter((c: any) => c?.type === 'text' && typeof c.text === 'string')
+    .map((c: any) => c.text)
+    .join('\n')
+}
+
 function contextTokens(u: any): number | undefined {
   if (!u || typeof u !== 'object') return undefined
   const n = (x: unknown): number => (typeof x === 'number' && x > 0 ? x : 0)

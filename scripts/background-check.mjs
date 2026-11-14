@@ -38,7 +38,9 @@ process.stdin.on('data', () => {
     ergebnis(300)
     // ... und nach einer Weile die Meldung der CLI, woraufhin der Agent weiterarbeitet.
     setTimeout(() => {
-      say({ type: 'user', message: { content: [{ type: 'text', text: 'Systemmeldung.\\n\\n<task-notification>\\n<task-id>bg7x</task-id>\\n<tool-use-id>toolu_1</tool-use-id>\\n<status>completed</status>\\n<summary>Background command "Sechs Bilder erzeugen" completed (exit code 0)</summary>\\n</task-notification>' }] } })
+      // Wie die echte CLI: Text am Stück, und weil C2UI mit --replay-user-messages startet,
+      // kommt auch diese eingeschobene Nachricht als Wiedergabe zurück.
+      say({ type: 'user', isReplay: true, message: { content: 'Systemmeldung.\\n\\n<task-notification>\\n<task-id>bg7x</task-id>\\n<tool-use-id>toolu_1</tool-use-id>\\n<status>completed</status>\\n<summary>Background command "Sechs Bilder erzeugen" completed (exit code 0)</summary>\\n</task-notification>' } })
       // Der Agent braucht danach noch einen Moment – wie im echten Leben.
       setTimeout(() => {
         say({ type: 'assistant', message: { id: 'msg_2', model: 'claude-test', content: [{ type: 'text', text: 'Die sechs Bilder sind fertig.' }] } })
