@@ -485,6 +485,18 @@ body.resizing-row * {
 .cell-meta .icon {
   opacity: 0.75;
 }
+/* Der Ordner im Zellenkopf öffnet ihn im Finder. */
+button.cell-cwd {
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+button.cell-cwd:hover {
+  background: var(--bg-sunken);
+  color: var(--text);
+}
 .cell-spacer {
   flex: 1;
 }

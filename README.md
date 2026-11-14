@@ -77,6 +77,7 @@ Desktop-App (Electron), in der mehrere Chats mit der Claude CLI oder der Codex C
   Eintrag. Aus einer offenen Notiz macht das Zitat-Symbol einen Bezug im Eingabefeld (Stelle als Zitat, Notiz als
   Anmerkung), also eine Frage an den Agenten. Die Suche (⌘F) findet Notizen mit und springt an ihre Stelle.
   Notizen liegen neben dem Verlauf (`comments/<chatId>`) und gehen nie an die CLI.
+- Klick auf den Ordner im Zellenkopf öffnet das Arbeitsverzeichnis im Finder.
 - Seitenleiste: Breite am rechten Rand ziehen (Doppelklick = Standard), pro Rechner gemerkt.
 - Einstellungen speichern sich von selbst (kurz nach der Eingabe); der Dialog wird nur noch geschlossen.
 - **Chats anheften:** Nadel in der Chatzeile – angeheftete Chats stehen oben (zuletzt angeheftet zuoberst),
@@ -159,6 +160,7 @@ node scripts/width-check.mjs       # größte Breite des Chats (ohne Modellaufru
 node scripts/background-check.mjs  # Arbeit, die nach dem Turn weiterläuft (CLI-Attrappe)
 node scripts/context-check.mjs     # Kontextfüllstand (CLI-Attrappe)
 node scripts/pin-check.mjs         # Chats oben anheften (ohne Modellaufruf)
+node scripts/cwd-check.mjs         # Ordner im Zellenkopf öffnet den Finder
 ```
 
 ### App bauen und installieren (macOS, Apple Silicon)

@@ -72,10 +72,14 @@ export function Cell({ cellId, chatId, board }: { cellId: string; chatId: string
           </div>
         ) : null}
         {chat && (
-          <span className="cell-meta cell-cwd" title={chat.cwd}>
+          <button
+            className="cell-meta cell-cwd"
+            title={`${chat.cwd}\nKlick: Ordner im Finder öffnen`}
+            onClick={() => void window.api.reveal(chat.cwd)}
+          >
             <Icon name="folder" size={13} />
             {displayDir(chat.cwd, home)}
-          </span>
+          </button>
         )}
         {chat && <ChatModelSelect chat={chat} />}
         {chat && <ContextGauge chat={chat} />}
