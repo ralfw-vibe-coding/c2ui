@@ -49,6 +49,19 @@ log('geöffnet:', JSON.stringify(geoeffnet))
 check(geoeffnet.length === 1 && geoeffnet[0] === cwd, 'der Klick öffnet genau das Arbeitsverzeichnis des Chats')
 await page.screenshot({ path: join(out, '1-kopf.png') })
 
+// Der offene Chat ist in der Seitenleiste markiert: Punkt unter dem Logo, ohne es zu verdecken.
+const lage = await page.evaluate(() => {
+  const dot = document.querySelector('.chat-item .dot')
+  const logo = document.querySelector('.chat-item .chat-status img, .chat-item .chat-status .agent-logo')
+  if (!dot || !logo) return null
+  const d = dot.getBoundingClientRect()
+  const l = logo.getBoundingClientRect()
+  return { dotTop: Math.round(d.top), logoBottom: Math.round(l.bottom), animation: getComputedStyle(dot).animationName }
+})
+log('Punkt:', JSON.stringify(lage))
+check(!!lage && lage.dotTop >= lage.logoBottom, 'der Punkt steht unter dem Logo, ohne es zu überlappen')
+check(lage?.animation === 'rec', 'und pulst wie eine Aufnahmeleuchte')
+
 await app.close()
 log(failed ? 'FEHLGESCHLAGEN' : 'alles OK')
 process.exit(failed ? 1 : 0)

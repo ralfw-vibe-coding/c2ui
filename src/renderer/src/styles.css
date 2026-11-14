@@ -192,15 +192,26 @@ textarea {
   mask-repeat: no-repeat;
   mask-position: center;
 }
-.chat-status {
-  position: relative;
-}
+/* Der Punkt sagt: dieser Chat ist gerade in einer Zelle offen. Er steht unter dem Logo
+   (nichts wird verdeckt) und pulst wie die Aufnahmeleuchte einer Kamera. */
 .chat-status .dot {
-  position: absolute;
-  right: -3px;
-  bottom: -2px;
-  width: 5px;
-  height: 5px;
+  animation: rec 1.6s ease-in-out infinite;
+}
+@keyframes rec {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.3;
+    transform: scale(0.75);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .chat-status .dot {
+    animation: none;
+  }
 }
 .chat-list {
   list-style: none;
@@ -227,7 +238,9 @@ textarea {
 .chat-status {
   width: 16px;
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
   flex-shrink: 0;
 }
 .dot {
