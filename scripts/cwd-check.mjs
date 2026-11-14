@@ -65,7 +65,7 @@ const lage = await page.evaluate(() => {
 })
 log('Punkt:', JSON.stringify(lage))
 check(!!lage && lage.dotTop >= lage.logoBottom, 'der Punkt steht unter dem Logo, ohne es zu überlappen')
-check(lage?.animation === 'rec', 'und pulst wie eine Aufnahmeleuchte')
+check(lage?.animation === 'none', 'und steht still, solange nichts läuft')
 
 // Codeblöcke im Chat haben einen Knopf zum Kopieren
 const kopieren = page.locator('.md-code .md-copy')

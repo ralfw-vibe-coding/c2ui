@@ -239,7 +239,12 @@ function ChatItem({
       )}
       <span className="chat-status">
         {busy ? <span className="spinner" /> : <AgentLogo agent={chat.agent} size={14} />}
-        {open && !busy && <span className="dot" />}
+        {open && !busy && (
+          <span
+            className={`dot${chat.background?.length ? ' live' : ''}`}
+            title={chat.background?.length ? 'Offen – im Hintergrund läuft etwas' : 'In einer Zelle offen'}
+          />
+        )}
       </span>
       <div className="chat-text">
         <div className="chat-title-row">

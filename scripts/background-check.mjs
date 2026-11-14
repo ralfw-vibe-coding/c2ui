@@ -78,6 +78,13 @@ log('Hinweis:', hinweis.replace(/\s+/g, ' '))
 check(/Sechs Bilder erzeugen/.test(hinweis), 'der Chat sagt, was im Hintergrund läuft')
 check(/arbeitet der Chat weiter/.test(hinweis), 'und dass es danach weitergeht')
 check((await page.locator('.chat-item .chat-background').count()) === 1, 'die Seitenleiste zeigt es auch')
+// Der Punkt am offenen Chat pulst nur, solange wirklich etwas läuft.
+const punkt = await page.evaluate(() => {
+  const d = document.querySelector('.chat-item .dot')
+  return d ? { live: d.classList.contains('live'), animation: getComputedStyle(d).animationName } : null
+})
+log('Punkt:', JSON.stringify(punkt))
+check(punkt?.live === true && punkt.animation === 'rec', 'der Punkt am Chat pulst, solange etwas läuft')
 await page.screenshot({ path: join(out, '1-laeuft.png') })
 
 // Die CLI meldet „fertig“: der Chat arbeitet sichtbar weiter
@@ -85,6 +92,7 @@ await page.locator('.cell .working:not(.background)').waitFor({ timeout: 15_000 
 check(true, 'nach der Fertigmeldung arbeitet der Chat sichtbar weiter')
 check((await page.locator('.working.background').count()) === 0, 'der Hinweis auf den Hintergrund ist weg')
 check((await page.locator('.chat-item .chat-background').count()) === 0, 'in der Seitenleiste ebenso')
+check((await page.locator('.chat-item .dot.live').count()) === 0, 'und der Punkt steht wieder still')
 
 // Und am Ende steht die Antwort samt Hinweis im Verlauf
 await page.locator('.transcript', { hasText: 'Die sechs Bilder sind fertig.' }).waitFor({ timeout: 15_000 })

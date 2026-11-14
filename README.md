@@ -79,7 +79,8 @@ Desktop-App (Electron), in der mehrere Chats mit der Claude CLI oder der Codex C
   Anmerkung), also eine Frage an den Agenten. Die Suche (⌘F) findet Notizen mit und springt an ihre Stelle.
   Notizen liegen neben dem Verlauf (`comments/<chatId>`) und gehen nie an die CLI.
 - Klick auf den Ordner im Zellenkopf öffnet das Arbeitsverzeichnis im Finder.
-- Ein Chat, der gerade in einer Zelle offen ist, trägt in der Seitenleiste einen pulsenden Punkt unter dem Logo.
+- Ein Chat, der in einer Zelle offen ist, trägt in der Seitenleiste einen kleinen Punkt unter dem Logo; er pulst nur,
+  solange wirklich etwas läuft (ein laufender Turn zeigt ohnehin den Spinner, bleibt also die Arbeit im Hintergrund).
 - Seitenleiste: Breite am rechten Rand ziehen (Doppelklick = Standard), pro Rechner gemerkt.
 - Einstellungen speichern sich von selbst (kurz nach der Eingabe); der Dialog wird nur noch geschlossen.
 - **Chats anheften:** Nadel in der Chatzeile – angeheftete Chats stehen oben (zuletzt angeheftet zuoberst),

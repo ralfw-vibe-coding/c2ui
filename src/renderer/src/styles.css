@@ -192,9 +192,10 @@ textarea {
   mask-repeat: no-repeat;
   mask-position: center;
 }
-/* Der Punkt sagt: dieser Chat ist gerade in einer Zelle offen. Er steht unter dem Logo
-   (nichts wird verdeckt) und pulst wie die Aufnahmeleuchte einer Kamera. */
-.chat-status .dot {
+/* Der Punkt sagt: dieser Chat ist in einer Zelle offen. Er steht unter dem Logo, verdeckt
+   also nichts. Gepulst wird nur, wenn wirklich etwas läuft – bei einem laufenden Turn steht
+   dort ohnehin der Spinner, bleibt also die Arbeit im Hintergrund. */
+.chat-status .dot.live {
   animation: rec 1.6s ease-in-out infinite;
 }
 @keyframes rec {
@@ -209,7 +210,7 @@ textarea {
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .chat-status .dot {
+  .chat-status .dot.live {
     animation: none;
   }
 }
@@ -244,8 +245,8 @@ textarea {
   flex-shrink: 0;
 }
 .dot {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
   border-radius: 50%;
   background: var(--accent);
 }
