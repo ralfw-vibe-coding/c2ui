@@ -26,6 +26,10 @@ const api = {
     ipcRenderer.invoke('chats:create', cwd, agent, mode),
   updateChat: (id: string, patch: ChatPatch): Promise<Chat> =>
     ipcRenderer.invoke('chats:update', id, patch),
+  commentCounts: (): Promise<Record<string, number>> => ipcRenderer.invoke('comments:counts'),
+  onCommentsChanged: (cb: (chatId: string, list: ChatComment[]) => void): void => {
+    ipcRenderer.on('comments:changed', (_e, chatId: string, list: ChatComment[]) => cb(chatId, list))
+  },
   comments: (chatId: string): Promise<ChatComment[]> => ipcRenderer.invoke('comments:get', chatId),
   addComment: (chatId: string, c: { itemId: string; quote?: string; text: string }): Promise<ChatComment[]> =>
     ipcRenderer.invoke('comments:add', chatId, c),

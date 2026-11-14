@@ -1,4 +1,4 @@
-const paths: Record<string, string> = {
+const paths: Record<string, string | string[]> = {
   chat: 'M4 5h16v11H8l-4 4z',
   'split-right': 'M4 5h16v14H4zM12 5v14',
   'split-down': 'M4 5h16v14H4zM4 12h16',
@@ -29,10 +29,29 @@ const paths: Record<string, string> = {
   queue: 'M4 6h12M4 12h8M4 18h8M17 13v8M13 17h8',
   play: 'M7 4l13 8-13 8z',
   steer: 'M13 3L5 14h6l-1 7 8-11h-6z',
-  board: 'M6 3v12M18 3a3 3 0 1 0 0 6 3 3 0 1 0 0-6zM6 15a3 3 0 1 0 0 6 3 3 0 1 0 0-6zM18 9a9 9 0 0 1-9 9'
+  board: 'M6 3v12M18 3a3 3 0 1 0 0 6 3 3 0 1 0 0-6zM6 15a3 3 0 1 0 0 6 3 3 0 1 0 0-6zM18 9a9 9 0 0 1-9 9',
+  // Folgende drei aus Lucide (ISC-Lizenz): message-circle-dashed, message-circle-warning, folder-up
+  'message-circle-dashed': [
+    'M10.1 2.182a10 10 0 0 1 3.8 0',
+    'M13.9 21.818a10 10 0 0 1-3.8 0',
+    'M17.609 3.72a10 10 0 0 1 2.69 2.7',
+    'M2.182 13.9a10 10 0 0 1 0-3.8',
+    'M20.28 17.61a10 10 0 0 1-2.7 2.69',
+    'M21.818 10.1a10 10 0 0 1 0 3.8',
+    'M3.721 6.391a10 10 0 0 1 2.7-2.69',
+    'm6.163 21.117-2.906.85a1 1 0 0 1-1.236-1.169l.965-2.98'
+  ],
+  'message-circle-warning': [
+    'M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719',
+    'M12 8v4',
+    'M12 16h.01'
+  ],
+  'folder-up': ['M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z', 'M12 10v6', 'm9 13 3-3 3 3']
 }
 
 export function Icon({ name, size = 16 }: { name: string; size?: number }) {
+  const d = paths[name] ?? ''
+  const parts = Array.isArray(d) ? d : [d]
   return (
     <svg
       className="icon"
@@ -46,7 +65,9 @@ export function Icon({ name, size = 16 }: { name: string; size?: number }) {
       strokeLinejoin="round"
       aria-hidden
     >
-      <path d={paths[name] ?? ''} />
+      {parts.map((p, i) => (
+        <path key={i} d={p} />
+      ))}
     </svg>
   )
 }

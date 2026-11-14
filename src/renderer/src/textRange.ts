@@ -53,6 +53,25 @@ export function findQuoteRange(roots: Element[], quote: string): Range | null {
   return r
 }
 
+/** Alle Fundstellen eines Suchtexts in den gegebenen Elementen (ohne Rücksicht auf Groß/Klein). */
+export function findAllRanges(roots: Element[], needle: string, max = 50): Range[] {
+  const q = squash(needle).toLowerCase()
+  if (!q || !roots.length) return []
+  const { text, at } = textMap(roots)
+  const hay = text.toLowerCase()
+  const out: Range[] = []
+  for (let i = hay.indexOf(q); i >= 0 && out.length < max; i = hay.indexOf(q, i + q.length)) {
+    const start = at[i]
+    const end = at[i + q.length - 1]
+    if (!start || !end) break
+    const r = document.createRange()
+    r.setStart(start.node, start.offset)
+    r.setEnd(end.node, end.offset + 1)
+    out.push(r)
+  }
+  return out
+}
+
 /** Absatz/Listenpunkt/Codeblock …, in dem das Zitat endet (innerhalb der Wurzeln). */
 export function blockOfRange(range: Range, roots: Element[]): HTMLElement | null {
   const el = range.endContainer.parentElement?.closest<HTMLElement>(BLOCKS) ?? null
@@ -62,12 +81,14 @@ export function blockOfRange(range: Range, roots: Element[]): HTMLElement | null
 const HIGHLIGHT = 'c2-jump'
 let clearTimer: ReturnType<typeof setTimeout> | null = null
 
-/** Textbereich wie mit einem Textmarker hervorheben (CSS Custom Highlight), nach `ms` wieder weg. */
-export function highlightRange(range: Range, ms = 6500): void {
+/** Textbereiche wie mit einem Textmarker hervorheben (CSS Custom Highlight), nach `ms` wieder weg. */
+export function highlightRange(range: Range | Range[], ms = 6500): void {
   const reg = (CSS as unknown as { highlights?: Map<string, unknown> }).highlights
   const H = (window as unknown as { Highlight?: new (...r: Range[]) => unknown }).Highlight
   if (!reg || !H) return
-  reg.set(HIGHLIGHT, new H(range))
+  const list = Array.isArray(range) ? range : [range]
+  if (!list.length) return
+  reg.set(HIGHLIGHT, new H(...list))
   if (clearTimer) clearTimeout(clearTimer)
   clearTimer = setTimeout(() => reg.delete(HIGHLIGHT), ms)
 }

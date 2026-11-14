@@ -43,7 +43,10 @@ const stellen = await page.locator('.search-hit').allInnerTexts()
 log('Chats:', titel, '| Stellen:', stellen.map((t) => t.replace(/\s+/g, ' ').slice(0, 60)))
 check(titel.length === 1 && titel[0] === 'Quellenlage', 'nur der passende Chat')
 check(stellen.length === 2, 'Frage und Antwort gefunden')
-check(/ANTWORT/.test(stellen[1]) && /Bundestagsarchiv/.test(stellen[1]), 'Ausschnitt mit Rolle')
+check(/Bundestagsarchiv/.test(stellen[1]), 'Ausschnitt der Antwort')
+const rollen = await page.locator('.search-role').evaluateAll((ns) => ns.map((n) => n.title))
+log('Rollen:', rollen)
+check(rollen.join('|') === 'Frage|Antwort', 'Rollen als Symbol mit Tooltip')
 await page.screenshot({ path: join(out, '1-treffer.png') })
 
 await box.fill('quelle')
@@ -61,10 +64,15 @@ await page.locator('.search-hit').first().click()
 await page.locator('.chat-panel').waitFor()
 await page.waitForTimeout(700)
 const offen = await page.evaluate(() => document.querySelector('.chat-panel')?.getAttribute('data-chat-id'))
-const flash = await page.locator('.jump-flash').first().innerText().catch(() => '')
-log('offen:', offen, '| hervorgehoben:', flash.replace(/\s+/g, ' ').slice(0, 40))
+// Hervorgehoben wird nur der Suchbegriff im gewählten Eintrag, nicht der ganze Turn.
+const marken = await page.evaluate(() => {
+  const h = CSS.highlights?.get('c2-jump')
+  return h ? [...h].map((r) => ({ text: r.toString(), eintrag: r.startContainer.parentElement?.closest('.unit')?.dataset.itemId })) : []
+})
+log('offen:', offen, '| markiert:', JSON.stringify(marken))
 check(offen === 'haus', 'Chat des Treffers geöffnet')
-check(/Welche Quellen/.test(flash), 'Sprung zur gefundenen Stelle')
+check(marken.length === 1 && /^Quelle/i.test(marken[0].text) && marken[0].eintrag === 'h2', 'nur der Suchbegriff im gewählten Eintrag ist markiert')
+check((await page.locator('.jump-flash').count()) === 0, 'der ganze Turn leuchtet nicht mehr auf')
 
 // ⌘-Klick: neue Zelle
 const zellen = await page.locator('.cell').count()

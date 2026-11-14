@@ -231,6 +231,7 @@ function registerIpc(): void {
     manager.create(cwd, agent, mode)
   )
   // homedir() folgt $HOME (für Prüfskripte mit Schein-Home); app.getPath('home') tut das nicht.
+  ipcMain.handle('comments:counts', () => manager.commentCounts())
   ipcMain.handle('comments:get', (_e, chatId: string) => manager.comments(chatId))
   ipcMain.handle('comments:add', (_e, chatId: string, c: { itemId: string; quote?: string; text: string }) => manager.addComment(chatId, c))
   ipcMain.handle('comments:update', (_e, chatId: string, id: string, text: string) => manager.updateComment(chatId, id, text))
@@ -339,7 +340,8 @@ app.whenReady().then(() => {
         send('agent:busy', id, b)
         turnWatch.setBusy(id, b)
       },
-      chatsChanged: (chats) => send('chats:changed', chats)
+      chatsChanged: (chats) => send('chats:changed', chats),
+      commentsChanged: (chatId, list) => send('comments:changed', chatId, list)
     },
     {
       pluginDir: unpacked(join(app.getAppPath(), 'resources', 'a2ui-plugin')),

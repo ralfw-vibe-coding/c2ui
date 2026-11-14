@@ -8,7 +8,7 @@ import { Icon } from './Icon'
  * Suche über alle Chats (Titel und Verläufe). Die Treffer öffnen den Chat an der gefundenen Stelle –
  * wie im Board: Klick in die zuletzt benutzte Zelle, ⌘-Klick in eine neue, oder Treffer in eine Zelle ziehen.
  */
-export function SearchBox({ onResults }: { onResults: (r: SearchResult[] | null) => void }) {
+export function SearchBox({ onResults }: { onResults: (r: SearchResult[] | null, query: string) => void }) {
   const [q, setQ] = useState('')
   const ref = useRef<HTMLInputElement>(null)
 
@@ -27,12 +27,12 @@ export function SearchBox({ onResults }: { onResults: (r: SearchResult[] | null)
   useEffect(() => {
     const text = q.trim()
     if (text.length < 2) {
-      onResults(null)
+      onResults(null, text)
       return
     }
     let current = true
     const timer = setTimeout(() => {
-      void window.api.search(text).then((r) => current && onResults(r))
+      void window.api.search(text).then((r) => current && onResults(r, text))
     }, 180)
     return () => {
       current = false
@@ -61,7 +61,7 @@ export function SearchBox({ onResults }: { onResults: (r: SearchResult[] | null)
 }
 
 /** Trefferliste an Stelle der Chatliste. */
-export function SearchResults({ results }: { results: SearchResult[] }) {
+export function SearchResults({ results, query }: { results: SearchResult[]; query: string }) {
   if (!results.length) return <p className="muted small pad">Nichts gefunden.</p>
   return (
     <ul className="search-results">
@@ -69,7 +69,7 @@ export function SearchResults({ results }: { results: SearchResult[] }) {
         <li key={r.chatId}>
           <ChatRow r={r} />
           {r.hits.map((h) => (
-            <HitRow key={h.itemId} chatId={r.chatId} hit={h} />
+            <HitRow key={h.itemId} chatId={r.chatId} hit={h} needle={query} />
           ))}
           {r.total > r.hits.length && <div className="search-more muted small">… und {r.total - r.hits.length} weitere Stellen</div>}
         </li>
@@ -98,8 +98,8 @@ function ChatRow({ r }: { r: SearchResult }) {
   )
 }
 
-function HitRow({ chatId, hit }: { chatId: string; hit: SearchHit }) {
-  const open = (newCell: boolean): void => void openChat(chatId, hit.itemId, newCell)
+function HitRow({ chatId, hit, needle }: { chatId: string; hit: SearchHit; needle: string }) {
+  const open = (newCell: boolean): void => void openChat(chatId, hit.itemId, newCell, needle)
   return (
     <div
       className={`search-hit ${hit.role}`}
@@ -112,11 +112,19 @@ function HitRow({ chatId, hit }: { chatId: string; hit: SearchHit }) {
       onClick={(e) => open(e.metaKey)}
       onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), open(e.metaKey))}
     >
-      <span className="search-role">{hit.role === 'user' ? 'Frage' : hit.role === 'assistant' ? 'Antwort' : 'Hinweis'}</span>
+      <span className="search-role" title={roleLabel(hit.role)}>
+        <Icon name={roleIcon(hit.role)} size={14} />
+      </span>
       <span className="search-snippet">{hit.snippet}</span>
     </div>
   )
 }
+
+const roleLabel = (role: SearchHit['role']): string =>
+  role === 'user' ? 'Frage' : role === 'assistant' ? 'Antwort' : role === 'error' ? 'Fehler' : 'Hinweis'
+
+const roleIcon = (role: SearchHit['role']): string =>
+  role === 'user' ? 'message-circle-dashed' : role === 'assistant' ? 'message-circle-warning' : 'info'
 
 function startDrag(e: React.DragEvent, chatId: string, itemId?: string): void {
   e.dataTransfer.setData(CHAT_MIME, chatId)
@@ -124,9 +132,9 @@ function startDrag(e: React.DragEvent, chatId: string, itemId?: string): void {
   useStore.getState().setDragging({ chatId, ...(itemId ? { itemId } : {}) })
 }
 
-async function openChat(chatId: string, itemId: string | undefined, newCell: boolean): Promise<void> {
+async function openChat(chatId: string, itemId: string | undefined, newCell: boolean, needle?: string): Promise<void> {
   const st = useStore.getState()
   if (newCell) await st.openInNewCell(chatId)
   else await st.openChat(chatId)
-  if (itemId) st.jumpTo({ chatId, itemId })
+  if (itemId) st.jumpTo({ chatId, itemId, ...(needle ? { needle } : {}) })
 }

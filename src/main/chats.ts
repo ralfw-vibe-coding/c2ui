@@ -60,6 +60,7 @@ export interface ChatManagerEvents {
   agentEvent(chatId: string, e: AgentEvent): void
   busy(chatId: string, busy: boolean): void
   chatsChanged(chats: Chat[]): void
+  commentsChanged(chatId: string, list: ChatComment[]): void
 }
 
 const factories: Record<AgentKind, AgentFactory> = {
@@ -250,9 +251,20 @@ export class ChatManager {
     return list
   }
 
+  /** Anzahl Notizen je Chat (für die Seitenleiste). */
+  commentCounts(): Record<string, number> {
+    const out: Record<string, number> = {}
+    for (const id of this.chats.keys()) {
+      const n = this.comments(id).length
+      if (n) out[id] = n
+    }
+    return out
+  }
+
   private setComments(chatId: string, list: ChatComment[]): ChatComment[] {
     this.commentCache.set(chatId, list)
     this.storage.write(`comments/${chatId}`, list)
+    this.events.commentsChanged(chatId, list)
     return list
   }
 

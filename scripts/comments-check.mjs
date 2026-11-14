@@ -57,13 +57,20 @@ async function notizAus(wort) {
 }
 
 await notizAus('Bundestagsarchiv')
-check((await page.locator('.comment-note').count()) === 1, 'Notiz angelegt und zum Schreiben offen')
+check((await page.locator('.comment-note.editing').count()) === 1, 'Notiz angelegt und zum Schreiben offen')
 await page.locator('.comment-note.editing textarea').fill('Signatur heraussuchen')
 await page.locator('.comment-note .btn.primary').click()
 await page.waitForTimeout(300)
 const text = await page.locator('.comment-note').first().innerText()
 log('Notiz:', text.replace(/\s+/g, ' '))
 check(/Signatur heraussuchen/.test(text) && /Bundestagsarchiv/.test(text), 'Notiz zeigt Text und Zitat')
+// Nach dem Klick daneben bleibt am Rand nur das Symbol
+await page.locator('.transcript').click({ position: { x: 20, y: 300 } })
+await page.waitForTimeout(300)
+check((await page.locator('.comment-note').count()) === 0 && (await page.locator('.comment-dot').count()) === 1, 'eingeklappt bleibt ein Symbol am Rand')
+await page.locator('.comment-dot').click()
+await page.waitForTimeout(200)
+check((await page.locator('.comment-note').count()) === 1, 'Klick auf das Symbol klappt die Notiz auf')
 check((await page.evaluate(() => CSS.highlights?.has('c2-comment'))) === true, 'markierte Stelle ist unterlegt')
 
 // Zweite Notiz an anderer Stelle: beide stehen untereinander, in Reihenfolge des Texts
@@ -71,39 +78,45 @@ await notizAus('Ausschussprotokolle')
 await page.locator('.comment-note.editing textarea').fill('Stimmt das wirklich?')
 await page.keyboard.press('Meta+Enter')
 await page.waitForTimeout(400)
-const tops = await page.evaluate(() => [...document.querySelectorAll('.comment-note')].map((n) => Math.round(n.getBoundingClientRect().top)))
-const texte = await page.locator('.comment-note').allInnerTexts()
-log('Notizen:', texte.map((t) => t.replace(/\s+/g, ' ').slice(0, 40)), '| Höhen:', tops)
-check(texte.length === 2 && tops[0] < tops[1], 'zweite Notiz steht weiter unten')
-check(/Stimmt das/.test(texte[1]), '⌘↩ speichert')
+await page.locator('.transcript').click({ position: { x: 20, y: 300 } })
+await page.waitForTimeout(300)
+const tops = await page.evaluate(() => [...document.querySelectorAll('.comment-dot')].map((n) => Math.round(n.getBoundingClientRect().top)))
+const titel = await page.locator('.comment-dot').evaluateAll((ns) => ns.map((n) => n.title))
+log('Symbole:', titel, '| Höhen:', tops)
+check(titel.length === 2 && tops[0] < tops[1], 'zweites Symbol steht weiter unten')
+check(/Stimmt das/.test(titel[1]), '⌘↩ speichert')
 await page.screenshot({ path: join(out, '1-notizen.png') })
 
-// Ändern
-await page.locator('.comment-note').first().click()
+// Ändern: aufklappen, auf den Text klicken
+await page.locator('.comment-dot').first().click()
+await page.waitForTimeout(150)
+await page.locator('.comment-text').click()
 await page.locator('.comment-note.editing textarea').fill('Signatur im Lesesaal erfragen')
 await page.locator('.comment-note .btn.primary').click()
 await page.waitForTimeout(300)
 check(/Lesesaal/.test(await page.locator('.comment-note').first().innerText()), 'Notiz geändert')
+// Seitenleiste zeigt die Anzahl
+check(/2/.test(await page.locator('.chat-notes').first().innerText()), 'Seitenleiste zeigt die Zahl der Notizen')
 
 // Bleibt nach Neuladen
 await page.waitForTimeout(500)
 await page.reload()
 await page.locator('.chat-panel').waitFor()
-await page.locator('.comment-note').first().waitFor()
+await page.locator('.comment-dot').first().waitFor()
 await page.waitForTimeout(400)
-check((await page.locator('.comment-note').count()) === 2, 'Notizen überstehen den Neustart')
-check(/Lesesaal/.test((await page.locator('.comment-note').allInnerTexts()).join(' ')), 'geänderter Text ist gespeichert')
+check((await page.locator('.comment-dot').count()) === 2, 'Notizen überstehen den Neustart')
+check(/Lesesaal/.test((await page.locator('.comment-dot').evaluateAll((ns) => ns.map((n) => n.title))).join(' ')), 'geänderter Text ist gespeichert')
 
 // Löschen
-await page.locator('.comment-note').first().click()
+await page.locator('.comment-dot').first().click()
 await page.locator('.comment-delete').click()
 await page.waitForTimeout(300)
-check((await page.locator('.comment-note').count()) === 1, 'Notiz gelöscht')
+check((await page.locator('.comment-dot').count()) === 1, 'Notiz gelöscht')
 // Abbrechen einer neuen Notiz lässt nichts zurück
 await notizAus('Drucksachen')
 await page.keyboard.press('Escape')
 await page.waitForTimeout(300)
-check((await page.locator('.comment-note').count()) === 1, 'abgebrochene Notiz verschwindet')
+check((await page.locator('.comment-dot').count()) === 1 && (await page.locator('.comment-note').count()) === 0, 'abgebrochene Notiz verschwindet')
 
 await app.close()
 log(failed ? 'FEHLGESCHLAGEN' : 'alles OK')

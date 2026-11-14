@@ -46,6 +46,12 @@ const log = (...x) => console.log('[board]', ...x)
 let failed = false
 const check = (ok, what) => { log(ok ? 'OK  ' : 'FEHLER', what); if (!ok) failed = true }
 
+// Eine Notiz zu einer Nachricht (für die Anzeige am Knoten)
+mkdirSync(join(userData, 'comments'), { recursive: true })
+writeFileSync(join(userData, 'comments', 'haus.json'), JSON.stringify([
+  { id: 'k1', itemId: 'h2', quote: 'Welche Kapitel', text: 'Kapitelzahl prüfen', createdAt: min(9), updatedAt: min(9) }
+]))
+
 const app = await electron.launch({ args: [root], cwd: root, env: { ...process.env, CLAUDE2UI_USER_DATA: userData } })
 const page = await app.firstWindow()
 await page.waitForSelector('.chat-item')
@@ -63,6 +69,10 @@ log('Zeilen:', rows, '| Spuren:', lanes)
 check(rows === 11, '11 Nachrichten aus vier Chats')
 check(lanes === 4 && (await page.locator('.board-chip').first().innerText()).includes('Hausarbeit'), 'vier Spuren, Wurzel zuerst')
 check((await page.locator('.board-legend').count()) === 0, 'keine Legende')
+const notizZeile = page.locator('.board-row', { hasText: 'Welche Kapitel' })
+check((await notizZeile.locator('.board-notes').count()) === 1, 'Knoten mit Notiz ist am Zeilenrand markiert')
+check((await page.locator('.board-notes').count()) === 1, 'nur dieser Knoten')
+check(/Kapitelzahl prüfen/.test((await notizZeile.locator('.board-notes').getAttribute('title')) ?? ''), 'Notiztext im Tooltip')
 
 // Ast einklappen per Klick auf den Knoten der Abzweigstelle („−“): Quellenlage samt Archivbeständen verschwindet
 check((await page.locator('.board-fold').count()) === 0, 'kein Klappknopf mehr am Text')

@@ -6,18 +6,19 @@ import { Icon } from './Icon'
 
 /**
  * Notizen am Rand („wie in Word“): eigene Ebene neben dem Verlauf, die CLI sieht sie nicht.
- * Jede Notiz hängt an einem Transkript-Eintrag, meist an einer markierten Stelle darin; sie steht
- * rechts daneben, auf Höhe ihrer Stelle. Überlappungen rutschen nach unten.
+ * Am Rand steht zunächst nur ein Zettel-Symbol auf Höhe der Stelle; ein Klick klappt die Notiz auf –
+ * dann lässt sie sich lesen, ändern und löschen wie beim Anlegen.
  */
 
-const WIDTH = 230
-const GAP = 8
+const CARD = 250
+const GAP = 6
+/** Geschätzte Höhe eines eingeklappten Symbols (für das Auseinanderrücken). */
+const ICON_H = 24
 
 interface Placed {
   comment: ChatComment
   top: number
-  /** Höhe der markierten Stelle (für den Strich). */
-  anchorHeight: number
+  /** Die markierte Stelle wurde im Text wiedergefunden. */
   found: boolean
 }
 
@@ -26,11 +27,29 @@ export function CommentLayer({ chatId, innerRef }: { chatId: string; innerRef: R
   const transcript = useStore((s) => s.transcripts[chatId])
   const editing = useStore((s) => s.editingComment)
   const [placed, setPlaced] = useState<Placed[]>([])
-  const heights = useRef(new Map<string, number>())
+  const [open, setOpen] = useState<string | null>(null)
+  const layerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => void useStore.getState().ensureComments(chatId), [chatId])
 
-  // Lage der Notizen bestimmen: Position der Stelle im Text, dann Überlappungen auflösen.
+  // Eine frisch angelegte Notiz ist gleich offen (sie wird ja gerade geschrieben).
+  useEffect(() => {
+    if (editing && comments?.some((c) => c.id === editing)) setOpen(editing)
+  }, [editing, comments])
+
+  // Klick außerhalb klappt wieder ein (eine Notiz im Schreiben bleibt offen).
+  useEffect(() => {
+    if (!open) return
+    const onDown = (e: MouseEvent): void => {
+      if (layerRef.current?.contains(e.target as Node)) return
+      if (useStore.getState().editingComment === open) return
+      setOpen(null)
+    }
+    document.addEventListener('mousedown', onDown)
+    return () => document.removeEventListener('mousedown', onDown)
+  }, [open])
+
+  // Lage bestimmen: Höhe der markierten Stelle im Text, dann Überlappungen auflösen.
   useLayoutEffect(() => {
     const inner = innerRef.current
     if (!inner || !comments?.length) {
@@ -39,22 +58,21 @@ export function CommentLayer({ chatId, innerRef }: { chatId: string; innerRef: R
     }
     const measure = (): void => {
       const base = inner.getBoundingClientRect().top
-      const anchors: Placed[] = []
+      const list: Placed[] = []
       for (const c of comments) {
         const unit = inner.querySelector<HTMLElement>(`.unit[data-item-id="${CSS.escape(c.itemId)}"]`)
         if (!unit) continue
         const range = c.quote ? findQuoteRange([unit], c.quote) : null
-        const r = range?.getBoundingClientRect() ?? unit.getBoundingClientRect()
-        const box = r.height ? r : unit.getBoundingClientRect()
-        anchors.push({ comment: c, top: box.top - base, anchorHeight: box.height, found: !c.quote || !!range })
+        const box = range?.getBoundingClientRect() ?? unit.getBoundingClientRect()
+        list.push({ comment: c, top: (box.height ? box.top : unit.getBoundingClientRect().top) - base, found: !c.quote || !!range })
       }
-      anchors.sort((a, b) => a.top - b.top)
+      list.sort((a, b) => a.top - b.top)
       let last = -Infinity
-      for (const a of anchors) {
-        a.top = Math.max(a.top, last)
-        last = a.top + (heights.current.get(a.comment.id) ?? 54) + GAP
+      for (const p of list) {
+        p.top = Math.max(p.top, last)
+        last = p.top + ICON_H + GAP
       }
-      setPlaced(anchors)
+      setPlaced(list)
     }
     measure()
     // Bilder, Screens und Markdown kommen verzögert: noch einmal nachmessen und bei Größenänderung.
@@ -65,7 +83,7 @@ export function CommentLayer({ chatId, innerRef }: { chatId: string; innerRef: R
       clearTimeout(t)
       ro.disconnect()
     }
-  }, [comments, transcript, innerRef, editing])
+  }, [comments, transcript, innerRef])
 
   // Markierte Stellen im Text dauerhaft unterlegen.
   useEffect(() => {
@@ -85,40 +103,43 @@ export function CommentLayer({ chatId, innerRef }: { chatId: string; innerRef: R
 
   if (!comments?.length) return null
   return (
-    <div className="comment-layer" style={{ width: WIDTH }}>
-      {placed.map((p) => (
-        <CommentNote
-          key={p.comment.id}
-          chatId={chatId}
-          placed={p}
-          editing={editing === p.comment.id}
-          onHeight={(h) => heights.current.set(p.comment.id, h)}
-        />
-      ))}
+    <div className="comment-layer" ref={layerRef}>
+      {placed.map((p) =>
+        open === p.comment.id ? (
+          <CommentCard key={p.comment.id} chatId={chatId} placed={p} editing={editing === p.comment.id} onClose={() => setOpen(null)} />
+        ) : (
+          <button
+            key={p.comment.id}
+            className={`comment-dot${p.found ? '' : ' lost'}`}
+            style={{ top: p.top }}
+            title={p.comment.text}
+            onClick={() => setOpen(p.comment.id)}
+          >
+            <Icon name="note" size={13} />
+          </button>
+        )
+      )}
     </div>
   )
 }
 
-function CommentNote({
+function CommentCard({
   chatId,
   placed,
   editing,
-  onHeight
+  onClose
 }: {
   chatId: string
   placed: Placed
   editing: boolean
-  onHeight: (h: number) => void
+  onClose: () => void
 }) {
   const c = placed.comment
   const [text, setText] = useState(c.text)
-  const ref = useRef<HTMLDivElement>(null)
   const area = useRef<HTMLTextAreaElement>(null)
+  const st = useStore.getState()
 
   useEffect(() => setText(c.text), [c.text, editing])
-  useLayoutEffect(() => {
-    if (ref.current) onHeight(ref.current.offsetHeight)
-  })
   useLayoutEffect(() => {
     if (editing) {
       area.current?.focus()
@@ -126,7 +147,6 @@ function CommentNote({
     }
   }, [editing])
 
-  const st = useStore.getState()
   const save = (): void => void st.updateComment(chatId, c.id, text)
   const cancel = (): void => {
     // Eine neue Notiz ohne Text verschwindet wieder.
@@ -139,12 +159,11 @@ function CommentNote({
 
   return (
     <div
-      ref={ref}
       className={`comment-note${editing ? ' editing' : ''}${placed.found ? '' : ' lost'}`}
-      style={{ top: placed.top }}
-      onClick={() => !editing && st.setEditingComment(c.id)}
-      title={placed.found ? c.quote : 'Die markierte Stelle wurde nicht gefunden – die Notiz steht beim Eintrag.'}
+      style={{ top: placed.top, width: CARD }}
+      title={placed.found ? undefined : 'Die markierte Stelle wurde nicht gefunden – die Notiz steht beim Eintrag.'}
     >
+      {c.quote && <div className="comment-quote">{c.quote}</div>}
       {editing ? (
         <>
           <textarea
@@ -172,9 +191,18 @@ function CommentNote({
         </>
       ) : (
         <>
-          {c.quote && <div className="comment-quote">{c.quote}</div>}
-          <div className="comment-text">{c.text}</div>
-          <div className="comment-meta muted small">{when(c.updatedAt)}</div>
+          <div className="comment-text" onClick={() => st.setEditingComment(c.id)} title="Zum Ändern klicken">
+            {c.text}
+          </div>
+          <div className="comment-actions">
+            <button className="icon-btn comment-delete" title="Notiz löschen" onClick={() => void st.removeComment(chatId, c.id)}>
+              <Icon name="trash" size={13} />
+            </button>
+            <span className="comment-meta muted small">{when(c.updatedAt)}</span>
+            <button className="btn small-btn" onClick={onClose} title="Einklappen">
+              Schließen
+            </button>
+          </div>
         </>
       )}
     </div>

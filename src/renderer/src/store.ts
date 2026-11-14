@@ -51,6 +51,8 @@ interface State {
   viewTurn: Record<string, string | undefined>
   /** Notizen je Chat (eigene Ebene neben dem Verlauf). */
   comments: Record<string, ChatComment[] | undefined>
+  /** Anzahl Notizen je Chat – auch für Chats, deren Notizen nicht geladen sind. */
+  commentCounts: Record<string, number>
   /** Notiz, die gerade geschrieben wird (neu angelegt, noch ohne Text). */
   editingComment: string | null
   /** Dialog „Session übernehmen“ offen. */
@@ -89,6 +91,8 @@ export interface JumpTarget {
   chatId: string
   forkChild?: string
   itemId?: string
+  /** Suchtext: nur diese Stellen im Eintrag werden markiert (statt des ganzen Turns). */
+  needle?: string
   n: number
 }
 
@@ -276,6 +280,7 @@ export const useStore = create<State & Actions>((set, get) => {
     activeChatId: null,
     viewTurn: {},
     comments: {},
+    commentCounts: {},
     editingComment: null,
     adoptOpen: false,
     mergeDialog: null,
@@ -313,6 +318,10 @@ export const useStore = create<State & Actions>((set, get) => {
         }
       })
       window.api.onChatsChanged((chats) => set({ chats }))
+      window.api.onCommentsChanged((chatId, list) =>
+        set((st) => ({ comments: { ...st.comments, [chatId]: list }, commentCounts: { ...st.commentCounts, [chatId]: list.length } }))
+      )
+      void window.api.commentCounts().then((commentCounts) => set({ commentCounts }))
       // Klick auf eine System-Benachrichtigung: Chat zeigen (in der markierten Zelle bzw. dort, wo er offen ist).
       window.api.onNotifyOpen((chatId) => void get().openChat(chatId))
       window.api.onUpdate((u) => set({ update: parseUpdateState(u) }))
@@ -476,7 +485,7 @@ export const useStore = create<State & Actions>((set, get) => {
       loadingComments.add(chatId)
       void window.api
         .comments(chatId)
-        .then((list) => set((s) => ({ comments: { ...s.comments, [chatId]: list } })))
+        .then((list) => set((s) => ({ comments: { ...s.comments, [chatId]: list }, commentCounts: { ...s.commentCounts, [chatId]: list.length } })))
         .finally(() => loadingComments.delete(chatId))
     },
 

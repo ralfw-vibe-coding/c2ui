@@ -26,6 +26,7 @@ export function Sidebar() {
 
   const [width, setWidth] = useState(readWidth)
   const [found, setFound] = useState<SearchResult[] | null>(null)
+  const [query, setQuery] = useState('')
 
   /** Breite per Ziehen am rechten Rand; Doppelklick setzt sie zurück. */
   const startResize = (e: React.PointerEvent<HTMLDivElement>): void => {
@@ -78,10 +79,15 @@ export function Sidebar() {
           </button>
         ))}
       </div>
-      <SearchBox onResults={setFound} />
+      <SearchBox
+        onResults={(r, q) => {
+          setFound(r)
+          setQuery(q)
+        }}
+      />
       {found !== null ? (
         <div className="search-wrap">
-          <SearchResults results={found} />
+          <SearchResults results={found} query={query} />
         </div>
       ) : (
       <ul className="chat-list">
@@ -107,7 +113,7 @@ export function Sidebar() {
           title="Bestehende Claude-Session übernehmen (z. B. aus Claude Code)"
           onClick={() => useStore.getState().setAdoptOpen(true)}
         >
-          <Icon name="history" size={15} /> <span>Session</span>
+          <Icon name="folder-up" size={15} /> <span>Session</span>
         </button>
         <button className="icon-btn" title="Einstellungen" onClick={() => useStore.getState().setSettingsOpen(true)}>
           <Icon name="gear" /> <span>Einstellungen</span>
@@ -188,6 +194,7 @@ function ChatItem({
   busy: boolean
 }) {
   const home = useStore((s) => s.home)
+  const notes = useStore((s) => s.commentCounts[chat.id] ?? 0)
   const [editing, setEditing] = useState(false)
   const fork = chat.forkFrom
   const forkInfo = fork
@@ -247,6 +254,11 @@ function ChatItem({
         </div>
         <span className="chat-meta">
           <Icon name="folder" size={12} /> {baseName(shortPath(chat.cwd, home))} · {formatDate(chat.updatedAt)}
+          {notes > 0 && (
+            <span className="chat-notes" title={`${notes} ${notes === 1 ? 'Notiz' : 'Notizen'} in diesem Chat`}>
+              <Icon name="note" size={11} /> {notes}
+            </span>
+          )}
         </span>
       </div>
       {!editing && (depth > 0 || childCount > 0) && (

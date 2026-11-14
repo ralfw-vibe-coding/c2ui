@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { boardModel, sameAsTitle, type BoardModel, type BoardNode } from '@shared/board'
 import * as L from '@shared/layout'
 import { CHAT_MIME, useStore } from '../store'
+import { Icon } from './Icon'
 import { AgentLogo } from './AgentLogo'
 
 const ROW = 30
@@ -79,8 +80,11 @@ export function Board({ rootId, cellId }: { rootId: string; cellId: string }) {
     }
     return [...ids].join('|')
   }, [chats, rootId])
+  const comments = useStore((s) => s.comments)
   useEffect(() => {
-    useStore.getState().ensureTranscripts(treeIds.split('|'))
+    const ids = treeIds.split('|')
+    useStore.getState().ensureTranscripts(ids)
+    for (const id of ids) useStore.getState().ensureComments(id)
   }, [treeIds])
 
   if (!model.lanes.length) return <div className="muted center-hint">Dieser Chat existiert nicht mehr.</div>
@@ -145,6 +149,15 @@ export function Board({ rootId, cellId }: { rootId: string; cellId: string }) {
                     {n.kind === 'steer' ? '⚡ ' : n.kind === 'merge' ? '⤵ ' : n.kind === 'prepare' ? '⤴ ' : ''}
                     {n.label}
                   </span>
+                  {(() => {
+                    const notes = comments[n.chatId]?.filter((c) => c.itemId === n.itemId) ?? []
+                    return notes.length ? (
+                      <span className="board-notes" title={notes.map((c) => c.text).join('\n\n')}>
+                        <Icon name="note" size={11} />
+                        {notes.length > 1 && notes.length}
+                      </span>
+                    ) : null
+                  })()}
                   {foldedAt.get(n.row)?.map((f) => (
                     <button
                       key={f.chatId}

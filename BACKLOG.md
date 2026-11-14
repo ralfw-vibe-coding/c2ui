@@ -13,8 +13,9 @@
 - **Screens anheften:** A2UI-Screen in eine eigene Zelle lösen, der Chat aktualisiert ihn weiter.
 - **Notizen am Rand (Kommentare):** ✓ markieren → „Notiz“; sie steht rechts auf Höhe der Stelle, die Stelle ist
   unterlegt; ändern und löschen; liegt neben dem Verlauf (`comments/<chatId>`), die CLI sieht sie nicht.
-  Offen: Notiz ohne Markierung (einfach am Eintrag), im Board zeigen (Marke an der Zeile), Notiz als Bezug in eine
-  Nachricht übernehmen, Suche auch über Notizen.
+  Am Rand erst ein Symbol, aufklappbar; Zahl der Notizen in der Seitenleiste, Marke am Board-Knoten.
+  Offen: Notiz ohne Markierung (einfach am Eintrag), Notiz als Bezug in eine Nachricht übernehmen,
+  Suche auch über Notizen.
 - **Aufgabenliste des Agenten anzeigen:** Claude führt in einem Turn eine eigene To-do-Liste (Werkzeug `TodoWrite`).
   Sie läuft heute als normaler Arbeitsschritt durch; als Liste mit Haken (und am Zellenkopf der aktuelle Schritt)
   wäre der Fortschritt eines langen Turns ablesbar. Für Codex entspricht dem das `plan`-Item.
