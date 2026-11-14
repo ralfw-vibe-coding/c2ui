@@ -58,7 +58,9 @@ Desktop-App (Electron), in der mehrere Chats mit der Claude CLI oder der Codex C
   Verlauf ist dem Agenten bekannt, erscheint im Fenster aber nicht. Dieselbe Session nicht gleichzeitig anderswo
   weiterführen; C2UI selbst lässt sie kein zweites Mal übernehmen.
 - **Kontextfüllstand:** schmaler Balken im Zellenkopf mit dem Stand nach dem letzten Turn (Tooltip: Tokens von
-  Fenstergröße). Claude liefert die Zahlen im Ergebnis des Turns, Codex über `thread/tokenUsage/updated`.
+  Fenstergröße). Der Füllstand steckt bei Claude in der **letzten Assistant-Nachricht** (gelesen + Cache + Antwort);
+  `result.usage` taugt nicht, das ist die Summe über alle Anfragen des Turns und damit um ein Vielfaches zu hoch.
+  Bei Codex liefert `thread/tokenUsage/updated` ihn als `last`. Die Fenstergröße kommt aus `result.modelUsage`.
   Verdichtet wird nicht von C2UI – das machen die CLIs selbst.
 - **Benachrichtigungen:** Das System meldet, wenn ein Turn fertig ist oder wenn während eines Turns lange nichts
   mehr kommt (Voreinstellung: 3 Minuten Stille). Gemeldet wird nur, was man nicht ohnehin sieht – Fenster im
@@ -151,6 +153,7 @@ node scripts/comments-check.mjs    # Notizen zu Stellen im Verlauf (ohne Modella
 node scripts/todos-check.mjs       # Aufgabenliste des Agenten (ohne Modellaufruf)
 node scripts/width-check.mjs       # größte Breite des Chats (ohne Modellaufruf)
 node scripts/background-check.mjs  # Arbeit, die nach dem Turn weiterläuft (CLI-Attrappe)
+node scripts/context-check.mjs     # Kontextfüllstand (CLI-Attrappe)
 ```
 
 ### App bauen und installieren (macOS, Apple Silicon)

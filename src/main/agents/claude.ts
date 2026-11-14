@@ -286,8 +286,8 @@ class ClaudeSession implements AgentSession {
           this.endTurn({ isError: true, errorText: 'Abgebrochen.' })
           return
         }
-        const used = contextTokens(m.usage)
-        if (used) this.lastContext = used
+        // Achtung: `result.usage` zählt den ganzen Turn zusammen (jede Anfrage liest den Cache neu),
+        // das ist kein Füllstand. Der steht in der letzten Assistant-Nachricht.
         const win = m.modelUsage?.[this.lastModel ?? '']?.contextWindow ?? Object.values(m.modelUsage ?? {}).map((u: any) => u?.contextWindow).find((w: any) => typeof w === 'number')
         if (typeof win === 'number' && win > 0) this.contextMax = win
         if (this.lastContext) this.cb.onEvent({ kind: 'context', used: this.lastContext, max: this.contextMax })
@@ -405,6 +405,10 @@ function toBlock(c: any): Block | null {
 /**
  * Tokens im Kontext der Anfrage: frische, neu zwischengespeicherte und gelesene Eingabe plus Ausgabe –
  * zusammen das, was beim nächsten Turn wieder mitgeschickt wird.
+ */
+/**
+ * Füllstand des Kontexts aus der Nutzung **einer** Anfrage: alles, was das Modell gelesen hat
+ * (frisch, Cache geschrieben, Cache gelesen) plus seine Antwort.
  */
 function contextTokens(u: any): number | undefined {
   if (!u || typeof u !== 'object') return undefined

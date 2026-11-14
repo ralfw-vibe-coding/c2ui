@@ -87,7 +87,12 @@ export class ChatManager {
     this.settings = migrateSettings(storage.read<unknown>('settings', {}))
     // Hintergrundbefehle gehören zu einem laufenden CLI-Prozess; nach einem Neustart der App
     // gibt es den nicht mehr, also meldet auch nie jemand „fertig“.
-    for (const c of storage.read<Chat[]>('chats', [])) this.chats.set(c.id, c.background ? { ...c, background: undefined } : c)
+    for (const c of storage.read<Chat[]>('chats', [])) {
+      // Füllstände über der Fenstergröße stammen aus einer früheren Fehlrechnung (kumulierte
+      // Turn-Nutzung statt Füllstand); lieber nichts zeigen als 100 %.
+      const kaputt = c.context && c.context.max && c.context.used > c.context.max
+      this.chats.set(c.id, c.background || kaputt ? { ...c, background: undefined, ...(kaputt ? { context: undefined } : {}) } : c)
+    }
   }
 
   // ---------- Settings & Layout ----------
