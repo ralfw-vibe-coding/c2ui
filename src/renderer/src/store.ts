@@ -49,6 +49,8 @@ interface State {
   activeChatId: string | null
   /** Je Chat die Nutzernachricht, deren Turn gerade oben im sichtbaren Bereich steht (fürs Board). */
   viewTurn: Record<string, string | undefined>
+  /** Dialog „Session übernehmen“ offen. */
+  adoptOpen: boolean
   /** Dialog zum Zusammenführen (Einrichten, Aufarbeitung prüfen, Fehler). */
   mergeDialog: MergeDialogState | null
   /** Nebenchats, deren Aufarbeitung für eine Zusammenführung gerade läuft (→ Ziel). */
@@ -141,6 +143,9 @@ interface Actions {
   jumpTo(target: Omit<JumpTarget, 'n'>): void
   clearJump(n: number): void
   setDragging(what: Drag | null): void
+  setAdoptOpen(open: boolean): void
+  /** Bestehende CLI-Session als Chat fortsetzen (in der markierten Zelle). */
+  adoptSession(cwd: string, sessionId: string, title?: string): Promise<void>
   setSettingsOpen(open: boolean): void
   toggleSidebar(): void
   saveSettings(patch: Partial<Settings>): Promise<void>
@@ -259,6 +264,7 @@ export const useStore = create<State & Actions>((set, get) => {
     jump: null,
     activeChatId: null,
     viewTurn: {},
+    adoptOpen: false,
     mergeDialog: null,
     merging: {},
 
@@ -673,6 +679,16 @@ export const useStore = create<State & Actions>((set, get) => {
 
     setDragging(what) {
       set({ dragging: what })
+    },
+
+    setAdoptOpen(open) {
+      set({ adoptOpen: open })
+    },
+
+    async adoptSession(cwd, sessionId, title) {
+      const c = await window.api.adoptChat(cwd, 'claude', sessionId, title)
+      set((st) => ({ chats: st.chats.some((x) => x.id === c.id) ? st.chats : [c, ...st.chats] }))
+      await get().openChat(c.id)
     },
 
     setSettingsOpen(open) {

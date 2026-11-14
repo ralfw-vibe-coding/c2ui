@@ -17,6 +17,8 @@ const paths: Record<string, string> = {
   sidebar: 'M4 5h16v14H4zM9.5 5v14',
   sparkle: 'M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8zM18.5 15.5l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7z',
   refresh: 'M20 11a8 8 0 10-2.3 5.7M20 4v7h-7',
+  // Uhr mit Rückwärtspfeil (bestehende Session übernehmen)
+  history: 'M4 11a8 8 0 10 2.3-5.7M4 4v7h7M12 8v4.5l3 2',
   grid: 'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z',
   file: 'M6 3h8l4 4v14H6zM14 3v4h4',
   pencil: 'M4 20h4L19 9l-4-4L4 16zM14 6l4 4',

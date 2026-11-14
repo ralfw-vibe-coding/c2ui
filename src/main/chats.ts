@@ -138,6 +138,29 @@ export class ChatManager {
   }
 
   /**
+   * Chat, der eine bestehende CLI-Session fortsetzt (Claude: `--resume <sessionId>`).
+   * Der Verlauf ist dem Agenten bekannt, erscheint hier aber nicht – wie beim Abzweigen.
+   */
+  adopt(cwd: string, agent: AgentKind, sessionId: string, title?: string): Chat {
+    if (agent !== 'claude') throw new Error('Nur Claude-Sessions lassen sich übernehmen')
+    const id = sessionId.trim()
+    if (!id) throw new Error('Keine Session angegeben')
+    for (const c of this.chats.values()) {
+      if (c.sessionId === id) throw new Error(`Diese Session läuft schon in „${c.title}“`)
+    }
+    const chat = this.create(cwd, agent, undefined, { title: title?.trim() || `Übernommen: ${id.slice(0, 8)}` })
+    const next: Chat = { ...chat, sessionId: id, sessionStarted: true }
+    this.chats.set(next.id, next)
+    this.saveChats()
+    this.emit(next.id, {
+      kind: 'notice',
+      id: randomUUID(),
+      text: 'Übernommene Session – der bisherige Verlauf ist dem Agenten bekannt, erscheint hier aber nicht. Setze sie nicht gleichzeitig anderswo fort.'
+    })
+    return next
+  }
+
+  /**
    * Neuer Chat, der den Kontext eines bestehenden mitbringt („in neuem Chat fragen“): gleicher Agent,
    * gleiches Verzeichnis, Modus und Modell. Die Quelle bleibt unverändert.
    */

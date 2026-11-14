@@ -49,4 +49,10 @@ describe('transcript', () => {
     expect(t[2]).toEqual({ type: 'notice', id: 'n', text: 'Hinweis' })
     expect((t[3] as { model?: string }).model).toBe('m')
   })
+
+  it('wendet dasselbe Ereignis nicht zweimal an (Rennen zwischen Laden und Ereignis)', () => {
+    const notice: AgentEvent = { kind: 'notice', id: 'n1', text: 'Hinweis' }
+    const user: AgentEvent = { kind: 'user', id: 'u1', text: 'Hallo', ts: 1 }
+    expect(run([notice, user, notice, user]).map((i) => i.id)).toEqual(['n1', 'u1'])
+  })
 })

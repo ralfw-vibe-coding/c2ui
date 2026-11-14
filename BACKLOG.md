@@ -16,9 +16,10 @@
   schreiben, die am Rand erscheint; ändern und löschen inbegriffen. Eigene Ebene neben dem Verlauf (die CLI sieht sie
   nicht), gespeichert je Chat mit Bezug auf Transkript-Eintrag und Zitat – wie die Abzweigmarken, die es dafür schon
   gibt. Offen: auch im Board zeigen (Marke an der Zeile), Kommentare als Bezug in eine Nachricht übernehmen.
-- **Bestehende CLI-Session übernehmen:** Chat anlegen, der eine vorhandene Session fortsetzt (Claude
-  `--resume <sessionId>`, Codex `thread/resume`) – z. B. um eine Claude-Code-Sitzung in C2UI weiterzuführen.
-  Der bisherige Verlauf ist dann dem Agenten bekannt, aber im C2UI-Fenster nicht sichtbar (Hinweis wie beim Abzweigen).
+- **Aufgabenliste des Agenten anzeigen:** Claude führt in einem Turn eine eigene To-do-Liste (Werkzeug `TodoWrite`).
+  Sie läuft heute als normaler Arbeitsschritt durch; als Liste mit Haken (und am Zellenkopf der aktuelle Schritt)
+  wäre der Fortschritt eines langen Turns ablesbar. Für Codex entspricht dem das `plan`-Item.
+- **Session übernehmen für Codex:** heute nur Claude; Codex-Threads liegen anderswo (`thread/resume`).
 - **Legende im Board als Inhaltsverzeichnis:** Liste der Chats des Baums, Klick springt zur Spur (wurde entfernt,
   könnte so zurückkommen).
 

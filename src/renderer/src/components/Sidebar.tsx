@@ -92,6 +92,13 @@ export function Sidebar() {
         {chats.length === 0 && <li className="muted small pad">Noch keine Chats.</li>}
       </ul>
       <div className="sidebar-bottom">
+        <button
+          className="icon-btn adopt-btn"
+          title="Bestehende Claude-Session übernehmen (z. B. aus Claude Code)"
+          onClick={() => useStore.getState().setAdoptOpen(true)}
+        >
+          <Icon name="history" size={15} /> <span>Session</span>
+        </button>
         <button className="icon-btn" title="Einstellungen" onClick={() => useStore.getState().setSettingsOpen(true)}>
           <Icon name="gear" /> <span>Einstellungen</span>
           {updateReady && <span className="update-dot" title="Neue Version verfügbar" />}

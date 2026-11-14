@@ -164,10 +164,16 @@ textarea {
   gap: 6px;
 }
 .new-agent {
-  flex: 1;
+  flex: 1 1 0;
+  min-width: 0;
   padding: 6px 8px;
   gap: 5px;
   font-weight: 500;
+}
+.new-agent span {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 .new-agent .icon {
   color: var(--text-muted);
@@ -278,6 +284,10 @@ textarea {
   visibility: visible;
 }
 .sidebar-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
   padding: 8px 10px;
   border-top: 1px solid var(--border);
 }
@@ -2541,4 +2551,62 @@ li > .fork-slot {
 }
 .merge-chat .agent-logo {
   vertical-align: -2px;
+}
+
+/* Session übernehmen */
+.adopt-btn {
+  flex: none;
+}
+.adopt-dir {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.adopt-dir span {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  direction: rtl;
+  text-align: left;
+}
+.adopt-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 46vh;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.adopt-list li + li {
+  border-top: 1px solid var(--border);
+}
+.adopt-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 10px;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+.adopt-item:hover {
+  background: var(--bg);
+}
+.adopt-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.adopt-meta {
+  flex: none;
+  white-space: nowrap;
 }

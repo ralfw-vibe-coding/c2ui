@@ -44,6 +44,10 @@ Desktop-App (Electron), in der mehrere Chats mit der Claude CLI oder der Codex C
   (leer = Standard, in den Einstellungen änderbar; Platzhalter `{Titel}` = B, `{Ziel}` = A). B arbeitet seine
   Ergebnisse auf, auf Wunsch erst in einer Vorschau zum Bearbeiten, dann geht alles als Nachricht an A
   („⤵ Übernommen aus …“, bei beschäftigtem A über die Warteschlange). Alternativ wird der Verlauf von B direkt übernommen.
+- **Session übernehmen:** Knopf unten in der Seitenleiste. Ordner wählen, bestehende Claude-Session aus der Liste
+  nehmen (Titel = erste Nachricht) – der Chat setzt sie fort (`claude --resume`), auch eine aus Claude Code. Der
+  Verlauf ist dem Agenten bekannt, erscheint im Fenster aber nicht. Dieselbe Session nicht gleichzeitig anderswo
+  weiterführen; C2UI selbst lässt sie kein zweites Mal übernehmen.
 - Seitenleiste: Breite am rechten Rand ziehen (Doppelklick = Standard), pro Rechner gemerkt.
 - Ein Chat ist höchstens in einer Zelle offen. Layout, Chatliste und Transkripte überstehen einen Neustart.
 - Wird ein arbeitender Chat geschlossen, fragt die App nach: im Hintergrund weiterlaufen lassen, abbrechen oder nicht schließen.

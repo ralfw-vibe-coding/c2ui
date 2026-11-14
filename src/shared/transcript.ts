@@ -5,6 +5,9 @@ import type { AgentEvent, Block, Transcript, TranscriptItem } from './types'
  * Wird im Main-Prozess (Persistenz) und im Renderer (Anzeige) identisch genutzt.
  */
 export function applyEvent(t: Transcript, e: AgentEvent): Transcript {
+  // Einmal angewandt genügt: Ein frisch geladenes Transkript enthält das Ereignis u. U. schon
+  // (der Renderer lädt es, während das Ereignis noch unterwegs ist).
+  if ('id' in e && (e.kind === 'user' || e.kind === 'notice' || e.kind === 'error') && t.some((i) => i.id === e.id)) return t
   switch (e.kind) {
     case 'user':
       return [...t, { type: 'user', id: e.id, text: e.text, ts: e.ts, ...(e.attachments?.length ? { attachments: e.attachments } : {}), ...(e.steer ? { steer: true } : {}), ...(e.merge ? { merge: e.merge } : {}) }]

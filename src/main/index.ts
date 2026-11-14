@@ -1,7 +1,9 @@
+import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { app, BrowserWindow, dialog, ipcMain, nativeImage, net, protocol, shell } from 'electron'
 import { LOCAL_FILE_SCHEME } from '@shared/a2ui'
+import { listClaudeSessions } from './sessions'
 import type { AgentKind, Attachment, ChatPatch, LayoutState, MergeMark, PermissionMode, Settings } from '@shared/types'
 import { ChatManager } from './chats'
 import { ensureComponentsDir, loadComposites } from './componentsLoader'
@@ -173,6 +175,11 @@ function registerIpc(): void {
   ipcMain.handle('layout:set', (_e, l: LayoutState) => manager.setLayout(l))
   ipcMain.handle('chats:create', (_e, cwd: string, agent: AgentKind, mode?: PermissionMode) =>
     manager.create(cwd, agent, mode)
+  )
+  // homedir() folgt $HOME (für Prüfskripte mit Schein-Home); app.getPath('home') tut das nicht.
+  ipcMain.handle('sessions:list', (_e, cwd: string) => listClaudeSessions(homedir(), cwd))
+  ipcMain.handle('chats:adopt', (_e, cwd: string, agent: AgentKind, sessionId: string, title?: string) =>
+    manager.adopt(cwd, agent, sessionId, title)
   )
   ipcMain.handle('chats:fork', (_e, sourceId: string, title: string, at?: { itemId?: string; quote?: string }) =>
     manager.fork(sourceId, title, at)
