@@ -2854,3 +2854,54 @@ li > .fork-slot {
 ::highlight(c2-comment) {
   background: rgba(217, 164, 65, 0.3);
 }
+
+/* Aufgabenliste des Agenten (TodoWrite / update_plan) */
+.todos {
+  align-self: flex-start;
+  max-width: min(640px, 92%);
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-elev);
+}
+.todo {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 13px;
+  line-height: 1.35;
+}
+.todo-mark {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  margin-top: 1px;
+  display: grid;
+  place-items: center;
+  border: 1.5px solid var(--border-strong);
+  border-radius: 50%;
+  color: transparent;
+}
+.todo-mark.done {
+  border-color: var(--ok);
+  background: var(--ok);
+  color: #fff;
+}
+.todo .spinner.todo-mark {
+  /* Der Kreis kommt von .todo-mark, der drehende Rand vom Spinner. */
+  border: 2px solid var(--border-strong);
+  border-top-color: var(--accent);
+  background: none;
+}
+.todo.done .todo-text {
+  color: var(--text-muted);
+}
+.todo.doing .todo-text {
+  font-weight: 600;
+}
+.todo.pending .todo-text {
+  color: var(--text-muted);
+}

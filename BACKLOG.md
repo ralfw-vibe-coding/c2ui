@@ -17,9 +17,10 @@
   Zahl der Notizen in der Seitenleiste, Marke am Board-Knoten (auch für Notizen an Antworten).
   Offen: Notiz ohne Markierung (einfach am Eintrag), Notiz als Bezug in eine Nachricht übernehmen,
   Suche auch über Notizen.
-- **Aufgabenliste des Agenten anzeigen:** Claude führt in einem Turn eine eigene To-do-Liste (Werkzeug `TodoWrite`).
-  Sie läuft heute als normaler Arbeitsschritt durch; als Liste mit Haken (und am Zellenkopf der aktuelle Schritt)
-  wäre der Fortschritt eines langen Turns ablesbar. Für Codex entspricht dem das `plan`-Item.
+- **Aufgabenliste des Agenten anzeigen:** ✓ die Liste steht im Verlauf statt als nackter Arbeitsschritt –
+  erledigt (Haken), gerade dran (Spinner), geplant (offener Kreis); es gilt die jüngste Fassung des Turns,
+  ältere bleiben in den Arbeitsschritten. Claude `TodoWrite`, Codex `update_plan`.
+  Offen: der aktuelle Schritt am Zellenkopf, damit er auch sichtbar ist, wenn die Liste weggescrollt ist.
 - **Session übernehmen für Codex:** heute nur Claude; Codex-Threads liegen anderswo (`thread/resume`).
 - **Legende im Board als Inhaltsverzeichnis:** Liste der Chats des Baums, Klick springt zur Spur (wurde entfernt,
   könnte so zurückkommen).

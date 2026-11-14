@@ -1,4 +1,5 @@
 import { isA2uiCall } from './a2ui'
+import { isTodoCall } from './todos'
 import type { Block, Transcript, TranscriptItem } from './types'
 
 /** Einheit der Chat-Darstellung. */
@@ -47,13 +48,17 @@ function segmentUnits(segment: TranscriptItem[], collapse: boolean, lastTurn: bo
   for (const it of segment) {
     if (it.type === 'assistant') it.blocks.forEach((b, j) => flat.push({ key: `${it.id}:${j}`, block: b }))
   }
+  // Die jüngste Aufgabenliste des Turns bleibt sichtbar (sie gilt); ältere Fassungen sind Schritte.
+  let lastTodo = -1
+  flat.forEach((f, j) => isTodoCall(f.block) && (lastTodo = j))
+  const isStep = (b: Block, j: number): boolean => isStepBlock(b) && j !== lastTodo
   let lastStep = -1
-  flat.forEach((f, j) => isStepBlock(f.block) && (lastStep = j))
+  flat.forEach((f, j) => isStep(f.block, j) && (lastStep = j))
   const stepKeys = new Set<string>()
   if (collapse) {
     flat.forEach((f, j) => {
       const b = f.block
-      if (isStepBlock(b)) stepKeys.add(f.key)
+      if (isStep(b, j)) stepKeys.add(f.key)
       else if (b.type === 'text' && j < lastStep) stepKeys.add(f.key) // Zwischentext vor dem letzten Werkzeug
     })
   }

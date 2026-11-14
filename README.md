@@ -16,6 +16,9 @@ Desktop-App (Electron), in der mehrere Chats mit der Claude CLI oder der Codex C
 - Anhänge: Bilder per Einfügen (⌘V) und Dateien per Drag & Drop. Sie landen im Anhang-Ordner des Chats
   (`<userData>/attachments/<chat>`); Claude bekommt Bilder als Bild und darf den Ordner lesen, Codex bekommt Bilder als `localImage`.
 - Arbeitsschritte (Werkzeugaufrufe, Zwischentexte) je Antwort einklappbar.
+- **Aufgabenliste des Agenten:** Plant der Agent seine Schritte (Claude `TodoWrite`, Codex `update_plan`), steht die
+  Liste im Verlauf statt als nackter Arbeitsschritt: erledigt mit Haken, der laufende Schritt mit Spinner, geplante
+  mit offenem Kreis. Sichtbar ist die jüngste Fassung des Turns; ältere bleiben in den Arbeitsschritten.
 - **Bezug auf Teile einer Antwort:** Text im Chat markieren → „Bezug nehmen“ → Anmerkung tippen.
   ↩ übernimmt Zitat + Anmerkung als Chip ins Eingabefeld (mehrere sammelbar, gesendet als `> Zitat` + Anmerkung).
   ⌘↩ bzw. „In neuem Chat fragen“ zweigt einen neuen Chat daneben ab, der den bisherigen Verlauf kennt
@@ -134,6 +137,9 @@ node scripts/codex-resume-e2e.mjs   # Codex-Chat über Neustart fortsetzen
 node scripts/chat-tree-check.mjs   # Chat-Baum (ohne Modellaufruf)
 node scripts/fork-nav-check.mjs    # Markierungen, Brotkrumen, Seitenleistenbreite (ohne Modellaufruf)
 node scripts/board-check.mjs       # Diskursboard (ohne Modellaufruf)
+node scripts/search-check.mjs      # Suche über alle Chats (ohne Modellaufruf)
+node scripts/comments-check.mjs    # Notizen zu Stellen im Verlauf (ohne Modellaufruf)
+node scripts/todos-check.mjs       # Aufgabenliste des Agenten (ohne Modellaufruf)
 ```
 
 ### App bauen und installieren (macOS, Apple Silicon)

@@ -1,6 +1,7 @@
 import { memo } from 'react'
 import type { Block, TranscriptItem } from '@shared/types'
 import { A2UI_ACTION_PREFIX, isA2uiCall } from '@shared/a2ui'
+import { todoProgress, todoSteps, type TodoStep } from '@shared/todos'
 import { A2uiBlock, ActionMessage } from '../a2ui/A2uiBlock'
 import { Icon } from './Icon'
 import { ChatMarkdown, LocalImage } from './LocalImage'
@@ -114,6 +115,8 @@ export function BlockView({ block, chatId }: { block: Block; chatId: string }) {
       )
     case 'tool_use': {
       if (isA2uiCall(block)) return <A2uiBlock chatId={chatId} block={block} />
+      const todos = todoSteps(block.name, block.input)
+      if (todos) return <TodoList steps={todos} />
       const status = !block.result ? 'pending' : block.result.isError ? 'error' : 'ok'
       return (
         <details className={`tool tool-${status}`}>
@@ -128,6 +131,32 @@ export function BlockView({ block, chatId }: { block: Block; chatId: string }) {
       )
     }
   }
+}
+
+/**
+ * Aufgabenliste des Agenten: erledigt (Haken), gerade dran (Spinner), geplant (offener Kreis).
+ * Claude schreibt sie mit `TodoWrite`, Codex mit `update_plan`.
+ */
+function TodoList({ steps }: { steps: TodoStep[] }) {
+  const { done, total } = todoProgress(steps)
+  return (
+    <div className="todos" title={`Aufgabenliste des Agenten: ${done} von ${total} erledigt`}>
+      {steps.map((s, i) => (
+        <div key={i} className={`todo ${s.status}`}>
+          {s.status === 'doing' ? (
+            <span className="spinner todo-mark" />
+          ) : s.status === 'done' ? (
+            <span className="todo-mark done">
+              <Icon name="check" size={10} />
+            </span>
+          ) : (
+            <span className="todo-mark" />
+          )}
+          <span className="todo-text">{s.text}</span>
+        </div>
+      ))}
+    </div>
+  )
 }
 
 function toolSummary(input: unknown): string {
