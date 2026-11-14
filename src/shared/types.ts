@@ -107,6 +107,16 @@ export interface Settings {
   collapseSteps: boolean
   /** Zusammenführen: Standard-Prompts und ob die Aufarbeitung vor der Übernahme gezeigt wird. */
   merge: MergeSettings
+  /** Hinweise des Systems über Chats im Hintergrund. */
+  notifications: NotifySettings
+}
+
+export interface NotifySettings {
+  /** Melden, wenn ein Turn fertig ist. */
+  done: boolean
+  /** Melden, wenn während eines Turns lange nichts mehr kommt. */
+  stalled: boolean
+  stalledMinutes: number
 }
 
 export interface MergeSettings {
@@ -133,7 +143,8 @@ export const DEFAULT_SETTINGS: Settings = {
   idleTimeoutMinutes: 10,
   lastDirectory: '',
   collapseSteps: true,
-  merge: DEFAULT_MERGE
+  merge: DEFAULT_MERGE,
+  notifications: { done: true, stalled: true, stalledMinutes: 3 }
 }
 
 /** Lädt gespeicherte Einstellungen, auch im alten Format (vor Codex). */
@@ -143,6 +154,12 @@ export function migrateSettings(raw: any): Settings {
   if (typeof raw.idleTimeoutMinutes === 'number') s.idleTimeoutMinutes = raw.idleTimeoutMinutes
   if (typeof raw.lastDirectory === 'string') s.lastDirectory = raw.lastDirectory
   if (typeof raw.collapseSteps === 'boolean') s.collapseSteps = raw.collapseSteps
+  if (raw.notifications && typeof raw.notifications === 'object') {
+    const n = raw.notifications
+    if (typeof n.done === 'boolean') s.notifications.done = n.done
+    if (typeof n.stalled === 'boolean') s.notifications.stalled = n.stalled
+    if (typeof n.stalledMinutes === 'number' && n.stalledMinutes >= 1) s.notifications.stalledMinutes = Math.round(n.stalledMinutes)
+  }
   if (raw.merge && typeof raw.merge === 'object') {
     if (typeof raw.merge.prepare === 'string' && raw.merge.prepare.trim()) s.merge.prepare = raw.merge.prepare
     if (typeof raw.merge.adopt === 'string' && raw.merge.adopt.trim()) s.merge.adopt = raw.merge.adopt

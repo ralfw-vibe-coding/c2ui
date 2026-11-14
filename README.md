@@ -51,6 +51,9 @@ Desktop-App (Electron), in der mehrere Chats mit der Claude CLI oder der Codex C
 - **Kontextfüllstand:** schmaler Balken im Zellenkopf mit dem Stand nach dem letzten Turn (Tooltip: Tokens von
   Fenstergröße). Claude liefert die Zahlen im Ergebnis des Turns, Codex über `thread/tokenUsage/updated`.
   Verdichtet wird nicht von C2UI – das machen die CLIs selbst.
+- **Benachrichtigungen:** Das System meldet, wenn ein Turn fertig ist oder wenn während eines Turns lange nichts
+  mehr kommt (Voreinstellung: 3 Minuten Stille). Gemeldet wird nur, was man nicht ohnehin sieht – Fenster im
+  Hintergrund oder Chat in keiner Zelle offen; ein Klick holt den Chat nach vorn. Abschaltbar in den Einstellungen.
 - Seitenleiste: Breite am rechten Rand ziehen (Doppelklick = Standard), pro Rechner gemerkt.
 - Ein Chat ist höchstens in einer Zelle offen. Layout, Chatliste und Transkripte überstehen einen Neustart.
 - Wird ein arbeitender Chat geschlossen, fragt die App nach: im Hintergrund weiterlaufen lassen, abbrechen oder nicht schließen.

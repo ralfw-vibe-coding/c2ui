@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { parseUpdateState, type UpdateState } from '@shared/update'
-import { AGENT_KINDS, AGENTS, DEFAULT_MERGE, type AgentKind, type AgentSettings, type MergeSettings, type Settings } from '@shared/types'
+import { AGENT_KINDS, AGENTS, DEFAULT_MERGE, type AgentKind, type AgentSettings, type MergeSettings, type NotifySettings, type Settings } from '@shared/types'
 import { useModelList } from '../models'
 import { useStore } from '../store'
 import { AgentLogo } from './AgentLogo'
@@ -65,6 +65,7 @@ export function SettingsDialog() {
           />
           <span>Arbeitsschritte (Werkzeugaufrufe, Zwischentexte) im Chat einklappen</span>
         </label>
+        <NotifySection value={draft.notifications} onChange={(notifications) => setDraft({ ...draft, notifications })} />
         <MergeSection value={draft.merge} onChange={(merge) => setDraft({ ...draft, merge })} />
         <ComponentsSection />
         <UpdateSection />
@@ -133,6 +134,37 @@ function ModelSelect({ agent, value, onChange }: { agent: AgentKind; value: stri
       )}
       {list?.error && <span className="muted small">{list.error}</span>}
     </div>
+  )
+}
+
+/** Hinweise über Chats im Hintergrund. */
+function NotifySection({ value, onChange }: { value: NotifySettings; onChange: (n: NotifySettings) => void }) {
+  return (
+    <fieldset className="agent-settings">
+      <legend>Benachrichtigungen</legend>
+      <label className="check-row">
+        <input type="checkbox" checked={value.done} onChange={(e) => onChange({ ...value, done: e.target.checked })} />
+        <span>Wenn ein Chat fertig ist</span>
+      </label>
+      <label className="check-row">
+        <input type="checkbox" checked={value.stalled} onChange={(e) => onChange({ ...value, stalled: e.target.checked })} />
+        <span>Wenn ein Chat hängt, also während eines Turns nichts mehr kommt</span>
+      </label>
+      <label className="notify-minutes">
+        <span>Nach wie vielen Minuten Stille gilt ein Chat als hängend</span>
+        <input
+          type="number"
+          min={1}
+          disabled={!value.stalled}
+          value={value.stalledMinutes}
+          onChange={(e) => onChange({ ...value, stalledMinutes: Math.max(1, Math.round(Number(e.target.value) || 1)) })}
+        />
+      </label>
+      <span className="muted small">
+        Gemeldet wird nur, was du nicht ohnehin siehst: Das Fenster ist im Hintergrund oder der Chat ist in keiner
+        Zelle offen. Ein Klick auf die Meldung holt ihn nach vorn.
+      </span>
+    </fieldset>
   )
 }
 

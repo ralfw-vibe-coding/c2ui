@@ -300,6 +300,8 @@ export const useStore = create<State & Actions>((set, get) => {
         }
       })
       window.api.onChatsChanged((chats) => set({ chats }))
+      // Klick auf eine System-Benachrichtigung: Chat zeigen (in der markierten Zelle bzw. dort, wo er offen ist).
+      window.api.onNotifyOpen((chatId) => void get().openChat(chatId))
       window.api.onUpdate((u) => set({ update: parseUpdateState(u) }))
       void window.api.updateState().then((u) => set({ update: parseUpdateState(u) }))
       // openUrl aus A2UI-Screens (auch mailto:/tel:) über das System öffnen.

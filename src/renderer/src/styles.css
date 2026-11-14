@@ -2645,3 +2645,10 @@ li > .fork-slot {
 .context-gauge.full .context-fill {
   background: var(--danger);
 }
+
+.notify-minutes input {
+  max-width: 90px;
+}
+.notify-minutes input:disabled {
+  opacity: 0.5;
+}

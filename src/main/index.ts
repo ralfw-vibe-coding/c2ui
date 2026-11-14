@@ -1,10 +1,11 @@
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { app, BrowserWindow, dialog, ipcMain, nativeImage, net, protocol, shell } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, nativeImage, net, Notification, protocol, shell } from 'electron'
 import { LOCAL_FILE_SCHEME } from '@shared/a2ui'
 import { listClaudeSessions } from './sessions'
-import type { AgentKind, Attachment, ChatPatch, LayoutState, MergeMark, PermissionMode, Settings } from '@shared/types'
+import { doneMessage, isOnScreen, isSignOfLife, shouldNotify, stalledMessage, TurnWatch } from './notifications'
+import type { AgentEvent, AgentKind, Attachment, ChatPatch, LayoutState, MergeMark, PermissionMode, Settings } from '@shared/types'
 import { ChatManager } from './chats'
 import { ensureComponentsDir, loadComposites } from './componentsLoader'
 import { existsSync, watch } from 'node:fs'
@@ -100,6 +101,58 @@ const UPDATE_CHECK_MS = 30 * 60 * 1000
 
 function send(channel: string, ...args: unknown[]): void {
   if (win && !win.isDestroyed()) win.webContents.send(channel, ...args)
+}
+
+// Hinweise über Chats im Hintergrund (fertig / hängt).
+const turnWatch = new TurnWatch()
+let stallTimer: NodeJS.Timeout | null = null
+
+/** Zeigt den Hinweis; ein Klick holt das Fenster nach vorn und öffnet den Chat. */
+function notify(chatId: string, m: { title: string; body: string }): void {
+  // Mitschreiben, damit nachvollziehbar ist, was gemeldet wurde (macOS zeigt Meldungen still weg,
+  // wenn sie abgeschaltet sind); die Prüfskripte lesen diese Zeile.
+  process.stdout.write(`[notify] ${m.title} – ${m.body}\n`)
+  if (!Notification.isSupported()) return
+  const n = new Notification({ title: m.title, body: m.body, silent: false })
+  n.on('click', () => {
+    if (win && !win.isDestroyed()) {
+      if (win.isMinimized()) win.restore()
+      win.show()
+      win.focus()
+    }
+    app.focus({ steal: true })
+    send('notify:open', chatId)
+  })
+  n.show()
+}
+
+/** Soll über diesen Chat benachrichtigt werden (nur, wenn man ihn nicht ohnehin sieht)? */
+function background(chatId: string, enabled: boolean): boolean {
+  const focused = !!win && !win.isDestroyed() && win.isFocused()
+  const root = manager.getLayout()?.root
+  const onScreen = !!root && isOnScreen(root, chatId)
+  return shouldNotify({ enabled, focused, onScreen })
+}
+
+function onAgentEvent(id: string, e: AgentEvent): void {
+  if (isSignOfLife(e)) turnWatch.touch(id)
+  if (e.kind !== 'turn-end') return
+  const n = manager.getSettings().notifications
+  if (!background(id, n.done)) return
+  const title = manager.list().find((c) => c.id === id)?.title ?? 'Chat'
+  notify(id, doneMessage(title, e.isError, e.errorText))
+}
+
+function startStallWatch(): void {
+  if (stallTimer) clearInterval(stallTimer)
+  stallTimer = setInterval(() => {
+    const n = manager.getSettings().notifications
+    for (const s of turnWatch.stalled(n.stalledMinutes)) {
+      if (!background(s.chatId, n.stalled)) continue
+      const title = manager.list().find((c) => c.id === s.chatId)?.title ?? 'Chat'
+      notify(s.chatId, stalledMessage(title, s.silentMs))
+    }
+  }, 20_000)
 }
 
 function createWindow(): void {
@@ -272,8 +325,14 @@ app.whenReady().then(() => {
     storage,
     loginPath,
     {
-      agentEvent: (id, e) => send('agent:event', id, e),
-      busy: (id, b) => send('agent:busy', id, b),
+      agentEvent: (id, e) => {
+        send('agent:event', id, e)
+        onAgentEvent(id, e)
+      },
+      busy: (id, b) => {
+        send('agent:busy', id, b)
+        turnWatch.setBusy(id, b)
+      },
       chatsChanged: (chats) => send('chats:changed', chats)
     },
     {
@@ -289,6 +348,7 @@ app.whenReady().then(() => {
   registerIpc()
   registerLocalFileProtocol()
   createWindow()
+  startStallWatch()
 
   // Erst nach app.setName: userData hängt vom Namen ab.
   buildInfo = currentBuild()

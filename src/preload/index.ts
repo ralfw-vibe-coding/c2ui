@@ -68,6 +68,10 @@ const api = {
   onUpdate: (cb: (state: unknown) => void) => on('update', cb),
   onAgentEvent: (cb: (chatId: string, e: AgentEvent) => void) => on('agent:event', cb),
   onBusy: (cb: (chatId: string, busy: boolean) => void) => on('agent:busy', cb),
+  /** Klick auf eine System-Benachrichtigung: diesen Chat zeigen. */
+  onNotifyOpen: (cb: (chatId: string) => void): void => {
+    ipcRenderer.on('notify:open', (_e, chatId: string) => cb(chatId))
+  },
   onChatsChanged: (cb: (chats: Chat[]) => void) => on('chats:changed', cb)
 }
 
