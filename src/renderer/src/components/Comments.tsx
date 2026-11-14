@@ -25,6 +25,27 @@ interface Pin {
   found: boolean
 }
 
+/**
+ * Das Element, auf das die Ebene sich bezieht. React setzt eine Ref erst, nachdem die Effekte der
+ * Kinder gelaufen sind – beim ersten Lauf ist `innerRef.current` darum noch leer. Früher hieß das:
+ * keine Marken, bis sich sonst etwas rührt (z. B. beim Öffnen in einer zweiten Zelle). Deshalb wird
+ * hier notfalls im nächsten Frame noch einmal nachgesehen.
+ */
+function useInner(innerRef: React.RefObject<HTMLDivElement | null>): HTMLDivElement | null {
+  const [el, setEl] = useState<HTMLDivElement | null>(innerRef.current)
+  useLayoutEffect(() => {
+    let frame = 0
+    const look = (): void => {
+      const now = innerRef.current
+      if (now) setEl((old) => (old === now ? old : now))
+      else frame = requestAnimationFrame(look)
+    }
+    look()
+    return () => cancelAnimationFrame(frame)
+  }, [innerRef])
+  return el
+}
+
 export function CommentLayer({ chatId, innerRef }: { chatId: string; innerRef: React.RefObject<HTMLDivElement | null> }) {
   const comments = useStore((s) => s.comments[chatId])
   const transcript = useStore((s) => s.transcripts[chatId])
@@ -32,6 +53,7 @@ export function CommentLayer({ chatId, innerRef }: { chatId: string; innerRef: R
   const [pins, setPins] = useState<Pin[]>([])
   const [open, setOpen] = useState<string | null>(null)
   const layerRef = useRef<HTMLDivElement>(null)
+  const inner = useInner(innerRef)
 
   useEffect(() => void useStore.getState().ensureComments(chatId), [chatId])
 
@@ -62,7 +84,6 @@ export function CommentLayer({ chatId, innerRef }: { chatId: string; innerRef: R
 
   // Lage bestimmen: hinter das Ende der markierten Stelle, umgerechnet in Koordinaten der Ebene.
   const measure = useCallback((): void => {
-    const inner = innerRef.current
     if (!inner || !comments?.length) {
       setPins([])
       return
@@ -93,12 +114,11 @@ export function CommentLayer({ chatId, innerRef }: { chatId: string; innerRef: R
     const max = Math.max(0, base.width - PIN - 2)
     for (const p of list) p.left = Math.min(Math.max(0, p.left), max)
     setPins(list)
-  }, [comments, innerRef])
+  }, [comments, inner])
 
   // Nachmessen, wenn sich am Verlauf etwas tut: Markdown, Bilder und Screens kommen verzögert,
   // und die Breite der Zelle ändert sich jederzeit.
   useLayoutEffect(() => {
-    const inner = innerRef.current
     if (!inner) return
     let frame = 0
     const bald = (): void => {
@@ -117,11 +137,10 @@ export function CommentLayer({ chatId, innerRef }: { chatId: string; innerRef: R
       ro.disconnect()
       mo.disconnect()
     }
-  }, [measure, transcript, innerRef])
+  }, [measure, transcript, inner])
 
   // Markierte Stellen im Text dauerhaft unterlegen.
   useEffect(() => {
-    const inner = innerRef.current
     if (!inner) return
     setCommentRanges(
       chatId,
@@ -133,7 +152,7 @@ export function CommentLayer({ chatId, innerRef }: { chatId: string; innerRef: R
       })
     )
     return () => setCommentRanges(chatId, [])
-  }, [chatId, comments, transcript, innerRef, pins.length])
+  }, [chatId, comments, transcript, inner, pins.length])
 
   if (!comments?.length) return null
   return (
@@ -152,7 +171,7 @@ export function CommentLayer({ chatId, innerRef }: { chatId: string; innerRef: R
             <CommentCard
               chatId={chatId}
               pin={p}
-              innerRef={innerRef}
+              inner={inner}
               editing={editing === p.comment.id}
               onClose={() => setOpen(null)}
             />
@@ -166,13 +185,13 @@ export function CommentLayer({ chatId, innerRef }: { chatId: string; innerRef: R
 function CommentCard({
   chatId,
   pin,
-  innerRef,
+  inner,
   editing,
   onClose
 }: {
   chatId: string
   pin: Pin
-  innerRef: React.RefObject<HTMLDivElement | null>
+  inner: HTMLDivElement | null
   editing: boolean
   onClose: () => void
 }) {
@@ -194,7 +213,6 @@ function CommentCard({
   // Das Feld liegt bei der Marke – aber immer im sichtbaren Teil der Zelle: unter der Stelle,
   // und wenn dort kein Platz ist, darüber.
   useLayoutEffect(() => {
-    const inner = innerRef.current
     const el = card.current
     if (!inner || !el) return
     const place = (): void => {
@@ -221,7 +239,7 @@ function CommentCard({
       scroller?.removeEventListener('scroll', place)
       ro.disconnect()
     }
-  }, [pin.left, pin.top, innerRef, editing, text])
+  }, [pin.left, pin.top, inner, editing, text])
 
   const save = (): void => void st.updateComment(chatId, c.id, text)
   const cancel = (): void => {
