@@ -16,6 +16,7 @@ Desktop-App (Electron), in der mehrere Chats mit der Claude CLI oder der Codex C
 - Anhänge: Bilder per Einfügen (⌘V) und Dateien per Drag & Drop. Sie landen im Anhang-Ordner des Chats
   (`<userData>/attachments/<chat>`); Claude bekommt Bilder als Bild und darf den Ordner lesen, Codex bekommt Bilder als `localImage`.
 - Arbeitsschritte (Werkzeugaufrufe, Zwischentexte) je Antwort einklappbar.
+- Codeblöcke im Chat haben oben rechts einen Knopf, der den Code in die Zwischenablage legt.
 - **Arbeit, die weiterläuft:** Startet Claude einen Befehl im Hintergrund (`Bash` mit `run_in_background`), endet
   der Turn, aber die CLI meldet dem Agenten später „fertig“ – und der arbeitet von selbst weiter. C2UI zeigt
   solange an, was läuft (im Chat und in der Seitenleiste), hält den CLI-Prozess am Leben und stellt das
@@ -161,7 +162,7 @@ node scripts/width-check.mjs       # größte Breite des Chats (ohne Modellaufru
 node scripts/background-check.mjs  # Arbeit, die nach dem Turn weiterläuft (CLI-Attrappe)
 node scripts/context-check.mjs     # Kontextfüllstand (CLI-Attrappe)
 node scripts/pin-check.mjs         # Chats oben anheften (ohne Modellaufruf)
-node scripts/cwd-check.mjs         # Ordner im Zellenkopf öffnet den Finder
+node scripts/cwd-check.mjs         # Ordner öffnet den Finder, Code kopieren, Punkt am Chat
 ```
 
 ### App bauen und installieren (macOS, Apple Silicon)

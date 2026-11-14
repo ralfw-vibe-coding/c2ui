@@ -1,4 +1,5 @@
-// Prüfung ohne Modellaufruf: Der Ordner im Zellenkopf öffnet ihn im Finder.
+// Prüfung ohne Modellaufruf: Kleinigkeiten im Zellenkopf und im Verlauf –
+// der Ordner öffnet den Finder, Codeblöcke lassen sich kopieren.
 // Geöffnet wird hier natürlich nichts – stattdessen wird gemerkt, womit die App es versucht.
 // Aufruf: npm run build && node scripts/cwd-check.mjs [ausgabe-verzeichnis]
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
@@ -12,7 +13,11 @@ const userData = join(out, 'userdata')
 rmSync(out, { recursive: true, force: true })
 mkdirSync(join(userData, 'transcripts'), { recursive: true })
 const cwd = join(root, 'src')
-writeFileSync(join(userData, 'transcripts', 'eins.json'), JSON.stringify([{ type: 'user', id: 'u1', ts: 1, text: 'Hallo' }]))
+const befehl = 'cd "/Users/x/Projekt" && python3 -m http.server 8000'
+writeFileSync(join(userData, 'transcripts', 'eins.json'), JSON.stringify([
+  { type: 'user', id: 'u1', ts: 1, text: 'Wie starte ich den Server?' },
+  { type: 'assistant', id: 'a1', blocks: [{ type: 'text', text: `So geht es:\n\n\`\`\`bash\n${befehl}\n\`\`\`\n\nUnd \`inline\` bleibt wie es ist.` }] }
+]))
 writeFileSync(join(userData, 'chats.json'), JSON.stringify([
   { id: 'eins', title: 'Ein Chat', agent: 'claude', cwd, permissionMode: 'default', sessionId: 'eins', sessionStarted: true, createdAt: 1, updatedAt: 2 }
 ]))
@@ -61,6 +66,18 @@ const lage = await page.evaluate(() => {
 log('Punkt:', JSON.stringify(lage))
 check(!!lage && lage.dotTop >= lage.logoBottom, 'der Punkt steht unter dem Logo, ohne es zu überlappen')
 check(lage?.animation === 'rec', 'und pulst wie eine Aufnahmeleuchte')
+
+// Codeblöcke im Chat haben einen Knopf zum Kopieren
+const kopieren = page.locator('.md-code .md-copy')
+check((await kopieren.count()) === 1, 'der Codeblock hat einen Knopf zum Kopieren')
+check((await page.locator('.md code:not(pre code)').count()) === 1, 'Code mitten im Satz bekommt keinen')
+await kopieren.click()
+await page.waitForTimeout(300)
+const inZwischenablage = await app.evaluate(({ clipboard }) => clipboard.readText())
+log('kopiert:', JSON.stringify(inZwischenablage))
+check(inZwischenablage.trim() === befehl, 'der Klick legt genau den Befehl in die Zwischenablage')
+check(/Kopiert/.test((await kopieren.getAttribute('title')) ?? ''), 'und sagt kurz Bescheid')
+await page.screenshot({ path: join(out, '2-code.png') })
 
 await app.close()
 log(failed ? 'FEHLGESCHLAGEN' : 'alles OK')

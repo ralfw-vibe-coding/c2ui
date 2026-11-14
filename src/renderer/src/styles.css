@@ -818,6 +818,31 @@ button.cell-cwd:hover {
   border-radius: 6px;
   overflow-x: auto;
 }
+/* Codeblock mit Knopf zum Kopieren: Der Knopf liegt über dem Block, nicht darin –
+   sonst würde er beim seitlichen Scrollen mitwandern. */
+.md-code {
+  position: relative;
+}
+/* Immer sichtbar, nur zurückhaltend – man soll ihn finden, ohne zu suchen. */
+.md-copy {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  opacity: 0.45;
+  background: var(--code-bg);
+  transition: opacity 0.12s ease;
+}
+.md-code:hover .md-copy,
+.md-copy:focus-visible {
+  opacity: 0.8;
+}
+.md-copy:hover {
+  opacity: 1;
+}
+/* Platz für den Knopf, damit er keinen Code verdeckt. */
+.md-code pre {
+  padding-right: 34px;
+}
 .md pre code {
   background: none;
   padding: 0;
