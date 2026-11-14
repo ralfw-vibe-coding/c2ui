@@ -65,7 +65,10 @@ Desktop-App (Electron), in der mehrere Chats mit der Claude CLI oder der Codex C
   darauf klappt die Notiz auf (lesen, ändern mit ⌘↩, löschen), „x“ oder Escape klappt sie wieder ein. Das Feld legt
   sich immer in den sichtbaren Teil der Zelle, auch wenn die Stelle ganz unten steht. Die Seitenleiste zeigt je Chat
   die Zahl der Notizen, das Diskursboard markiert Knoten mit Notizen – eine Notiz zu einer Antwort erscheint am Knoten
-  ihrer Frage. Notizen liegen neben dem Verlauf (`comments/<chatId>`) und gehen nie an die CLI.
+  ihrer Frage. Ohne Markierung geht es auch: Eintrag überfahren, Knopf oben rechts – die Notiz gilt dann dem ganzen
+  Eintrag. Aus einer offenen Notiz macht das Zitat-Symbol einen Bezug im Eingabefeld (Stelle als Zitat, Notiz als
+  Anmerkung), also eine Frage an den Agenten. Die Suche (⌘F) findet Notizen mit und springt an ihre Stelle.
+  Notizen liegen neben dem Verlauf (`comments/<chatId>`) und gehen nie an die CLI.
 - Seitenleiste: Breite am rechten Rand ziehen (Doppelklick = Standard), pro Rechner gemerkt.
 - Ein Chat ist höchstens in einer Zelle offen. Layout, Chatliste und Transkripte überstehen einen Neustart.
 - Wird ein arbeitender Chat geschlossen, fragt die App nach: im Hintergrund weiterlaufen lassen, abbrechen oder nicht schließen.

@@ -11,12 +11,12 @@
 ## Ideen (gesammelt, Reihenfolge offen)
 
 - **Screens anheften:** A2UI-Screen in eine eigene Zelle lösen, der Chat aktualisiert ihn weiter.
-- **Notizen zu Stellen im Verlauf (Kommentare):** ✓ markieren → „Notiz“; die Stelle ist unterlegt, die Marke steht
-  im Text am Ende der Zeile und klappt die Notiz auf (x oder Escape schließt); ändern und löschen; liegt neben dem
-  Verlauf (`comments/<chatId>`), die CLI sieht sie nicht.
-  Zahl der Notizen in der Seitenleiste, Marke am Board-Knoten (auch für Notizen an Antworten).
-  Offen: Notiz ohne Markierung (einfach am Eintrag), Notiz als Bezug in eine Nachricht übernehmen,
-  Suche auch über Notizen.
+- **Notizen zu Stellen im Verlauf (Kommentare):** ✓ markieren → „Notiz“, oder ohne Markierung über den Knopf am
+  überfahrenen Eintrag; die Stelle ist unterlegt, die Marke steht im Text am Ende der Zeile (Notiz zum Eintrag:
+  oben rechts) und klappt die Notiz auf (x oder Escape schließt); ändern und löschen; liegt neben dem Verlauf
+  (`comments/<chatId>`), die CLI sieht sie nicht. Zahl der Notizen in der Seitenleiste, Marke am Board-Knoten
+  (auch für Notizen an Antworten). Aus einer Notiz wird per Zitat-Symbol ein Bezug im Eingabefeld; die Suche
+  findet Notizen mit.
 - **Aufgabenliste des Agenten anzeigen:** ✓ die Liste steht im Verlauf statt als nackter Arbeitsschritt –
   erledigt (Haken), gerade dran (Spinner), geplant (offener Kreis); es gilt die jüngste Fassung des Turns,
   ältere bleiben in den Arbeitsschritten. Claude `TodoWrite`, Codex `update_plan`.

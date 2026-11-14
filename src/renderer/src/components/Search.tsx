@@ -99,14 +99,15 @@ function ChatRow({ r }: { r: SearchResult }) {
 }
 
 function HitRow({ chatId, hit, needle }: { chatId: string; hit: SearchHit; needle: string }) {
-  const open = (newCell: boolean): void => void openChat(chatId, hit.itemId, newCell, needle)
+  // Der Text einer Notiz steht nicht im Verlauf; dort ist nur die Stelle zu markieren, zu der sie gehört.
+  const open = (newCell: boolean): void => void openChat(chatId, hit.itemId, newCell, hit.role === 'note' ? undefined : needle)
   return (
     <div
       className={`search-hit ${hit.role}`}
       role="button"
       tabIndex={0}
       draggable
-      title="Klick: an dieser Stelle öffnen · ⌘-Klick: in neuer Zelle · Ziehen: in eine Zelle legen"
+      title={hit.role === 'note' ? 'Klick: die Stelle der Notiz öffnen · ⌘-Klick: in neuer Zelle · Ziehen: in eine Zelle legen' : 'Klick: an dieser Stelle öffnen · ⌘-Klick: in neuer Zelle · Ziehen: in eine Zelle legen'}
       onDragStart={(e) => startDrag(e, chatId, hit.itemId)}
       onDragEnd={() => useStore.getState().setDragging(null)}
       onClick={(e) => open(e.metaKey)}
@@ -121,10 +122,10 @@ function HitRow({ chatId, hit, needle }: { chatId: string; hit: SearchHit; needl
 }
 
 const roleLabel = (role: SearchHit['role']): string =>
-  role === 'user' ? 'Frage' : role === 'assistant' ? 'Antwort' : role === 'error' ? 'Fehler' : 'Hinweis'
+  role === 'user' ? 'Frage' : role === 'assistant' ? 'Antwort' : role === 'note' ? 'Notiz' : role === 'error' ? 'Fehler' : 'Hinweis'
 
 const roleIcon = (role: SearchHit['role']): string =>
-  role === 'user' ? 'message-circle-dashed' : role === 'assistant' ? 'message-circle-warning' : 'info'
+  role === 'user' ? 'message-circle-dashed' : role === 'assistant' ? 'message-circle-warning' : role === 'note' ? 'note' : 'info'
 
 function startDrag(e: React.DragEvent, chatId: string, itemId?: string): void {
   e.dataTransfer.setData(CHAT_MIME, chatId)

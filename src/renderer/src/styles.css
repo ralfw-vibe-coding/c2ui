@@ -2765,6 +2765,26 @@ li > .fork-slot {
   cursor: pointer;
   pointer-events: all;
 }
+.comment-add {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px dashed var(--border-strong);
+  border-radius: 5px;
+  background: var(--bg-elev);
+  color: var(--text-muted);
+  cursor: pointer;
+  pointer-events: all;
+  opacity: 0.75;
+}
+.comment-add:hover {
+  border-color: #d9a441;
+  color: #b8860b;
+  opacity: 1;
+}
 .comment-pin:hover,
 .comment-pin.on {
   background: rgba(217, 164, 65, 0.3);

@@ -236,7 +236,9 @@ function registerIpc(): void {
   ipcMain.handle('comments:add', (_e, chatId: string, c: { itemId: string; quote?: string; text: string }) => manager.addComment(chatId, c))
   ipcMain.handle('comments:update', (_e, chatId: string, id: string, text: string) => manager.updateComment(chatId, id, text))
   ipcMain.handle('comments:remove', (_e, chatId: string, id: string) => manager.removeComment(chatId, id))
-  ipcMain.handle('search:chats', (_e, query: string) => searchChats(manager.list(), (id) => manager.transcript(id), query))
+  ipcMain.handle('search:chats', (_e, query: string) =>
+    searchChats(manager.list(), (id) => manager.transcript(id), query, { commentsOf: (id) => manager.comments(id) })
+  )
   ipcMain.handle('sessions:list', (_e, cwd: string) => listClaudeSessions(homedir(), cwd))
   ipcMain.handle('chats:adopt', (_e, cwd: string, agent: AgentKind, sessionId: string, title?: string) =>
     manager.adopt(cwd, agent, sessionId, title)

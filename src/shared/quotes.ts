@@ -5,6 +5,9 @@ export interface QuoteRef {
   note: string
 }
 
+/** Zitate werden gekürzt gespeichert und übernommen – sie dienen dem Wiederfinden der Stelle. */
+export const MAX_QUOTE = 300
+
 /** Bereinigt markierten Text: Leerzeichen am Rand, höchstens eine Leerzeile am Stück. */
 export function cleanQuote(text: string): string {
   return text

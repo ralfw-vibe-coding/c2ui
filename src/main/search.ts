@@ -1,4 +1,4 @@
-import type { Chat, Transcript } from '@shared/types'
+import type { Chat, ChatComment, Transcript } from '@shared/types'
 
 /**
  * Suche über alle Chats: Titel und Verläufe. Läuft im Hauptprozess, weil dort alle Transkripte
@@ -9,7 +9,7 @@ export interface SearchHit {
   /** Transkript-Eintrag (Sprungziel). */
   itemId: string
   ts?: number
-  role: 'user' | 'assistant' | 'notice' | 'error'
+  role: 'user' | 'assistant' | 'notice' | 'error' | 'note'
   /** Textausschnitt um den Treffer. */
   snippet: string
 }
@@ -23,7 +23,7 @@ export interface SearchResult {
   /** Der Titel selbst passt. */
   inTitle: boolean
   hits: SearchHit[]
-  /** Treffer im Verlauf insgesamt (auch die nicht gezeigten). */
+  /** Treffer im Verlauf und in den Notizen insgesamt (auch die nicht gezeigten). */
   total: number
 }
 
@@ -61,6 +61,8 @@ export interface SearchOptions {
   maxChats?: number
   /** Höchstens so viele Textstellen je Chat. */
   maxHits?: number
+  /** Notizen eines Chats – sie werden mitdurchsucht (eigene Ebene, nicht im Verlauf). */
+  commentsOf?: (chatId: string) => ChatComment[]
 }
 
 /**
@@ -71,7 +73,7 @@ export function searchChats(
   chats: Chat[],
   transcriptOf: (chatId: string) => Transcript,
   query: string,
-  { maxChats = 50, maxHits = 3 }: SearchOptions = {}
+  { maxChats = 50, maxHits = 3, commentsOf }: SearchOptions = {}
 ): SearchResult[] {
   const q = query.trim()
   if (q.length < 2) return []
@@ -95,6 +97,12 @@ export function searchChats(
           snippet: snippetOf(text, q)
         })
       }
+    }
+    // Notizen gehören nicht zum Verlauf, sind aber Teil des Chats – sie werden mitgefunden.
+    for (const c of commentsOf?.(chat.id) ?? []) {
+      if (!norm(c.text).includes(needle)) continue
+      total++
+      if (hits.length < maxHits) hits.push({ itemId: c.itemId, ts: c.updatedAt, role: 'note', snippet: snippetOf(c.text, q) })
     }
     if (!inTitle && !total) continue
     out.push({ chatId: chat.id, title: chat.title, agent: chat.agent, cwd: chat.cwd, updatedAt: chat.updatedAt, inTitle, hits, total })

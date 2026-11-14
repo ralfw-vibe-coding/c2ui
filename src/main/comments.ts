@@ -1,3 +1,4 @@
+import { MAX_QUOTE } from '@shared/quotes'
 import type { ChatComment } from '@shared/types'
 
 /**
@@ -5,8 +6,7 @@ import type { ChatComment } from '@shared/types'
  * gehen nie an die CLI. Hier nur die reinen Listenoperationen; Ablage und IPC im Hauptprozess.
  */
 
-/** Zitate werden gekürzt gespeichert – sie dienen nur dem Wiederfinden der Stelle. */
-export const MAX_QUOTE = 300
+export { MAX_QUOTE }
 
 export function addComment(list: ChatComment[], c: { id: string; itemId: string; quote?: string; text: string }, now = Date.now()): ChatComment[] {
   const quote = c.quote?.trim().slice(0, MAX_QUOTE)

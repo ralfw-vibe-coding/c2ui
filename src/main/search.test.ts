@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { searchChats, snippetOf } from './search'
-import type { Chat, Transcript } from '@shared/types'
+import type { Chat, ChatComment, Transcript } from '@shared/types'
 
 const chat = (id: string, title: string, updatedAt: number): Chat =>
   ({ id, title, agent: 'claude', cwd: '/w', createdAt: 1, updatedAt, sessionId: id, sessionStarted: true, permissionMode: 'default' }) as Chat
@@ -57,5 +57,17 @@ describe('Suche über alle Chats', () => {
     expect(s.startsWith('…') && s.endsWith('…')).toBe(true)
     expect(s.length).toBeLessThanOrEqual(44)
     expect(snippetOf('  kurz  und\n klein ', 'und')).toBe('kurz und klein')
+  })
+  it('findet auch Notizen und zeigt sie als eigene Treffer', () => {
+    const notizen: Record<string, ChatComment[]> = {
+      b: [{ id: 'k1', itemId: 'b1', quote: 'Thema', text: 'Hier fehlt das Archiv der Kantine', createdAt: 1, updatedAt: 7 }]
+    }
+    const r = searchChats(chats, (id) => t[id] ?? [], 'archiv', { commentsOf: (id) => notizen[id] ?? [] })
+    expect(r.map((x) => x.chatId)).toEqual(['c', 'b', 'a'])
+    const kochen = r.find((x) => x.chatId === 'b')!
+    expect(kochen).toMatchObject({ inTitle: false, total: 1 })
+    expect(kochen.hits[0]).toMatchObject({ role: 'note', itemId: 'b1', ts: 7, snippet: 'Hier fehlt das Archiv der Kantine' })
+    // Ohne Notizen bleibt alles wie vorher.
+    expect(searchChats(chats, (id) => t[id] ?? [], 'archiv').map((x) => x.chatId)).toEqual(['c', 'a'])
   })
 })

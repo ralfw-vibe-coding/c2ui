@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { ChatComment } from '@shared/types'
+import { cleanQuote, MAX_QUOTE } from '@shared/quotes'
 import { findQuoteRange } from '../textRange'
 import { useStore } from '../store'
 import { Icon } from './Icon'
@@ -13,9 +14,6 @@ import { Icon } from './Icon'
 
 const CARD = 250
 const PIN = 18
-/** Abstand zweier Marken an derselben Stelle. */
-const PIN_GAP = 20
-
 interface Pin {
   comment: ChatComment
   /** Lage in der Ebene (= Innenfläche des Verlaufs). */
@@ -52,14 +50,17 @@ export function CommentLayer({ chatId, innerRef }: { chatId: string; innerRef: R
   const editing = useStore((s) => s.editingComment)
   const [pins, setPins] = useState<Pin[]>([])
   const [open, setOpen] = useState<string | null>(null)
+  const [hover, setHover] = useState<{ itemId: string; top: number } | null>(null)
   const layerRef = useRef<HTMLDivElement>(null)
   const inner = useInner(innerRef)
 
   useEffect(() => void useStore.getState().ensureComments(chatId), [chatId])
 
-  // Eine frisch angelegte Notiz ist gleich offen (sie wird ja gerade geschrieben).
+  // Eine frisch angelegte Notiz ist gleich offen (sie wird ja gerade geschrieben);
+  // eine gelöschte oder verworfene gilt als eingeklappt.
   useEffect(() => {
     if (editing && comments?.some((c) => c.id === editing)) setOpen(editing)
+    else setOpen((o) => (o && !comments?.some((c) => c.id === o) ? null : o))
   }, [editing, comments])
 
   // Klick daneben und Escape klappen wieder ein (eine Notiz im Schreiben bleibt offen).
@@ -82,6 +83,38 @@ export function CommentLayer({ chatId, innerRef }: { chatId: string; innerRef: R
     }
   }, [open])
 
+
+  // Notiz ohne Markierung: Wer einen Eintrag überfährt, bekommt oben rechts einen Knopf dafür.
+  useEffect(() => {
+    if (!inner) return
+    const onOver = (e: MouseEvent): void => {
+      // Über der Ebene selbst (Knopf, Marken, offene Notiz) bleibt es beim zuletzt überfahrenen Eintrag,
+      // sonst wäre der Knopf weg, sobald die Maus ihn erreicht.
+      if ((e.target as HTMLElement | null)?.closest('.comment-layer')) return
+      const unit = (e.target as HTMLElement | null)?.closest<HTMLElement>('.unit[data-item-id]')
+      const itemId = unit?.dataset.itemId
+      if (!unit || !itemId) return setHover(null)
+      const top = unitBox(unit).top - inner.getBoundingClientRect().top + 2
+      setHover((h) => (h?.itemId === itemId && Math.abs(h.top - top) < 1 ? h : { itemId, top }))
+    }
+    const onLeave = (): void => setHover(null)
+    inner.addEventListener('mousemove', onOver)
+    inner.addEventListener('mouseleave', onLeave)
+    return () => {
+      inner.removeEventListener('mousemove', onOver)
+      inner.removeEventListener('mouseleave', onLeave)
+    }
+  }, [inner])
+
+  // Der Knopf stellt sich unter die Marken, die an dieser Stelle schon stehen.
+  const addAt = useMemo(() => {
+    if (!hover || !inner) return null
+    const left = inner.getBoundingClientRect().width - PIN - 2
+    let top = hover.top
+    for (const p of pins) if (Math.abs(p.left - left) < PIN && p.top >= top - 2 && p.top < top + PIN + 1) top = p.top + PIN + 2
+    return { left, top }
+  }, [hover, pins, inner])
+
   // Lage bestimmen: hinter das Ende der markierten Stelle, umgerechnet in Koordinaten der Ebene.
   const measure = useCallback((): void => {
     if (!inner || !comments?.length) {
@@ -94,22 +127,28 @@ export function CommentLayer({ chatId, innerRef }: { chatId: string; innerRef: R
       const unit = inner.querySelector<HTMLElement>(`.unit[data-item-id="${CSS.escape(c.itemId)}"]`)
       if (!unit) continue
       const range = c.quote ? findQuoteRange([unit], c.quote) : null
+      if (!c.quote) {
+        // Notiz zum ganzen Eintrag: Marke oben rechts, dort, wo auch der Knopf zum Anlegen steht.
+        const box = unitBox(unit)
+        list.push({ comment: c, left: base.width - PIN - 2, top: box.top - base.top + 2, found: true })
+        continue
+      }
       // Bei mehrzeiligen Stellen zählt die letzte Zeile der Stelle.
       const rects = range ? [...range.getClientRects()].filter((r) => r.width || r.height) : []
-      const box = rects.length ? rects[rects.length - 1] : unit.getBoundingClientRect()
+      const box = rects.length ? rects[rects.length - 1] : unitBox(unit)
       list.push({
         comment: c,
         left: lineEnd(range, box, unit) - base.left + 4,
         top: box.top - base.top + box.height / 2 - PIN / 2,
-        found: !c.quote || !!range
+        found: !!range
       })
     }
     list.sort((a, b) => a.top - b.top || a.left - b.left)
-    // Marken an derselben Stelle nebeneinander statt übereinander.
+    // Marken an derselben Stelle untereinander statt übereinander.
     for (let i = 1; i < list.length; i++) {
       const p = list[i]
       const q = list[i - 1]
-      if (Math.abs(p.top - q.top) < PIN && p.left < q.left + PIN_GAP) p.left = q.left + PIN_GAP
+      if (Math.abs(p.left - q.left) < PIN && p.top < q.top + PIN + 1) p.top = q.top + PIN + 2
     }
     const max = Math.max(0, base.width - PIN - 2)
     for (const p of list) p.left = Math.min(Math.max(0, p.left), max)
@@ -154,9 +193,23 @@ export function CommentLayer({ chatId, innerRef }: { chatId: string; innerRef: R
     return () => setCommentRanges(chatId, [])
   }, [chatId, comments, transcript, inner, pins.length])
 
-  if (!comments?.length) return null
+  const neueNotiz = (): void => {
+    if (hover) void useStore.getState().addComment(chatId, { itemId: hover.itemId })
+  }
+
+  if (!comments?.length && !addAt) return null
   return (
     <div className="comment-layer" ref={layerRef}>
+      {addAt && !open && (
+        <button
+          className="comment-add"
+          style={{ left: addAt.left, top: addAt.top }}
+          title="Notiz zu diesem Eintrag (geht nicht an die CLI)"
+          onClick={neueNotiz}
+        >
+          <Icon name="note" size={11} />
+        </button>
+      )}
       {pins.map((p) => (
         <span key={p.comment.id}>
           <button
@@ -242,6 +295,14 @@ function CommentCard({
   }, [pin.left, pin.top, inner, editing, text])
 
   const save = (): void => void st.updateComment(chatId, c.id, text)
+  // Die Notiz wird zur Frage an den Agenten: Stelle als Zitat, Notiztext als Anmerkung.
+  const alsBezug = (): void => {
+    st.addRef(chatId, quoteOfComment(chatId, c), c.text)
+    onClose()
+    requestAnimationFrame(() =>
+      (document.querySelector(`[data-chat-id="${CSS.escape(chatId)}"] .composer textarea`) as HTMLTextAreaElement | null)?.focus()
+    )
+  }
   const cancel = (): void => {
     // Eine neue Notiz ohne Text verschwindet wieder.
     if (!c.text.trim()) void st.removeComment(chatId, c.id)
@@ -297,6 +358,9 @@ function CommentCard({
             <button className="icon-btn comment-delete" title="Notiz löschen" onClick={() => void st.removeComment(chatId, c.id)}>
               <Icon name="trash" size={13} />
             </button>
+            <button className="icon-btn" title="Als Bezug ins Eingabefeld übernehmen" onClick={alsBezug}>
+              <Icon name="quote" size={13} />
+            </button>
             <span className="comment-meta muted small">{when(c.updatedAt)}</span>
           </div>
         </>
@@ -309,6 +373,28 @@ function CommentCard({
  * Wo endet der Text der Zeile, in der die markierte Stelle aufhört? Dort steht die Marke –
  * so verdeckt sie nichts, bleibt aber auf der Höhe der Stelle.
  */
+/**
+ * Maße eines Eintrags. `.unit` ist `display: contents` – das Element selbst hat keinen Kasten
+ * (`getBoundingClientRect()` liefert Nullen), also zählen die Kästen seiner Kinder.
+ */
+function unitBox(unit: HTMLElement): DOMRect {
+  const own = unit.getBoundingClientRect()
+  if (own.width || own.height) return own
+  let top = Infinity
+  let left = Infinity
+  let right = -Infinity
+  let bottom = -Infinity
+  for (const el of unit.children) {
+    const r = el.getBoundingClientRect()
+    if (!r.width && !r.height) continue
+    top = Math.min(top, r.top)
+    left = Math.min(left, r.left)
+    right = Math.max(right, r.right)
+    bottom = Math.max(bottom, r.bottom)
+  }
+  return Number.isFinite(top) ? new DOMRect(left, top, right - left, bottom - top) : own
+}
+
 function lineEnd(range: Range | null, box: DOMRect, unit: HTMLElement): number {
   if (!range) return box.right
   const node = range.endContainer
@@ -322,6 +408,22 @@ function lineEnd(range: Range | null, box: DOMRect, unit: HTMLElement): number {
     if (r.bottom > box.top + 2 && r.top < box.bottom - 2 && r.right > right) right = r.right
   }
   return right
+}
+
+/**
+ * Worauf sich eine Notiz bezieht, als Zitat für eine Nachricht: das markierte Zitat, sonst der
+ * Anfang des Eintrags, zu dem sie gehört. So lässt sich eine Notiz zur Frage an den Agenten machen.
+ */
+function quoteOfComment(chatId: string, c: ChatComment): string {
+  if (c.quote) return c.quote
+  const item = useStore.getState().transcripts[chatId]?.find((i) => i.id === c.itemId)
+  const text =
+    item?.type === 'assistant'
+      ? item.blocks.filter((b) => b.type === 'text').map((b) => (b as { text: string }).text).join('\n')
+      : item && 'text' in item
+        ? (item as { text: string }).text
+        : ''
+  return cleanQuote(text).slice(0, MAX_QUOTE)
 }
 
 function when(ts: number): string {
