@@ -70,6 +70,8 @@ export interface Chat {
   sessionId: string
   /** true, sobald die CLI-Session existiert (dann wird fortgesetzt statt neu begonnen). */
   sessionStarted: boolean
+  /** Oben in der Seitenleiste festgehalten (Zeitpunkt des Anheftens, neueste zuerst). */
+  pinned?: number
   /** Zuletzt gemeldeter Kontextfüllstand. */
   context?: ContextUse
   /** Befehle, die im Hintergrund weiterlaufen; danach arbeitet der Chat von selbst weiter. */
@@ -87,7 +89,7 @@ export interface ModelList {
 }
 
 /** Felder eines Chats, die die Oberfläche ändern darf. */
-export type ChatPatch = Partial<Pick<Chat, 'title' | 'permissionMode' | 'model'>>
+export type ChatPatch = Partial<Pick<Chat, 'title' | 'permissionMode' | 'model' | 'pinned'>>
 
 /** Wirksames Modell eines Chats (alte Chats ohne eigenes Modell nutzen die Einstellung). */
 export function chatModel(chat: Chat, settings: Settings): string {

@@ -6,6 +6,8 @@ export interface ChatNode {
   children: ChatNode[]
   /** Letzte Aktivität im ganzen Teilbaum (für die Reihenfolge der Wurzeln). */
   latest: number
+  /** Jüngstes Anheften im Teilbaum (0 = nichts angeheftet). */
+  pinned: number
   /** Anzahl aller Nachfahren. */
   descendants: number
 }
@@ -14,6 +16,8 @@ export interface ChatNode {
  * Baut aus der flachen Chatliste einen Baum. Wurzeln sind Chats ohne Ursprung oder deren Ursprung
  * gelöscht ist; sie stehen nach letzter Aktivität im Teilbaum (ein Diskurs rückt nach oben, wenn
  * irgendwo in ihm gearbeitet wird). Nebenchats stehen in der Reihenfolge ihres Abzweigens.
+ * Angeheftete Chats ziehen ihren Baum nach oben – ein Nebenchat bleibt dabei an seinem Platz
+ * im Baum, damit die Herkunft sichtbar bleibt.
  */
 export function chatTree(chats: Chat[]): ChatNode[] {
   const byId = new Map(chats.map((c) => [c.id, c]))
@@ -33,10 +37,12 @@ export function chatTree(chats: Chat[]): ChatNode[] {
       chat: c,
       children,
       latest: Math.max(c.updatedAt, ...children.map((n) => n.latest)),
+      pinned: Math.max(c.pinned ?? 0, ...children.map((n) => n.pinned)),
       descendants: children.reduce((n, k) => n + 1 + k.descendants, 0)
     }
   }
-  return roots.map(build).sort((a, b) => b.latest - a.latest)
+  // Angeheftetes steht oben (zuletzt angeheftet zuerst), darunter nach letzter Aktivität.
+  return roots.map(build).sort((a, b) => b.pinned - a.pinned || b.latest - a.latest)
 }
 
 /** Schutz gegen kaputte Daten: führt die Ursprungskette zurück zum Chat selbst? */
@@ -51,10 +57,15 @@ function createsCycle(c: Chat, byId: Map<string, Chat>): boolean {
   return false
 }
 
-/** Sichtbare Zeilen des Baums (zugeklappte Teilbäume ausgelassen), mit Tiefe. */
+/** Sichtbare Zeilen des Baums (zugeklappte Teilbäume ausgelassen, Angeheftetes bleibt), mit Tiefe. */
 export function visibleRows(nodes: ChatNode[], collapsed: Set<string>, depth = 0): { node: ChatNode; depth: number }[] {
   return nodes.flatMap((n) => [
     { node: n, depth },
-    ...(collapsed.has(n.chat.id) ? [] : visibleRows(n.children, collapsed, depth + 1))
+    ...(collapsed.has(n.chat.id) ? pinnedRows(n.children, depth + 1) : visibleRows(n.children, collapsed, depth + 1))
   ])
+}
+
+/** Angeheftetes bleibt sichtbar, auch wenn sein Ursprung zugeklappt ist – sonst nützt das Anheften nichts. */
+function pinnedRows(nodes: ChatNode[], depth: number): { node: ChatNode; depth: number }[] {
+  return nodes.flatMap((n) => [...(n.chat.pinned ? [{ node: n, depth }] : []), ...pinnedRows(n.children, depth + 1)])
 }

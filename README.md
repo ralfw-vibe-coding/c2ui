@@ -78,6 +78,9 @@ Desktop-App (Electron), in der mehrere Chats mit der Claude CLI oder der Codex C
   Anmerkung), also eine Frage an den Agenten. Die Suche (⌘F) findet Notizen mit und springt an ihre Stelle.
   Notizen liegen neben dem Verlauf (`comments/<chatId>`) und gehen nie an die CLI.
 - Seitenleiste: Breite am rechten Rand ziehen (Doppelklick = Standard), pro Rechner gemerkt.
+- **Chats anheften:** Nadel in der Chatzeile – angeheftete Chats stehen oben (zuletzt angeheftet zuoberst),
+  darunter geht es weiter nach letzter Aktivität. Ein angehefteter Nebenchat zieht seinen Baum nach oben, bleibt
+  darin aber an seinem Platz und bleibt sichtbar, auch wenn sein Ursprung zugeklappt ist.
 - Ein Chat ist höchstens in einer Zelle offen. Layout, Chatliste und Transkripte überstehen einen Neustart.
 - Wird ein arbeitender Chat geschlossen, fragt die App nach: im Hintergrund weiterlaufen lassen, abbrechen oder nicht schließen.
 
@@ -154,6 +157,7 @@ node scripts/todos-check.mjs       # Aufgabenliste des Agenten (ohne Modellaufru
 node scripts/width-check.mjs       # größte Breite des Chats (ohne Modellaufruf)
 node scripts/background-check.mjs  # Arbeit, die nach dem Turn weiterläuft (CLI-Attrappe)
 node scripts/context-check.mjs     # Kontextfüllstand (CLI-Attrappe)
+node scripts/pin-check.mjs         # Chats oben anheften (ohne Modellaufruf)
 ```
 
 ### App bauen und installieren (macOS, Apple Silicon)

@@ -2950,3 +2950,12 @@ li > .fork-slot {
   margin-left: 6px;
   color: #b8860b;
 }
+
+/* Oben festgehaltene Chats */
+.chat-item .pin-btn.on {
+  color: #b8860b;
+  opacity: 1;
+}
+.chat-item .pin-btn.on:hover {
+  color: var(--text);
+}

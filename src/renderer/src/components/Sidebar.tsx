@@ -159,15 +159,19 @@ function subscribeCollapsed(l: () => void): () => void {
   return () => collapsedListeners.delete(l)
 }
 const getCollapsed = (): Set<string> => collapsedSet
-function toggleCollapsed(id: string): void {
-  collapsedSet = new Set(collapsedSet)
-  if (collapsedSet.has(id)) collapsedSet.delete(id)
-  else collapsedSet.add(id)
+function writeCollapsed(): void {
   try {
     localStorage.setItem(COLLAPSED_KEY, JSON.stringify([...collapsedSet]))
   } catch {
     /* egal */
   }
+}
+
+function toggleCollapsed(id: string): void {
+  collapsedSet = new Set(collapsedSet)
+  if (collapsedSet.has(id)) collapsedSet.delete(id)
+  else collapsedSet.add(id)
+  writeCollapsed()
   collapsedListeners.forEach((l) => l())
 }
 
@@ -279,6 +283,18 @@ function ChatItem({
           }}
         >
           <Icon name="board" size={14} />
+        </button>
+      )}
+      {!editing && (
+        <button
+          className={`icon-btn pin-btn${chat.pinned ? ' on' : ' hover-only'}`}
+          title={chat.pinned ? 'Nicht mehr oben festhalten' : 'Oben in der Seitenleiste festhalten'}
+          onClick={(e) => {
+            e.stopPropagation()
+            void window.api.updateChat(chat.id, { pinned: chat.pinned ? undefined : Date.now() })
+          }}
+        >
+          <Icon name="pin" size={14} />
         </button>
       )}
       {!editing && (
