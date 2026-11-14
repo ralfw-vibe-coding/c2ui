@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer, webFrame, webUtils, type IpcRendererEvent } from 'electron'
 import type { CompositeDef } from '@shared/a2ui-composites'
 import type { SessionInfo } from '../main/sessions'
+import type { SearchResult } from '../main/search'
 import type { AgentEvent, AgentKind, Attachment, Chat, ChatPatch, LayoutState, MergeMark, ModelList, PermissionMode, Settings, Transcript } from '@shared/types'
 
 export interface InitState {
@@ -25,6 +26,7 @@ const api = {
     ipcRenderer.invoke('chats:create', cwd, agent, mode),
   updateChat: (id: string, patch: ChatPatch): Promise<Chat> =>
     ipcRenderer.invoke('chats:update', id, patch),
+  search: (query: string): Promise<SearchResult[]> => ipcRenderer.invoke('search:chats', query),
   sessions: (cwd: string): Promise<SessionInfo[]> => ipcRenderer.invoke('sessions:list', cwd),
   adoptChat: (cwd: string, agent: AgentKind, sessionId: string, title?: string): Promise<Chat> =>
     ipcRenderer.invoke('chats:adopt', cwd, agent, sessionId, title),

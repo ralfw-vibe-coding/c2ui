@@ -5,9 +5,8 @@
 1. ✓ **Kontextfüllstand** je Chat: Balken im Zellenkopf (Claude aus `result.modelUsage`, Codex aus
    `thread/tokenUsage/updated`); Verdichten machen die CLIs selbst.
 2. ✓ **Benachrichtigungen,** wenn ein Chat im Hintergrund fertig ist oder hängt (abschaltbar, Klick öffnet ihn).
-3. **Suche über alle Chats** (Titel und Verläufe). Aus der Trefferliste lässt sich ein Chat an der gefundenen Stelle
-   öffnen – wie aus dem Graphen: Klick in die zuletzt benutzte Zelle, ⌘-Klick in eine neue, oder Treffer in eine
-   Zelle ziehen.
+3. ✓ **Suche über alle Chats** (⌘F): Titel und Verläufe; Treffer öffnen den Chat an der Stelle (Klick, ⌘-Klick in
+   neuer Zelle, Ziehen in eine Zelle).
 
 ## Ideen (gesammelt, Reihenfolge offen)
 

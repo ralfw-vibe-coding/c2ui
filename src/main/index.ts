@@ -4,6 +4,7 @@ import { pathToFileURL } from 'node:url'
 import { app, BrowserWindow, dialog, ipcMain, nativeImage, net, Notification, protocol, shell } from 'electron'
 import { LOCAL_FILE_SCHEME } from '@shared/a2ui'
 import { listClaudeSessions } from './sessions'
+import { searchChats } from './search'
 import { doneMessage, isOnScreen, isSignOfLife, shouldNotify, stalledMessage, TurnWatch } from './notifications'
 import type { AgentEvent, AgentKind, Attachment, ChatPatch, LayoutState, MergeMark, PermissionMode, Settings } from '@shared/types'
 import { ChatManager } from './chats'
@@ -230,6 +231,7 @@ function registerIpc(): void {
     manager.create(cwd, agent, mode)
   )
   // homedir() folgt $HOME (für Prüfskripte mit Schein-Home); app.getPath('home') tut das nicht.
+  ipcMain.handle('search:chats', (_e, query: string) => searchChats(manager.list(), (id) => manager.transcript(id), query))
   ipcMain.handle('sessions:list', (_e, cwd: string) => listClaudeSessions(homedir(), cwd))
   ipcMain.handle('chats:adopt', (_e, cwd: string, agent: AgentKind, sessionId: string, title?: string) =>
     manager.adopt(cwd, agent, sessionId, title)

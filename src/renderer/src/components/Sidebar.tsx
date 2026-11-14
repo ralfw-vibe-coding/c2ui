@@ -8,6 +8,8 @@ import { ConfirmButton } from './ConfirmButton'
 import { EditableTitle } from './EditableTitle'
 import { formatDate } from './EmptyCell'
 import { Icon } from './Icon'
+import { SearchBox, SearchResults } from './Search'
+import type { SearchResult } from '../../../main/search'
 
 export function Sidebar() {
   const updateReady = useStore((s) => s.update.state === 'available')
@@ -23,6 +25,7 @@ export function Sidebar() {
   const hasTree = tree.some((n) => n.children.length > 0)
 
   const [width, setWidth] = useState(readWidth)
+  const [found, setFound] = useState<SearchResult[] | null>(null)
 
   /** Breite per Ziehen am rechten Rand; Doppelklick setzt sie zurück. */
   const startResize = (e: React.PointerEvent<HTMLDivElement>): void => {
@@ -75,6 +78,12 @@ export function Sidebar() {
           </button>
         ))}
       </div>
+      <SearchBox onResults={setFound} />
+      {found !== null ? (
+        <div className="search-wrap">
+          <SearchResults results={found} />
+        </div>
+      ) : (
       <ul className="chat-list">
         {rows.map(({ node, depth }) => (
           <ChatItem
@@ -91,6 +100,7 @@ export function Sidebar() {
         ))}
         {chats.length === 0 && <li className="muted small pad">Noch keine Chats.</li>}
       </ul>
+      )}
       <div className="sidebar-bottom">
         <button
           className="icon-btn adopt-btn"
