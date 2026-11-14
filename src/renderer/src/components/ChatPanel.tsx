@@ -224,7 +224,8 @@ export function ChatPanel({ chatId, active }: { chatId: string; active: boolean 
         )}
         {!busy && !!background.length && (
           <div className="working background" title="Die CLI meldet es dem Agenten, sobald der Befehl fertig ist.">
-            <Icon name="history" size={13} />
+            {/* Dreht sich langsamer als beim laufenden Turn: läuft nebenher, nicht gerade jetzt. */}
+            <span className="spinner" />
             <span>
               Läuft im Hintergrund: {background.map((t) => t.label).join(' · ')} – danach arbeitet der Chat weiter.
             </span>

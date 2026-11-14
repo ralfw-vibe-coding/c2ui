@@ -2968,6 +2968,20 @@ li > .fork-slot {
   gap: 6px;
   color: #b8860b;
 }
+/* Sichtbar aktiv, aber ruhiger als der laufende Turn. */
+.working.background .spinner {
+  border-top-color: #d9a441;
+  animation-duration: 2.4s;
+}
+.chat-background {
+  animation: rec 2.4s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .working.background .spinner,
+  .chat-background {
+    animation: none;
+  }
+}
 .chat-background {
   display: inline-flex;
   align-items: center;

@@ -69,7 +69,8 @@ await ta.press('Enter')
 
 // Der Turn endet, der Hintergrundbefehl läuft weiter
 await page.locator('.working.background').waitFor({ timeout: 15_000 })
-check((await page.locator('.cell .working .spinner').count()) === 0, 'der Turn ist zu Ende (kein Spinner)')
+check((await page.locator('.cell .working:not(.background)').count()) === 0, 'der Turn ist zu Ende')
+check((await page.locator('.working.background .spinner').count()) === 1, 'die Hintergrundzeile dreht sich sichtbar weiter')
 const hinweis = await page.locator('.working.background').innerText()
 log('Hinweis:', hinweis.replace(/\s+/g, ' '))
 check(/Sechs Bilder erzeugen/.test(hinweis), 'der Chat sagt, was im Hintergrund läuft')
@@ -78,7 +79,7 @@ check((await page.locator('.chat-item .chat-background').count()) === 1, 'die Se
 await page.screenshot({ path: join(out, '1-laeuft.png') })
 
 // Die CLI meldet „fertig“: der Chat arbeitet sichtbar weiter
-await page.locator('.cell .working .spinner').waitFor({ timeout: 15_000 })
+await page.locator('.cell .working:not(.background)').waitFor({ timeout: 15_000 })
 check(true, 'nach der Fertigmeldung arbeitet der Chat sichtbar weiter')
 check((await page.locator('.working.background').count()) === 0, 'der Hinweis auf den Hintergrund ist weg')
 check((await page.locator('.chat-item .chat-background').count()) === 0, 'in der Seitenleiste ebenso')
@@ -90,7 +91,7 @@ const verlauf = (await page.locator('.transcript-inner').innerText()).replace(/\
 log('Verlauf:', verlauf.slice(0, 220))
 check(/Im Hintergrund fertig: „Sechs Bilder erzeugen“/.test(verlauf), 'der Verlauf hält fest, dass der Befehl fertig wurde')
 check(/Die sechs Bilder sind fertig\./.test(verlauf), 'die Antwort danach steht im Verlauf')
-check((await page.locator('.cell .working .spinner').count()) === 0, 'danach ist der Chat wieder ruhig')
+check((await page.locator('.cell .working').count()) === 0, 'danach ist der Chat wieder ruhig')
 await page.screenshot({ path: join(out, '2-fertig.png') })
 
 await app.close()
