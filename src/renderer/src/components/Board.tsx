@@ -26,6 +26,7 @@ export function Board({ rootId, cellId }: { rootId: string; cellId: string }) {
   const transcripts = useStore((s) => s.transcripts)
   const busy = useStore((s) => s.busy)
   const [hidden, setHidden] = useState<Set<string>>(() => readHidden(rootId))
+  const [openRuns, setOpenRuns] = useState<Set<string>>(() => readOpenRuns(rootId))
   // Zusammenführen: Knoten auf eine andere Spur ziehen – diese Spur leuchtet auf.
   const [dropLane, setDropLane] = useState<string | null>(null)
   const dragging = useStore((s) => s.dragging)
@@ -63,11 +64,21 @@ export function Board({ rootId, cellId }: { rootId: string; cellId: string }) {
     writeHidden(rootId, next)
   }
   const toggle = (chatId: string): void => update((h) => (h.has(chatId) ? h.delete(chatId) : h.add(chatId)))
+  const openRun = (key: string): void => {
+    const next = new Set(openRuns)
+    next.add(key)
+    setOpenRuns(next)
+    writeOpenRuns(rootId, next)
+  }
   // Hervorgehoben wird der zuletzt markierte Chat – aber nur, solange er in einer Zelle offen ist.
   const active = useStore((s) => (s.activeChatId && L.findCellOfChat(s.layout.root, s.activeChatId) ? s.activeChatId : null))
-  const model = useMemo(() => boardModel(chats, transcripts, rootId, hidden), [chats, transcripts, rootId, hidden])
   // Markiert wird genau ein Knoten: der Turn, der im aktiven Chat gerade oben sichtbar ist (sonst sein erster).
   const viewItem = useStore((s) => (active ? s.viewTurn[active] : undefined))
+  const model = useMemo(
+    // Die gelesene Stelle bleibt sichtbar, auch wenn sie mitten in einer langen Strecke liegt.
+    () => boardModel(chats, transcripts, rootId, { hidden, expanded: openRuns, keep: viewItem ? new Set([viewItem]) : undefined }),
+    [chats, transcripts, rootId, hidden, openRuns, viewItem]
+  )
   const activeNode = active
     ? (model.nodes.find((n) => n.chatId === active && n.itemId === viewItem) ?? model.nodes.find((n) => n.chatId === active))
     : undefined
@@ -102,7 +113,7 @@ export function Board({ rootId, cellId }: { rootId: string; cellId: string }) {
 
   if (!model.lanes.length) return <div className="muted center-hint">Dieser Chat existiert nicht mehr.</div>
   const width = x(model.lanes.length - 1) + PAD
-  const height = Math.max(1, model.nodes.length) * ROW
+  const height = Math.max(1, model.nodes.length + model.runs.length) * ROW
   const firstOfLane = new Set(model.lanes.map((l) => `${l.chatId}:${l.first}`))
   const lastOfLane = new Map(model.lanes.map((l) => [l.chatId, l.last]))
   const dropTitle = dropLane ? model.lanes.find((l) => l.chatId === dropLane)?.title : undefined
@@ -124,7 +135,27 @@ export function Board({ rootId, cellId }: { rootId: string; cellId: string }) {
               onLaneDragOver={laneDragOver}
               onLaneDrop={laneDrop}
               onFork={(f) => update((h) => (f.open.length ? f.open.forEach((id) => h.add(id)) : f.closed.forEach((id) => h.delete(id))))}
+              onRun={openRun}
             />
+            {model.runs.map((r) => {
+              const lane = model.lanes[r.lane]
+              const bis = r.items[r.items.length - 1]
+              return (
+                <div
+                  key={r.key}
+                  role="button"
+                  tabIndex={0}
+                  className="board-row run"
+                  style={{ top: r.row * ROW, height: ROW, paddingLeft: width + 6 }}
+                  title={`${r.items.length} Nachrichten zwischen „${r.items[0].label}“ und „${bis.label}“\nKlick: einzeln zeigen`}
+                  onClick={() => openRun(r.key)}
+                  onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), openRun(r.key))}
+                >
+                  <span className="board-bar" style={{ background: colorOf(lane.color) }} />
+                  <span className="board-label muted">⋯ {r.items.length} Nachrichten</span>
+                </div>
+              )
+            })}
             {model.nodes.map((n) => {
               const lane = model.lanes[n.lane]
               const running = busy[n.chatId] && lastOfLane.get(n.chatId) === n.row
@@ -200,6 +231,24 @@ export function Board({ rootId, cellId }: { rootId: string; cellId: string }) {
   )
 }
 
+// Aufgeklappte Strecken je Board (pro Rechner, im localStorage).
+const openRunsKey = (rootId: string): string => `c2ui.boardRuns.${rootId}`
+function readOpenRuns(rootId: string): Set<string> {
+  try {
+    return new Set<string>(JSON.parse(localStorage.getItem(openRunsKey(rootId)) ?? '[]'))
+  } catch {
+    return new Set()
+  }
+}
+function writeOpenRuns(rootId: string, keys: Set<string>): void {
+  try {
+    if (keys.size) localStorage.setItem(openRunsKey(rootId), JSON.stringify([...keys]))
+    else localStorage.removeItem(openRunsKey(rootId))
+  } catch {
+    /* egal */
+  }
+}
+
 // Eingeklappte Äste je Board (pro Rechner, im localStorage).
 const hiddenKey = (rootId: string): string => `c2ui.boardHidden.${rootId}`
 function readHidden(rootId: string): Set<string> {
@@ -239,6 +288,7 @@ function Graph({
   height,
   activeNode,
   onFork,
+  onRun,
   onLaneDragOver,
   onLaneDrop
 }: {
@@ -247,6 +297,7 @@ function Graph({
   height: number
   activeNode?: BoardNode
   onFork: (f: Fork) => void
+  onRun: (key: string) => void
   onLaneDragOver: (chatId: string, e: React.DragEvent) => void
   onLaneDrop: (chatId: string, e: React.DragEvent) => void
 }) {
@@ -277,6 +328,21 @@ function Graph({
             stroke={colorOf(src?.color ?? 0)}
             strokeWidth={2}
           />
+        )
+      })}
+      {/* Zusammengefasste Strecken: schmale Klammer auf der Spur, Klick zeigt sie einzeln */}
+      {model.runs.map((r) => {
+        const cx = x(r.lane)
+        const cy = y(r.row)
+        const color = colorOf(model.lanes[r.lane].color)
+        return (
+          <g key={r.key} className="board-run" role="button" aria-label={`${r.items.length} Nachrichten zeigen`} onClick={() => onRun(r.key)}>
+            <rect x={cx - 7} y={cy - 10} width={14} height={20} rx={7} className="board-run-hit" />
+            <rect x={cx - 3.5} y={cy - 7} width={7} height={14} rx={3.5} className="board-run-mark" stroke={color} />
+            <circle cx={cx} cy={cy - 3} r={0.9} fill={color} />
+            <circle cx={cx} cy={cy} r={0.9} fill={color} />
+            <circle cx={cx} cy={cy + 3} r={0.9} fill={color} />
+          </g>
         )
       })}
       {/* Knoten; an Abzweigstellen mit „−“ (Äste offen) bzw. „+“ (eingeklappt) – Klick klappt um */}

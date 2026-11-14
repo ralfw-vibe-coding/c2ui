@@ -3058,3 +3058,25 @@ li > .fork-slot {
 .chat-item .pin-btn.on:hover {
   color: var(--text);
 }
+
+/* Zusammengefasste Strecke im Board */
+.board-row.run {
+  cursor: pointer;
+}
+.board-row.run .board-label {
+  font-size: 12px;
+}
+.board-run {
+  cursor: pointer;
+}
+.board-run-hit {
+  fill: transparent;
+}
+.board-run-mark {
+  fill: var(--bg);
+  stroke-width: 1.5;
+  stroke-dasharray: 3 2.5;
+}
+.board-run:hover .board-run-mark {
+  fill: var(--bg-sunken);
+}

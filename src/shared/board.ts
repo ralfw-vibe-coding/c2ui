@@ -66,6 +66,20 @@ export interface BoardCollapsed {
   chats: number
 }
 
+/**
+ * Zusammengefasste Strecke: aufeinanderfolgende gewöhnliche Nachrichten derselben Spur, zwischen
+ * denen nichts Bemerkenswertes passiert. Sie stehen als eine Zeile da und lassen sich aufklappen.
+ */
+export interface BoardRun {
+  /** Erster verborgener Knoten – stabiler Schlüssel zum Aufklappen. */
+  key: string
+  chatId: string
+  lane: number
+  row: number
+  /** Verborgene Knoten, in Reihenfolge. */
+  items: BoardNode[]
+}
+
 export interface BoardModel {
   rootId: string
   lanes: BoardLane[]
@@ -73,7 +87,23 @@ export interface BoardModel {
   edges: BoardEdge[]
   merges: BoardMerge[]
   collapsed: BoardCollapsed[]
+  /** Eingeklappte Strecken (in `nodes` fehlen deren Knoten). */
+  runs: BoardRun[]
 }
+
+export interface BoardOptions {
+  /** Eingeklappte Äste: Chat-IDs, deren Spur samt Unterästen nicht gezeigt wird. */
+  hidden?: ReadonlySet<string>
+  /** Aufgeklappte Strecken (Schlüssel aus `BoardRun.key`). */
+  expanded?: ReadonlySet<string>
+  /** Knoten, die auf jeden Fall sichtbar bleiben (z. B. die Stelle, an der man gerade liest). */
+  keep?: ReadonlySet<string>
+  /** Ab so vielen Knoten am Stück wird zusammengefasst (0 = nie). */
+  minRun?: number
+}
+
+/** Ab fünf gewöhnlichen Nachrichten am Stück wird zusammengefasst – kürzere Strecken lohnen nicht. */
+export const DEFAULT_MIN_RUN = 5
 
 /** Wurzel des Baums, zu dem ein Chat gehört. */
 export function rootOf(chats: Chat[], chatId: string): string {
@@ -118,9 +148,14 @@ export function boardModel(
   chats: Chat[],
   transcripts: Record<string, Transcript | undefined>,
   rootId: string,
-  /** Eingeklappte Äste: Chat-IDs, deren Spur samt Unterästen nicht gezeigt wird. */
-  hidden: ReadonlySet<string> = new Set()
+  opts: BoardOptions | ReadonlySet<string> = {}
 ): BoardModel {
+  // Früher war der vierte Platz die Menge der eingeklappten Äste; das bleibt gültig.
+  const o: BoardOptions = opts instanceof Set ? { hidden: opts } : (opts as BoardOptions)
+  const hidden = o.hidden ?? new Set<string>()
+  const expanded = o.expanded ?? new Set<string>()
+  const keepItems = o.keep ?? new Set<string>()
+  const minRun = o.minRun ?? DEFAULT_MIN_RUN
   const tree = chatTree(chats)
   const find = (ns: ChatNode[]): ChatNode | undefined => {
     for (const n of ns) {
@@ -131,7 +166,7 @@ export function boardModel(
     return undefined
   }
   const root = find(tree)
-  if (!root) return { rootId, lanes: [], nodes: [], edges: [], merges: [], collapsed: [] }
+  if (!root) return { rootId, lanes: [], nodes: [], edges: [], merges: [], collapsed: [], runs: [] }
 
   // Spuren in Baum-Reihenfolge (vorne zuerst): Ursprung links, Nebenchats rechts davon.
   // Eingeklappte Äste (nie die Wurzel) bekommen keine Spur; ihr Teilbaum wird mitgezählt.
@@ -180,7 +215,80 @@ export function boardModel(
     })
   }
   nodes.sort((a, b) => a.ts - b.ts || a.lane - b.lane || a.k - b.k)
-  nodes.forEach((n, i) => (n.row = i))
+
+  const allOfChat = new Map<string, BoardNode[]>()
+  for (const n of nodes) allOfChat.set(n.chatId, [...(allOfChat.get(n.chatId) ?? []), n])
+
+  /** Abzweigstelle im Ursprung: Nachricht Nr. `turn`; ohne Angabe die letzte vor dem ersten Knoten des Asts. */
+  const forkNode = (c: Chat, parentId: string, firstTs: number | undefined): BoardNode | undefined => {
+    const pNodes = allOfChat.get(parentId) ?? []
+    const turn = c.forkFrom?.at?.turn
+    if (turn !== undefined && turn > 0) return pNodes.find((n) => n.k === turn - 1)
+    return firstTs === undefined ? undefined : [...pNodes].reverse().find((n) => n.ts <= firstTs)
+  }
+
+  // Bemerkenswerte Knoten: Enden einer Spur, alles außer gewöhnlichen Nachrichten, Abzweig- und
+  // Zusammenführungsstellen und die Stelle, an der man gerade liest. Dazwischen darf gerafft werden.
+  const keep = new Set<BoardNode>()
+  for (const ns of allOfChat.values()) {
+    if (ns.length) {
+      keep.add(ns[0])
+      keep.add(ns[ns.length - 1])
+    }
+  }
+  for (const n of nodes) if (n.kind !== 'message' || keepItems.has(n.itemId)) keep.add(n)
+  const anchors = new Map<string, BoardNode | undefined>()
+  for (const c of [...order, ...folded.map((f) => f.node.chat)]) {
+    const p = c.forkFrom?.chatId
+    if (!p) continue
+    const at = forkNode(c, p, allOfChat.get(c.id)?.[0]?.ts ?? userItems(c.id)[0]?.ts)
+    anchors.set(c.id, at)
+    if (at) keep.add(at)
+  }
+  const mergePairs: { from: BoardNode; to: BoardNode; sourceId: string; itemId: string }[] = []
+  for (const c of order) {
+    for (const it of userItems(c.id)) {
+      const m = it.merge
+      if (m?.role !== 'adopt') continue
+      const to = allOfChat.get(c.id)?.find((n) => n.itemId === it.id)
+      const src = allOfChat.get(m.fromChatId)
+      if (!to || !src?.length) continue
+      const from = (m.fromItemId && src.find((n) => n.itemId === m.fromItemId)) || [...src].reverse().find((n) => n.ts <= it.ts)
+      if (!from) continue
+      keep.add(from)
+      keep.add(to)
+      mergePairs.push({ from, to, sourceId: m.fromChatId, itemId: it.id })
+    }
+  }
+
+  // Strecken zusammenfassen: nur, was in der Darstellung direkt untereinander in derselben Spur steht.
+  const shown: BoardNode[] = []
+  const runs: BoardRun[] = []
+  const rowOrder: (BoardNode | BoardRun)[] = []
+  for (let i = 0; i < nodes.length; ) {
+    if (keep.has(nodes[i])) {
+      shown.push(nodes[i])
+      rowOrder.push(nodes[i])
+      i++
+      continue
+    }
+    let j = i
+    while (j < nodes.length && !keep.has(nodes[j]) && nodes[j].lane === nodes[i].lane) j++
+    const strecke = nodes.slice(i, j)
+    const key = strecke[0].itemId
+    if (minRun > 0 && strecke.length >= minRun && !expanded.has(key)) {
+      const run: BoardRun = { key, chatId: strecke[0].chatId, lane: strecke[0].lane, row: 0, items: strecke }
+      runs.push(run)
+      rowOrder.push(run)
+    } else {
+      shown.push(...strecke)
+      rowOrder.push(...strecke)
+    }
+    i = j
+  }
+  rowOrder.forEach((r, i) => (r.row = i))
+  nodes.length = 0
+  nodes.push(...shown)
 
   const byChat = new Map<string, BoardNode[]>()
   for (const n of nodes) byChat.set(n.chatId, [...(byChat.get(n.chatId) ?? []), n])
@@ -192,39 +300,23 @@ export function boardModel(
     }
   }
 
-  /** Abzweigstelle im Ursprung: Nachricht Nr. `turn`; ohne Angabe die letzte vor dem ersten Knoten des Asts. */
-  const forkNode = (c: Chat, parentId: string, firstTs: number | undefined): BoardNode | undefined => {
-    const pNodes = byChat.get(parentId) ?? []
-    const turn = c.forkFrom?.at?.turn
-    if (turn !== undefined && turn > 0) return pNodes.find((n) => n.k === turn - 1)
-    return firstTs === undefined ? undefined : [...pNodes].reverse().find((n) => n.ts <= firstTs)
-  }
-
   const edges: BoardEdge[] = []
   for (const c of order) {
     const p = c.forkFrom?.chatId
     const parent = p ? laneOf.get(p) : undefined
     const childFirst = byChat.get(c.id)?.[0]
-    if (!parent || !childFirst) continue
-    const at = forkNode(c, parent.chatId, childFirst.ts)
-    if (!at) continue
+    const at = anchors.get(c.id)
+    if (!parent || !childFirst || !at) continue
     edges.push({ from: { lane: parent.lane, row: at.row }, to: { lane: laneOf.get(c.id)!.lane, row: childFirst.row }, childId: c.id })
   }
 
   // Zusammenführungen: aus dem Stand im Nebenchat (fehlt er, dessen letzter Knoten davor) zur Übernahme.
-  const merges: BoardMerge[] = []
-  for (const c of order) {
-    for (const it of userItems(c.id)) {
-      const m = it.merge
-      if (m?.role !== 'adopt') continue
-      const to = byChat.get(c.id)?.find((n) => n.itemId === it.id)
-      const src = byChat.get(m.fromChatId)
-      if (!to || !src?.length) continue
-      const from = (m.fromItemId && src.find((n) => n.itemId === m.fromItemId)) || [...src].reverse().find((n) => n.ts <= it.ts)
-      if (!from) continue
-      merges.push({ from: { lane: from.lane, row: from.row }, to: { lane: to.lane, row: to.row }, sourceId: m.fromChatId, itemId: it.id })
-    }
-  }
+  const merges: BoardMerge[] = mergePairs.map((m) => ({
+    from: { lane: m.from.lane, row: m.from.row },
+    to: { lane: m.to.lane, row: m.to.row },
+    sourceId: m.sourceId,
+    itemId: m.itemId
+  }))
 
   const collapsed: BoardCollapsed[] = []
   for (const { node, parent, color } of folded) {
@@ -234,7 +326,7 @@ export function boardModel(
       n.children.forEach(collect)
     }
     collect(node)
-    const at = forkNode(node.chat, parent.id, userItems(node.chat.id)[0]?.ts)
+    const at = anchors.get(node.chat.id)
     collapsed.push({
       chatId: node.chat.id,
       title: node.chat.title,
@@ -245,7 +337,7 @@ export function boardModel(
       chats: all.length
     })
   }
-  return { rootId, lanes, nodes, edges, merges, collapsed }
+  return { rootId, lanes, nodes, edges, merges, collapsed, runs }
 }
 
 /**
