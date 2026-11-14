@@ -8,6 +8,7 @@ import { messageLabel, rootOf } from '@shared/board'
 import * as M from '@shared/merge'
 import { parseUpdateState, type UpdateState } from '@shared/update'
 import * as Q from '@shared/queue'
+import { PASTE_FILE } from '@shared/paste'
 import { applyEvent } from '@shared/transcript'
 import { DEFAULT_MERGE, type AgentEvent, type ChatComment, type AgentKind, type Attachment, type Chat, type LayoutState, type MergeMark, type Settings, type Transcript } from '@shared/types'
 
@@ -126,6 +127,8 @@ interface Actions {
   adoptMerge(req: MergeRequest, adopt: string, text: string, fromItemId?: string): Promise<void>
   /** Dateien (Einfügen, Drag&Drop) als Anhänge des Chats übernehmen. */
   addFiles(chatId: string, files: File[]): Promise<string[]>
+  /** Große Einfügung als Textdatei anhängen; liefert den Anhang (für „doch als Text“). */
+  addPastedText(chatId: string, text: string): Promise<Attachment | null>
   removeAttachment(chatId: string, path: string): void
   clearAttachments(chatId: string): void
   addRef(chatId: string, quote: string, note: string): void
@@ -594,6 +597,16 @@ export const useStore = create<State & Actions>((set, get) => {
         }
       }
       return errors
+    },
+
+    async addPastedText(chatId, text) {
+      try {
+        const a = await window.api.saveAttachment(chatId, PASTE_FILE, new TextEncoder().encode(text))
+        set((s) => ({ pendingAttachments: { ...s.pendingAttachments, [chatId]: [...(s.pendingAttachments[chatId] ?? []), a] } }))
+        return a
+      } catch {
+        return null
+      }
     },
 
     removeAttachment(chatId, path) {

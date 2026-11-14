@@ -82,6 +82,27 @@ export function SettingsDialog() {
             onChange={(e) => setDraft({ ...draft, chatWidth: Math.max(0, Math.round(Number(e.target.value) || 0)) })}
           />
         </label>
+        <div className="field-row">
+          <label>
+            <span>Eingefügter Text wird ab … Zeilen ein Anhang (0 = nie)</span>
+            <input
+              type="number"
+              min={0}
+              value={draft.paste.lines}
+              onChange={(e) => setDraft({ ...draft, paste: { ...draft.paste, lines: Math.max(0, Math.round(Number(e.target.value) || 0)) } })}
+            />
+          </label>
+          <label>
+            <span>… oder ab … Zeichen (0 = nie)</span>
+            <input
+              type="number"
+              min={0}
+              step={100}
+              value={draft.paste.chars}
+              onChange={(e) => setDraft({ ...draft, paste: { ...draft.paste, chars: Math.max(0, Math.round(Number(e.target.value) || 0)) } })}
+            />
+          </label>
+        </div>
         <label className="check-row">
           <input
             type="checkbox"

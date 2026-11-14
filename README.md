@@ -17,6 +17,9 @@ Desktop-App (Electron), in der mehrere Chats mit der Claude CLI oder der Codex C
   (`<userData>/attachments/<chat>`); Claude bekommt Bilder als Bild und darf den Ordner lesen, Codex bekommt Bilder als `localImage`.
 - Arbeitsschritte (Werkzeugaufrufe, Zwischentexte) je Antwort einklappbar.
 - Codeblöcke im Chat haben oben rechts einen Knopf, der den Code in die Zwischenablage legt.
+- **Große Einfügungen werden zum Anhang:** Wer mehr als 20 Zeilen oder 2000 Zeichen einfügt, bekommt sie als
+  `einfuegung.txt` neben dem Eingabefeld statt darin – mit „doch als Text“ direkt daneben, falls man sie doch im
+  Prompt haben will. Grenzen in den Einstellungen (0 = nie); gezählt wird ein einzelner Einfügevorgang.
 - **Arbeit, die weiterläuft:** Startet Claude einen Befehl im Hintergrund (`Bash` mit `run_in_background`), endet
   der Turn, aber die CLI meldet dem Agenten später „fertig“ – und der arbeitet von selbst weiter. C2UI zeigt
   solange an, was läuft (im Chat und in der Seitenleiste), hält den CLI-Prozess am Leben und stellt das
@@ -163,6 +166,7 @@ node scripts/width-check.mjs       # größte Breite des Chats (ohne Modellaufru
 node scripts/background-check.mjs  # Arbeit, die nach dem Turn weiterläuft (CLI-Attrappe)
 node scripts/context-check.mjs     # Kontextfüllstand (CLI-Attrappe)
 node scripts/pin-check.mjs         # Chats oben anheften (ohne Modellaufruf)
+node scripts/paste-check.mjs       # große Einfügungen werden zum Anhang
 node scripts/cwd-check.mjs         # Ordner öffnet den Finder, Code kopieren, Punkt am Chat
 ```
 

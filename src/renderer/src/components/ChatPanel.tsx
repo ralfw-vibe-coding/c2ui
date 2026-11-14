@@ -15,6 +15,7 @@ import { CommentLayer } from './Comments'
 import { QuoteSelection, RefChips } from './QuoteRefs'
 import { composeMessage } from '@shared/quotes'
 import { EMPTY_QUEUE, shouldQueue } from '@shared/queue'
+import { pasteSummary, pasteTooBig } from '@shared/paste'
 import { QueueList } from './QueueList'
 import { findAllRanges, findQuoteRange, highlightRange } from '../textRange'
 
@@ -267,6 +268,9 @@ function Composer({
     setTextState(t)
   }
   const [error, setError] = useState<string | null>(null)
+  /** Zuletzt angehängte Einfügung – nur für den Hinweis mit „doch als Text“. */
+  const [pasted, setPasted] = useState<{ path: string; name: string; text: string } | null>(null)
+  const pasteLimits = useStore((s) => s.settings?.paste ?? DEFAULT_SETTINGS.paste)
   const ref = useRef<HTMLTextAreaElement>(null)
 
   // Fokus nur holen, wenn der Nutzer nicht gerade woanders tippt (z. B. beim Umbenennen).
@@ -292,6 +296,9 @@ function Composer({
   }, [text])
 
   const attachments = useStore((s) => s.pendingAttachments[chatId]) ?? []
+  useEffect(() => {
+    if (pasted && !attachments.some((a) => a.path === pasted.path)) setPasted(null)
+  }, [attachments, pasted])
   const refs = useStore((s) => s.pendingRefs[chatId]) ?? []
   const canSend = !!text.trim() || attachments.length > 0 || refs.length > 0
 
@@ -304,6 +311,7 @@ function Composer({
     const t = text.trim()
     if (!canSend) return
     setError(null)
+    setPasted(null)
     setText('')
     const sent = attachments
     const st = useStore.getState()
@@ -338,15 +346,44 @@ function Composer({
 
   async function onPaste(e: React.ClipboardEvent<HTMLTextAreaElement>): Promise<void> {
     const files = [...e.clipboardData.files]
-    if (!files.length) return
+    if (files.length) {
+      e.preventDefault()
+      const errors = await useStore.getState().addFiles(chatId, files)
+      if (errors.length) setError(errors.join(' · '))
+      return
+    }
+    // Große Einfügungen gehören nicht ins Eingabefeld, sondern daneben als Datei.
+    const pasted = e.clipboardData.getData('text/plain')
+    if (!pasteTooBig(pasted, pasteLimits)) return
     e.preventDefault()
-    const errors = await useStore.getState().addFiles(chatId, files)
-    if (errors.length) setError(errors.join(' · '))
+    const a = await useStore.getState().addPastedText(chatId, pasted)
+    if (!a) return setError('Der eingefügte Text konnte nicht angehängt werden.')
+    setPasted({ path: a.path, name: a.name, text: pasted })
+  }
+
+  /** „Doch als Text“: Anhang weg, Text ins Feld – falls man ihn dort kürzen wollte. */
+  function pasteBack(): void {
+    if (!pasted) return
+    useStore.getState().removeAttachment(chatId, pasted.path)
+    setText(text ? `${text}\n${pasted.text}` : pasted.text)
+    setPasted(null)
+    ref.current?.focus()
   }
 
   return (
     <div className="composer">
       {error && <div className="composer-error">{error}</div>}
+      {pasted && (
+        <div className="composer-note">
+          <Icon name="note" size={12} />
+          <span>
+            Als Anhang <b>{pasted.name}</b> – {pasteSummary(pasted.text)}
+          </span>
+          <button className="link-btn" onClick={pasteBack}>
+            doch als Text
+          </button>
+        </div>
+      )}
       {(queue.items.length > 0 || queue.paused || steering.length > 0) && (
         <QueueList chatId={chatId} queue={queue} steering={steering} busy={busy} canSteer={canSteer} onEdit={editQueued} />
       )}

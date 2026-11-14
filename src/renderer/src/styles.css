@@ -963,6 +963,24 @@ button.cell-cwd:hover {
   gap: 8px;
   align-items: flex-end;
 }
+/* Hinweis über dem Eingabefeld, wenn eine große Einfügung zum Anhang wurde. */
+.composer-note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 4px 4px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.composer-note span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.composer-note .link-btn {
+  margin-left: auto;
+  flex: none;
+}
 .composer textarea {
   flex: 1;
   resize: none;
