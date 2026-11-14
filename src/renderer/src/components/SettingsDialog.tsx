@@ -4,11 +4,20 @@ import { AGENT_KINDS, AGENTS, DEFAULT_MERGE, type AgentKind, type AgentSettings,
 import { useModelList } from '../models'
 import { useStore } from '../store'
 import { AgentLogo } from './AgentLogo'
+import { Icon } from './Icon'
 
 export function SettingsDialog() {
   const settings = useStore((s) => s.settings)
   const [draft, setDraft] = useState<Settings | null>(settings)
   useAutoSave(draft, settings)
+  // Escape schließt. Am Dokument, denn beim Öffnen liegt der Fokus noch auf dem Knopf daneben.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') useStore.getState().setSettingsOpen(false)
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [])
   if (!draft) return null
   const close = (): void => useStore.getState().setSettingsOpen(false)
   const setAgent = (a: AgentKind, patch: Partial<AgentSettings>): void =>
@@ -17,7 +26,12 @@ export function SettingsDialog() {
   return (
     <div className="modal-backdrop" onMouseDown={close}>
       <div className="modal" onMouseDown={(e) => e.stopPropagation()}>
-        <h2>Einstellungen</h2>
+        <div className="modal-head">
+          <h2>Einstellungen</h2>
+          <button className="icon-btn modal-close" title="Schließen (Esc)" onClick={close}>
+            <Icon name="close" size={14} />
+          </button>
+        </div>
         {AGENT_KINDS.map((a) => (
           <fieldset key={a} className="agent-settings">
             <legend>
@@ -83,11 +97,6 @@ export function SettingsDialog() {
         <p className="muted small">
           Änderungen werden gleich gespeichert; sie gelten für neu gestartete CLI-Prozesse.
         </p>
-        <div className="modal-actions">
-          <button className="btn primary" onClick={close}>
-            Schließen
-          </button>
-        </div>
       </div>
     </div>
   )

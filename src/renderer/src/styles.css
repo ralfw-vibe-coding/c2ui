@@ -1030,6 +1030,22 @@ button.cell-cwd:hover {
   flex-direction: column;
   gap: 12px;
 }
+/* Kopfzeile mit „x“: bleibt beim Scrollen im langen Dialog oben stehen. */
+.modal-head {
+  position: sticky;
+  top: -18px;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: -18px -20px 0;
+  padding: 18px 20px 6px;
+  background: var(--bg-elev);
+}
+.modal-head h2 {
+  margin: 0;
+}
 .modal h2 {
   margin: 0 0 4px;
   font-size: 16px;

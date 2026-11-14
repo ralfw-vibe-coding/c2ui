@@ -64,10 +64,11 @@ const breiteSetzen = async (px) => {
   await page.locator('.icon-btn[title="Einstellungen"]').click()
   const feld = page.locator('label', { hasText: 'Größte Breite des Chats' }).locator('input')
   await feld.fill(String(px))
-  // Einstellungen speichern sich selbst; der Dialog wird nur noch geschlossen.
+  // Einstellungen speichern sich selbst; der Dialog wird nur noch geschlossen – mit Escape.
   await page.waitForTimeout(700)
-  await page.locator('.modal-actions .btn.primary').click()
+  await page.keyboard.press('Escape')
   await page.waitForTimeout(300)
+  check((await page.locator('.modal').count()) === 0, 'Escape schließt die Einstellungen')
 }
 await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(2000, 900))
 await page.waitForTimeout(400)
