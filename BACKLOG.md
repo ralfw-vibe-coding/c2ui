@@ -2,15 +2,25 @@
 
 ## Als Nächstes (in dieser Reihenfolge)
 
-(leer – nächste Schritte aus „Ideen“ oder „Konzept Diskurs“ wählen)
+1. **Kontextfüllstand** je Chat (aus den Token-Angaben der CLIs; Codex liefert `thread/tokenUsage/updated` mit
+   `modelContextWindow`); Verdichten machen die CLIs selbst.
+2. **Benachrichtigungen,** wenn ein Chat im Hintergrund fertig ist oder hängt.
+3. **Suche über alle Chats** (Titel und Verläufe). Aus der Trefferliste lässt sich ein Chat an der gefundenen Stelle
+   öffnen – wie aus dem Graphen: Klick in die zuletzt benutzte Zelle, ⌘-Klick in eine neue, oder Treffer in eine
+   Zelle ziehen.
 
 ## Ideen (gesammelt, Reihenfolge offen)
 
-- **Benachrichtigungen,** wenn ein Chat im Hintergrund fertig ist oder hängt.
-- **Kontextfüllstand** je Chat (aus den Token-Angaben der CLIs; Codex liefert `thread/tokenUsage/updated` mit
-  `modelContextWindow`); Verdichten machen die CLIs selbst.
 - **Screens anheften:** A2UI-Screen in eine eigene Zelle lösen, der Chat aktualisiert ihn weiter.
-- **Suche über alle Chats** (merken).
+- **Kommentare (wie in Word):** im Chat etwas markieren oder eine Kommentarmarke setzen und dazu eine Notiz
+  schreiben, die am Rand erscheint; ändern und löschen inbegriffen. Eigene Ebene neben dem Verlauf (die CLI sieht sie
+  nicht), gespeichert je Chat mit Bezug auf Transkript-Eintrag und Zitat – wie die Abzweigmarken, die es dafür schon
+  gibt. Offen: auch im Board zeigen (Marke an der Zeile), Kommentare als Bezug in eine Nachricht übernehmen.
+- **Bestehende CLI-Session übernehmen:** Chat anlegen, der eine vorhandene Session fortsetzt (Claude
+  `--resume <sessionId>`, Codex `thread/resume`) – z. B. um eine Claude-Code-Sitzung in C2UI weiterzuführen.
+  Der bisherige Verlauf ist dann dem Agenten bekannt, aber im C2UI-Fenster nicht sichtbar (Hinweis wie beim Abzweigen).
+- **Legende im Board als Inhaltsverzeichnis:** Liste der Chats des Baums, Klick springt zur Spur (wurde entfernt,
+  könnte so zurückkommen).
 
 ## Konzept „Diskurs“ (ausprobieren, erfühlen)
 
@@ -29,9 +39,12 @@ Schritte, jeweils erst ausprobieren, bevor der nächste kommt:
    (wie `git log --graph`), Nutzernachrichten als Knoten, Abzweige als Kanten. Klick auf einen Knoten öffnet den
    Chat in der Zelle neben dem Board an dieser Stelle. Board = eigener Zelleninhalt (`leaf.board`).
    Offen: verworfene Äste ausgegraut (dafür fehlt noch ein „verwerfen“).
-4. **Semantischer Zoom:** weit = Abschnitte (Turns zwischen zwei Abzweig-/Merge-Punkten) als Kasten mit
-   Zusammenfassung; mittel = Turns mit Kurztitel; nah = Frage/Antwort, Screens als Miniaturen.
-   Kurztitel und Zusammenfassungen im Hintergrund durch ein kleines Modell (einfache Variante: erste Zeile der Frage).
+4. **Semantischer Zoom und Mitlesen im Graphen:** Der Graph zeigt heute je Turn eine Zeile. Gewünscht ist
+   Hineinzoomen und Lesen an Ort und Stelle: weit = Abschnitte (Turns zwischen zwei Abzweig-/Merge-Punkten) als
+   Kasten mit Zusammenfassung; mittel = Turns mit Kurztitel; nah = Frage und Antwort im Board selbst, Screens als
+   Miniaturen. Mindestens: einen Turn in der Zeile aufklappen und dort lesen, ohne in eine andere Zelle zu wechseln
+   (mehrere gleichzeitig offen; die Spuren laufen weiter). Kurztitel und Zusammenfassungen im Hintergrund durch ein
+   kleines Modell (einfache Variante: erste Zeile der Frage).
 5. **Vom Board aus abzweigen**, auch an früheren Stellen (Codex: `thread/fork` mit `lastTurnId`; Claude: prüfen).
 6. ✓ **Merge:** Knoten im Board auf eine andere Spur ziehen (bis zu diesem Knoten) oder „⤴ Zurückführen“ im
    Nebenchat. Dialog mit zwei Prompts – Aufarbeitung in B, Übernahme in A (leer = Standard aus den Einstellungen,
