@@ -692,6 +692,10 @@ body.resizing-row * {
   flex-direction: column;
   gap: 10px;
   flex: 1 0 auto;
+  /* Lange Zeilen liest man schlecht: Der Chat wächst nur bis --chat-width mit (Einstellungen). */
+  width: 100%;
+  max-width: var(--chat-width, none);
+  margin: 0 auto;
 }
 .center-hint {
   margin: auto;
@@ -896,6 +900,12 @@ body.resizing-row * {
   border-top: 1px solid var(--border);
   padding: 8px 10px 10px;
   flex-shrink: 0;
+}
+/* Eingabefeld und Chips stehen in derselben Spalte wie der Verlauf. */
+.composer > * {
+  max-width: var(--chat-width, none);
+  margin-left: auto;
+  margin-right: auto;
 }
 .composer-row {
   display: flex;

@@ -57,6 +57,16 @@ export function SettingsDialog() {
             onChange={(e) => setDraft({ ...draft, idleTimeoutMinutes: Math.max(1, Number(e.target.value) || 1) })}
           />
         </label>
+        <label>
+          <span>Größte Breite des Chats in einer Zelle (Pixel, 0 = so breit wie die Zelle)</span>
+          <input
+            type="number"
+            min={0}
+            step={20}
+            value={draft.chatWidth}
+            onChange={(e) => setDraft({ ...draft, chatWidth: Math.max(0, Math.round(Number(e.target.value) || 0)) })}
+          />
+        </label>
         <label className="check-row">
           <input
             type="checkbox"

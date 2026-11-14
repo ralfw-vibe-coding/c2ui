@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { chatSurfaces } from '../a2ui/chatSurfaces'
 import { scrollToSurface } from '../a2ui/A2uiBlock'
 import { ScreenStrip } from '../a2ui/ScreenStrip'
-import { AGENTS } from '@shared/types'
+import { AGENTS, DEFAULT_SETTINGS } from '@shared/types'
 import { ipcError, useChat, useStore } from '../store'
 import { Icon } from './Icon'
 import { TranscriptView } from './TranscriptView'
@@ -29,6 +29,7 @@ export function ChatPanel({ chatId, active }: { chatId: string; active: boolean 
 
   // A2UI: neue render_ui-Aufrufe anwenden, bevor die Nachrichten gerendert werden.
   const componentsVersion = useStore((s) => s.componentsVersion)
+  const chatWidth = useStore((s) => s.settings?.chatWidth ?? DEFAULT_SETTINGS.chatWidth)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const freshA2ui = useMemo(() => (transcript ? chatSurfaces(chatId).sync(transcript) : []), [chatId, transcript, componentsVersion])
   const activeSurfaces = useMemo(() => chatSurfaces(chatId).activeSurfaces(), [chatId, freshA2ui]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -181,6 +182,8 @@ export function ChatPanel({ chatId, active }: { chatId: string; active: boolean 
     <div
       className={`chat-panel${fileOver ? ' file-over' : ''}`}
       data-chat-id={chatId}
+      // Lange Zeilen liest man schlecht: Der Chat wächst nur bis zu dieser Breite mit der Zelle.
+      style={chatWidth ? ({ '--chat-width': `${chatWidth}px` } as React.CSSProperties) : undefined}
       onDragOver={(e) => {
         if (!e.dataTransfer.types.includes('Files')) return
         e.preventDefault()

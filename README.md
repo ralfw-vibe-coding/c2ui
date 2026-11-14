@@ -16,6 +16,8 @@ Desktop-App (Electron), in der mehrere Chats mit der Claude CLI oder der Codex C
 - Anhänge: Bilder per Einfügen (⌘V) und Dateien per Drag & Drop. Sie landen im Anhang-Ordner des Chats
   (`<userData>/attachments/<chat>`); Claude bekommt Bilder als Bild und darf den Ordner lesen, Codex bekommt Bilder als `localImage`.
 - Arbeitsschritte (Werkzeugaufrufe, Zwischentexte) je Antwort einklappbar.
+- **Lesbare Zeilenlänge:** Der Chat wächst nur bis zu einer größten Breite mit der Zelle (Standard 820 px,
+  in den Einstellungen änderbar; 0 = so breit wie die Zelle) und steht darin mittig. Schmale Zellen nutzt er ganz.
 - **Aufgabenliste des Agenten:** Plant der Agent seine Schritte (Claude `TodoWrite`, Codex `update_plan`), steht die
   Liste im Verlauf statt als nackter Arbeitsschritt: erledigt mit Haken, der laufende Schritt mit Spinner, geplante
   mit offenem Kreis. Sichtbar ist die jüngste Fassung des Turns; ältere bleiben in den Arbeitsschritten.
@@ -143,6 +145,7 @@ node scripts/board-check.mjs       # Diskursboard (ohne Modellaufruf)
 node scripts/search-check.mjs      # Suche über alle Chats (ohne Modellaufruf)
 node scripts/comments-check.mjs    # Notizen zu Stellen im Verlauf (ohne Modellaufruf)
 node scripts/todos-check.mjs       # Aufgabenliste des Agenten (ohne Modellaufruf)
+node scripts/width-check.mjs       # größte Breite des Chats (ohne Modellaufruf)
 ```
 
 ### App bauen und installieren (macOS, Apple Silicon)

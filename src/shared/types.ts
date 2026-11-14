@@ -105,6 +105,8 @@ export interface Settings {
   lastDirectory: string
   /** Arbeitsschritte (Werkzeuge, Zwischentexte) je Turn einklappen. */
   collapseSteps: boolean
+  /** Größte Breite des Chats in einer Zelle (px); 0 = so breit wie die Zelle. Lange Zeilen liest man schlecht. */
+  chatWidth: number
   /** Zusammenführen: Standard-Prompts und ob die Aufarbeitung vor der Übernahme gezeigt wird. */
   merge: MergeSettings
   /** Hinweise des Systems über Chats im Hintergrund. */
@@ -143,6 +145,7 @@ export const DEFAULT_SETTINGS: Settings = {
   idleTimeoutMinutes: 10,
   lastDirectory: '',
   collapseSteps: true,
+  chatWidth: 820,
   merge: DEFAULT_MERGE,
   notifications: { done: true, stalled: true, stalledMinutes: 3 }
 }
@@ -154,6 +157,7 @@ export function migrateSettings(raw: any): Settings {
   if (typeof raw.idleTimeoutMinutes === 'number') s.idleTimeoutMinutes = raw.idleTimeoutMinutes
   if (typeof raw.lastDirectory === 'string') s.lastDirectory = raw.lastDirectory
   if (typeof raw.collapseSteps === 'boolean') s.collapseSteps = raw.collapseSteps
+  if (typeof raw.chatWidth === 'number' && raw.chatWidth >= 0) s.chatWidth = Math.round(raw.chatWidth)
   if (raw.notifications && typeof raw.notifications === 'object') {
     const n = raw.notifications
     if (typeof n.done === 'boolean') s.notifications.done = n.done
