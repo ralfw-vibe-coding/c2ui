@@ -85,7 +85,9 @@ export class ChatManager {
     private readonly attachmentsRoot?: string
   ) {
     this.settings = migrateSettings(storage.read<unknown>('settings', {}))
-    for (const c of storage.read<Chat[]>('chats', [])) this.chats.set(c.id, c)
+    // Hintergrundbefehle gehören zu einem laufenden CLI-Prozess; nach einem Neustart der App
+    // gibt es den nicht mehr, also meldet auch nie jemand „fertig“.
+    for (const c of storage.read<Chat[]>('chats', [])) this.chats.set(c.id, c.background ? { ...c, background: undefined } : c)
   }
 
   // ---------- Settings & Layout ----------
@@ -441,6 +443,13 @@ export class ChatManager {
     if (e.kind === 'session' && chat) {
       if (!chat.sessionStarted || chat.sessionId !== e.sessionId) {
         this.chats.set(id, { ...chat, sessionStarted: true, sessionId: e.sessionId })
+        this.saveChats()
+      }
+      return
+    }
+    if (e.kind === 'background') {
+      if (chat) {
+        this.chats.set(id, { ...chat, ...(e.tasks.length ? { background: e.tasks } : { background: undefined }) })
         this.saveChats()
       }
       return

@@ -1,3 +1,6 @@
+import type { BackgroundTask } from './background'
+export type { BackgroundTask }
+
 // Datentypen, die Main-Prozess und Renderer gemeinsam nutzen.
 
 export type AgentKind = 'claude' | 'codex'
@@ -69,6 +72,8 @@ export interface Chat {
   sessionStarted: boolean
   /** Zuletzt gemeldeter Kontextfüllstand. */
   context?: ContextUse
+  /** Befehle, die im Hintergrund weiterlaufen; danach arbeitet der Chat von selbst weiter. */
+  background?: BackgroundTask[]
   createdAt: number
   updatedAt: number
 }
@@ -285,6 +290,7 @@ export type AgentEvent =
   | { kind: 'notice'; id: string; text: string }
   | { kind: 'session'; sessionId: string }
   | { kind: 'context'; used: number; max?: number }
+  | { kind: 'background'; tasks: BackgroundTask[] }
 
 // ---------- Layout ----------
 

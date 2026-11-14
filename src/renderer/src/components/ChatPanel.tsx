@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { chatSurfaces } from '../a2ui/chatSurfaces'
 import { scrollToSurface } from '../a2ui/A2uiBlock'
 import { ScreenStrip } from '../a2ui/ScreenStrip'
-import { AGENTS, DEFAULT_SETTINGS } from '@shared/types'
+import { AGENTS, DEFAULT_SETTINGS, type BackgroundTask } from '@shared/types'
 import { ipcError, useChat, useStore } from '../store'
 import { Icon } from './Icon'
 import { TranscriptView } from './TranscriptView'
@@ -18,9 +18,13 @@ import { EMPTY_QUEUE, shouldQueue } from '@shared/queue'
 import { QueueList } from './QueueList'
 import { findAllRanges, findQuoteRange, highlightRange } from '../textRange'
 
+/** Stabile leere Liste, damit die Komponente nicht bei jedem Rendern neu zeichnet. */
+const EMPTY_BACKGROUND: BackgroundTask[] = []
+
 export function ChatPanel({ chatId, active }: { chatId: string; active: boolean }) {
   const transcript = useStore((s) => s.transcripts[chatId])
   const busy = useStore((s) => !!s.busy[chatId])
+  const background = useStore((s) => s.chats.find((c) => c.id === chatId)?.background) ?? EMPTY_BACKGROUND
   const agentLabel = AGENTS[useChat(chatId)?.agent ?? 'claude'].label
   const scrollRef = useRef<HTMLDivElement>(null)
   const stickRef = useRef(true)
@@ -216,6 +220,14 @@ export function ChatPanel({ chatId, active }: { chatId: string; active: boolean 
         {busy && (
           <div className="working">
             <span className="spinner" /> {agentLabel} arbeitet …
+          </div>
+        )}
+        {!busy && !!background.length && (
+          <div className="working background" title="Die CLI meldet es dem Agenten, sobald der Befehl fertig ist.">
+            <Icon name="history" size={13} />
+            <span>
+              Läuft im Hintergrund: {background.map((t) => t.label).join(' · ')} – danach arbeitet der Chat weiter.
+            </span>
           </div>
         )}
         </div>

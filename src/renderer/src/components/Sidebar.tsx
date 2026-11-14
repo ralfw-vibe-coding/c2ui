@@ -259,6 +259,14 @@ function ChatItem({
               <Icon name="note" size={11} /> {notes}
             </span>
           )}
+          {!!chat.background?.length && (
+            <span
+              className="chat-background"
+              title={`Läuft im Hintergrund – danach arbeitet der Chat weiter:\n${chat.background.map((t) => `· ${t.label}`).join('\n')}`}
+            >
+              <Icon name="history" size={11} /> {chat.background.length > 1 && chat.background.length}
+            </span>
+          )}
         </span>
       </div>
       {!editing && (depth > 0 || childCount > 0) && (

@@ -96,6 +96,7 @@ export function applyEvent(t: Transcript, e: AgentEvent): Transcript {
 
     case 'session':
     case 'context':
+    case 'background':
       return t
   }
 }

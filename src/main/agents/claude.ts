@@ -1,6 +1,7 @@
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { chatModel, type Attachment, type Block } from '@shared/types'
+import { startedTask, taskIdOf, taskReports, withoutReported, type BackgroundTask } from '@shared/background'
 import { childEnv } from '../env'
 import { claudeA2uiArgs, workshopPrompt } from './a2ui'
 import { claudeImageBlocks, textWithAttachments } from './attachments'
@@ -21,6 +22,10 @@ class ClaudeSession implements AgentSession {
   private idleTimer: NodeJS.Timeout | null = null
   private _busy = false
   private interrupted = false
+  /** Befehle, die im Hintergrund weiterlaufen, auch wenn der Turn zu Ende ist. */
+  private background: BackgroundTask[] = []
+  /** Id der CLI → Id des Werkzeugaufrufs (falls eine Meldung nur die erste nennt). */
+  private taskIds = new Map<string, string>()
   private turnStartedAt = 0
   // Streaming-Zustand der aktuellen API-Nachricht
   private curMsgId = ''
@@ -158,6 +163,8 @@ class ClaudeSession implements AgentSession {
     p.on('close', (code, signal) => {
       if (this.proc !== p) return
       this.proc = null
+      // Ohne Prozess kommt keine Fertigmeldung mehr an.
+      if (this.background.length) this.setBackground([])
       if (!this._busy) return
       if (this.interrupted) {
         this.endTurn({ isError: true, errorText: 'Abgebrochen.' })
@@ -189,6 +196,14 @@ class ClaudeSession implements AgentSession {
   private handle(m: any): void {
     // Nachrichten von Subagenten (Task-Tool) zeigen wir in Inkrement 1 nicht einzeln.
     if (m.parent_tool_use_id) return
+
+    // Ist ein Hintergrundbefehl fertig, meldet die CLI das dem Agenten, und der arbeitet weiter –
+    // obwohl der Turn längst zu Ende war. Das ist ein neuer Turn: sonst liefe das ohne jede Anzeige.
+    if (!this._busy && (m.type === 'assistant' || m.type === 'stream_event' || m.type === 'user')) {
+      this.turnStartedAt = Date.now()
+      this.clearIdle()
+      this.setBusy(true)
+    }
 
     switch (m.type) {
       case 'system':
@@ -224,6 +239,9 @@ class ClaudeSession implements AgentSession {
         if (used) this.lastContext = used
         const blocks = (m.message?.content ?? []).map(toBlock).filter(Boolean) as Block[]
         if (blocks.length === 0) return
+        // Befehle im Hintergrund laufen über das Turn-Ende hinaus weiter.
+        const started = blocks.map((b) => startedTask(b)).filter((t): t is BackgroundTask => !!t)
+        if (started.length) this.setBackground([...this.background, ...started])
         const index = msgId === this.curMsgId ? this.curIndex : undefined
         this.cb.onEvent({ kind: 'assistant', msgId, blocks, index })
         return
@@ -238,13 +256,22 @@ class ClaudeSession implements AgentSession {
           return
         }
         const content = m.message?.content
+        if (typeof content === 'string') return this.onTaskNews(content)
         if (!Array.isArray(content)) return
         for (const c of content) {
+          if (c?.type === 'text' && typeof c.text === 'string') {
+            this.onTaskNews(c.text)
+            continue
+          }
           if (c?.type !== 'tool_result') continue
+          const text = stringifyToolResult(c.content)
+          // Die CLI vergibt dem Hintergrundbefehl eine eigene Id; sie steht in ihrer Startmeldung.
+          const taskId = taskIdOf(text)
+          if (taskId && this.background.some((t) => t.id === c.tool_use_id)) this.taskIds.set(taskId, c.tool_use_id)
           this.cb.onEvent({
             kind: 'tool-result',
             toolUseId: c.tool_use_id,
-            content: stringifyToolResult(c.content),
+            content: text,
             isError: !!c.is_error
           })
         }
@@ -313,8 +340,39 @@ class ClaudeSession implements AgentSession {
     this.cb.onBusy(b)
   }
 
+  private setBackground(tasks: BackgroundTask[]): void {
+    this.background = tasks
+    if (!tasks.length) {
+      this.taskIds.clear()
+      // Jetzt darf der Prozess wieder nach Leerlauf enden.
+      if (!this._busy) this.armIdle()
+    }
+    this.cb.onEvent({ kind: 'background', tasks })
+  }
+
+  /** Meldet die CLI einen fertigen Hintergrundbefehl, ist er aus der Liste raus. */
+  private onTaskNews(text: string): void {
+    const reports = taskReports(text)
+    if (!reports.length) return
+    const rest = withoutReported(this.background, reports, this.taskIds)
+    for (const r of reports) {
+      const done = this.background.find((t) => t.id === r.toolUseId || (r.taskId && this.taskIds.get(r.taskId) === t.id))
+      const was = done?.label ?? r.summary ?? 'Hintergrundbefehl'
+      const schlecht = r.status && r.status !== 'completed'
+      this.cb.onEvent({
+        kind: 'notice',
+        id: randomUUID(),
+        text: schlecht ? `Im Hintergrund fehlgeschlagen: „${was}“ (${r.status})` : `Im Hintergrund fertig: „${was}“`
+      })
+    }
+    if (rest.length !== this.background.length) this.setBackground(rest)
+  }
+
   private armIdle(): void {
     this.clearIdle()
+    // Läuft noch ein Befehl im Hintergrund, muss der Prozess leben bleiben – sonst kommt die
+    // Fertigmeldung nie an und der Chat arbeitet nicht weiter.
+    if (this.background.length) return
     const ms = Math.max(1, this.ctx.settings().idleTimeoutMinutes) * 60_000
     this.idleTimer = setTimeout(() => {
       if (!this._busy && this.proc) {
