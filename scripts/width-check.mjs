@@ -64,12 +64,17 @@ const breiteSetzen = async (px) => {
   await page.locator('.icon-btn[title="Einstellungen"]').click()
   const feld = page.locator('label', { hasText: 'Größte Breite des Chats' }).locator('input')
   await feld.fill(String(px))
+  // Einstellungen speichern sich selbst; der Dialog wird nur noch geschlossen.
+  await page.waitForTimeout(700)
   await page.locator('.modal-actions .btn.primary').click()
-  await page.waitForTimeout(400)
+  await page.waitForTimeout(300)
 }
 await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(2000, 900))
 await page.waitForTimeout(400)
 await breiteSetzen(500)
+// Gespeichert wurde schon beim Tippen, nicht erst beim Schließen.
+const ausAblage = await page.evaluate(async () => (await window.api.init()).settings.chatWidth)
+check(ausAblage === 500, 'die Einstellung speichert sich von selbst')
 const eng = await breiten()
 log('nach Einstellung 500:', JSON.stringify(eng))
 check(eng.text === 500, 'eine andere Grenze aus den Einstellungen gilt sofort')

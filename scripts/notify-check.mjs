@@ -50,8 +50,10 @@ check((await section.locator('.notify-minutes input').inputValue()) === '3', 'Vo
 await boxes.nth(0).uncheck()
 await section.locator('.notify-minutes input').fill('7')
 await page.screenshot({ path: join(out, '1-einstellungen.png') })
-await page.locator('.modal-actions .btn.primary', { hasText: 'Speichern' }).click()
-await page.waitForTimeout(400)
+// Einstellungen speichern sich selbst (kurze Verzögerung), der Knopf schließt nur.
+await page.waitForTimeout(700)
+await page.locator('.modal-actions .btn.primary', { hasText: 'Schließen' }).click()
+await page.waitForTimeout(300)
 const saved = await page.evaluate(async () => (await window.api.init()).settings.notifications)
 log('gespeichert:', JSON.stringify(saved))
 check(saved.done === false && saved.stalled === true && saved.stalledMinutes === 7, 'Einstellungen gespeichert')
@@ -63,7 +65,7 @@ await page.locator('.icon-btn', { hasText: 'Einstellungen' }).click()
 const section2 = page.locator('.agent-settings', { hasText: 'Benachrichtigungen' })
 await section2.waitFor()
 check((await section2.locator('.notify-minutes input').inputValue()) === '7', 'Einstellung übersteht den Neustart')
-await page.locator('.modal-actions .btn', { hasText: 'Abbrechen' }).click()
+await page.locator('.modal-actions .btn', { hasText: 'Schließen' }).click()
 
 // Klick auf eine Meldung: der Chat kommt nach vorn
 const open = () => page.evaluate(() => document.querySelector('.chat-panel')?.getAttribute('data-chat-id') ?? null)

@@ -8,6 +8,7 @@ import { AgentLogo } from './AgentLogo'
 export function SettingsDialog() {
   const settings = useStore((s) => s.settings)
   const [draft, setDraft] = useState<Settings | null>(settings)
+  useAutoSave(draft, settings)
   if (!draft) return null
   const close = (): void => useStore.getState().setSettingsOpen(false)
   const setAgent = (a: AgentKind, patch: Partial<AgentSettings>): void =>
@@ -79,24 +80,30 @@ export function SettingsDialog() {
         <MergeSection value={draft.merge} onChange={(merge) => setDraft({ ...draft, merge })} />
         <ComponentsSection />
         <UpdateSection />
-        <p className="muted small">Änderungen gelten für neu gestartete CLI-Prozesse.</p>
+        <p className="muted small">
+          Änderungen werden gleich gespeichert; sie gelten für neu gestartete CLI-Prozesse.
+        </p>
         <div className="modal-actions">
-          <button className="btn" onClick={close}>
-            Abbrechen
-          </button>
-          <button
-            className="btn primary"
-            onClick={async () => {
-              await useStore.getState().saveSettings(draft)
-              close()
-            }}
-          >
-            Speichern
+          <button className="btn primary" onClick={close}>
+            Schließen
           </button>
         </div>
       </div>
     </div>
   )
+}
+
+/**
+ * Einstellungen speichern sich selbst. Kurz abwarten, damit nicht jeder Tastendruck schreibt;
+ * gefährlich ist nichts dabei, denn alles hier sind reine Angaben: Sie wirken erst auf neu
+ * gestartete CLI-Prozesse, und Felder, die man leert, fallen auf ihren Standard zurück.
+ */
+function useAutoSave(draft: Settings | null, saved: Settings | null): void {
+  useEffect(() => {
+    if (!draft || !saved || JSON.stringify(draft) === JSON.stringify(saved)) return
+    const t = setTimeout(() => void useStore.getState().saveSettings(draft), 400)
+    return () => clearTimeout(t)
+  }, [draft, saved])
 }
 
 const CUSTOM = '__custom__'
