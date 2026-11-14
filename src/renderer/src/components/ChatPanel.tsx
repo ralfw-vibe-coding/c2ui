@@ -11,6 +11,7 @@ const NEAR_BOTTOM_PX = 60
 const NO_STEERING: never[] = []
 import { drafts } from '../drafts'
 import { AttachmentChips } from './Attachments'
+import { CommentLayer } from './Comments'
 import { QuoteSelection, RefChips } from './QuoteRefs'
 import { composeMessage } from '@shared/quotes'
 import { EMPTY_QUEUE, shouldQueue } from '@shared/queue'
@@ -191,6 +192,7 @@ export function ChatPanel({ chatId, active }: { chatId: string; active: boolean 
       <QuoteSelection chatId={chatId} scrollRef={scrollRef} />
       <div className="transcript" ref={scrollRef} onScroll={onScroll}>
         <div className="transcript-inner" ref={innerRef}>
+        <CommentLayer chatId={chatId} innerRef={innerRef} />
         {!transcript ? (
           <div className="muted center-hint">Lade …</div>
         ) : transcript.length === 0 ? (

@@ -9,7 +9,7 @@ import * as M from '@shared/merge'
 import { parseUpdateState, type UpdateState } from '@shared/update'
 import * as Q from '@shared/queue'
 import { applyEvent } from '@shared/transcript'
-import { DEFAULT_MERGE, type AgentEvent, type AgentKind, type Attachment, type Chat, type LayoutState, type MergeMark, type Settings, type Transcript } from '@shared/types'
+import { DEFAULT_MERGE, type AgentEvent, type ChatComment, type AgentKind, type Attachment, type Chat, type LayoutState, type MergeMark, type Settings, type Transcript } from '@shared/types'
 
 export const CHAT_MIME = 'application/x-claude2ui-chat'
 export const BOARD_MIME = 'application/x-claude2ui-board'
@@ -49,6 +49,10 @@ interface State {
   activeChatId: string | null
   /** Je Chat die Nutzernachricht, deren Turn gerade oben im sichtbaren Bereich steht (fürs Board). */
   viewTurn: Record<string, string | undefined>
+  /** Notizen je Chat (eigene Ebene neben dem Verlauf). */
+  comments: Record<string, ChatComment[] | undefined>
+  /** Notiz, die gerade geschrieben wird (neu angelegt, noch ohne Text). */
+  editingComment: string | null
   /** Dialog „Session übernehmen“ offen. */
   adoptOpen: boolean
   /** Dialog zum Zusammenführen (Einrichten, Aufarbeitung prüfen, Fehler). */
@@ -106,6 +110,12 @@ interface Actions {
   renameChat(chatId: string, title: string): Promise<void>
   send(chatId: string, text: string, attachments?: Attachment[], merge?: MergeMark): Promise<void>
   /** Zusammenführen: Dialog öffnen/schließen, starten, Aufarbeitung nach A übernehmen. */
+  /** Notizen laden, anlegen, ändern, löschen. */
+  ensureComments(chatId: string): void
+  addComment(chatId: string, c: { itemId: string; quote?: string; text?: string }): Promise<void>
+  updateComment(chatId: string, id: string, text: string): Promise<void>
+  removeComment(chatId: string, id: string): Promise<void>
+  setEditingComment(id: string | null): void
   openMerge(req: MergeRequest): void
   closeMerge(): void
   startMerge(req: MergeRequest, opts: MergeOptions): Promise<void>
@@ -152,6 +162,7 @@ interface Actions {
 }
 
 const loading = new Set<string>()
+const loadingComments = new Set<string>()
 /** Laufende Aufarbeitungen: Nebenchat → was danach passiert. */
 const pendingMerges = new Map<string, { req: MergeRequest; adopt: string; preview: boolean; prepareItemId?: string }>()
 /** Board-Zelle → Zelle, in die es zuletzt einen Chat geöffnet hat. */
@@ -264,6 +275,8 @@ export const useStore = create<State & Actions>((set, get) => {
     jump: null,
     activeChatId: null,
     viewTurn: {},
+    comments: {},
+    editingComment: null,
     adoptOpen: false,
     mergeDialog: null,
     merging: {},
@@ -442,7 +455,9 @@ export const useStore = create<State & Actions>((set, get) => {
         delete transcripts[chatId]
         const queues = { ...s.queues }
         delete queues[chatId]
-        return { transcripts, queues, chats: s.chats.filter((x) => x.id !== chatId) }
+        const comments = { ...s.comments }
+        delete comments[chatId]
+        return { transcripts, queues, comments, chats: s.chats.filter((x) => x.id !== chatId) }
       })
     },
 
@@ -454,6 +469,38 @@ export const useStore = create<State & Actions>((set, get) => {
     async send(chatId, text, attachments, merge) {
       await loadTranscript(chatId)
       await window.api.send(chatId, text, attachments, merge)
+    },
+
+    ensureComments(chatId) {
+      if (get().comments[chatId] || loadingComments.has(chatId)) return
+      loadingComments.add(chatId)
+      void window.api
+        .comments(chatId)
+        .then((list) => set((s) => ({ comments: { ...s.comments, [chatId]: list } })))
+        .finally(() => loadingComments.delete(chatId))
+    },
+
+    async addComment(chatId, c) {
+      const before = get().comments[chatId] ?? []
+      const list = await window.api.addComment(chatId, { itemId: c.itemId, quote: c.quote, text: c.text ?? '' })
+      set((s) => ({ comments: { ...s.comments, [chatId]: list } }))
+      // Eine frisch angelegte, noch leere Notiz gleich zum Schreiben öffnen.
+      const fresh = list.find((x) => !before.some((b) => b.id === x.id))
+      if (fresh && !fresh.text) set({ editingComment: fresh.id })
+    },
+
+    async updateComment(chatId, id, text) {
+      const list = await window.api.updateComment(chatId, id, text)
+      set((s) => ({ comments: { ...s.comments, [chatId]: list }, editingComment: s.editingComment === id ? null : s.editingComment }))
+    },
+
+    async removeComment(chatId, id) {
+      const list = await window.api.removeComment(chatId, id)
+      set((s) => ({ comments: { ...s.comments, [chatId]: list }, editingComment: s.editingComment === id ? null : s.editingComment }))
+    },
+
+    setEditingComment(id) {
+      set({ editingComment: id })
     },
 
     openMerge(req) {

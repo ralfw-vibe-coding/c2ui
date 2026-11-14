@@ -109,6 +109,19 @@ export function QuoteSelection({ chatId, scrollRef }: { chatId: string; scrollRe
         >
           <Icon name="quote" size={14} /> Bezug nehmen
         </button>
+        {sel.itemId && (
+          <button
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => {
+              void useStore.getState().addComment(chatId, { itemId: sel.itemId!, quote: sel.quote })
+              window.getSelection()?.removeAllRanges()
+              close()
+            }}
+            title="Notiz an den Rand schreiben (geht nicht an die CLI)"
+          >
+            <Icon name="note" size={14} /> Notiz
+          </button>
+        )}
       </div>
     )
   }

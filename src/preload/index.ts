@@ -2,7 +2,7 @@ import { contextBridge, ipcRenderer, webFrame, webUtils, type IpcRendererEvent }
 import type { CompositeDef } from '@shared/a2ui-composites'
 import type { SessionInfo } from '../main/sessions'
 import type { SearchResult } from '../main/search'
-import type { AgentEvent, AgentKind, Attachment, Chat, ChatPatch, LayoutState, MergeMark, ModelList, PermissionMode, Settings, Transcript } from '@shared/types'
+import type { AgentEvent, AgentKind, Attachment, Chat, ChatComment, ChatPatch, LayoutState, MergeMark, ModelList, PermissionMode, Settings, Transcript } from '@shared/types'
 
 export interface InitState {
   settings: Settings
@@ -26,6 +26,12 @@ const api = {
     ipcRenderer.invoke('chats:create', cwd, agent, mode),
   updateChat: (id: string, patch: ChatPatch): Promise<Chat> =>
     ipcRenderer.invoke('chats:update', id, patch),
+  comments: (chatId: string): Promise<ChatComment[]> => ipcRenderer.invoke('comments:get', chatId),
+  addComment: (chatId: string, c: { itemId: string; quote?: string; text: string }): Promise<ChatComment[]> =>
+    ipcRenderer.invoke('comments:add', chatId, c),
+  updateComment: (chatId: string, id: string, text: string): Promise<ChatComment[]> =>
+    ipcRenderer.invoke('comments:update', chatId, id, text),
+  removeComment: (chatId: string, id: string): Promise<ChatComment[]> => ipcRenderer.invoke('comments:remove', chatId, id),
   search: (query: string): Promise<SearchResult[]> => ipcRenderer.invoke('search:chats', query),
   sessions: (cwd: string): Promise<SessionInfo[]> => ipcRenderer.invoke('sessions:list', cwd),
   adoptChat: (cwd: string, agent: AgentKind, sessionId: string, title?: string): Promise<Chat> =>

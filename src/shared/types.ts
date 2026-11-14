@@ -225,6 +225,21 @@ export type MergeMark =
   | { role: 'prepare'; targetId: string; targetTitle: string }
   | { role: 'adopt'; fromChatId: string; fromItemId?: string; fromTitle: string }
 
+/**
+ * Notiz zu einer Stelle im Verlauf (eigene Ebene neben dem Transkript – die CLI sieht sie nicht).
+ * `quote` ist die markierte Stelle; fehlt sie, hängt die Notiz am Eintrag als Ganzem.
+ */
+export interface ChatComment {
+  id: string
+  /** Transkript-Eintrag, zu dem die Notiz gehört. */
+  itemId: string
+  /** Markierte Stelle (gekürzt gespeichert), um sie im Text wiederzufinden. */
+  quote?: string
+  text: string
+  createdAt: number
+  updatedAt: number
+}
+
 /** Wie voll das Kontextfenster zuletzt war (nach dem letzten Turn). */
 export interface ContextUse {
   /** Tokens im Kontext der letzten Anfrage (inkl. zwischengespeicherter). */

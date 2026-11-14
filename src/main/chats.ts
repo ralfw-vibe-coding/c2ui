@@ -17,8 +17,10 @@ import {
   type PermissionMode,
   type Settings,
   type Transcript,
-  type MergeMark
+  type MergeMark,
+  type ChatComment
 } from '@shared/types'
+import { addComment, cleanComments, removeComment, updateComment } from './comments'
 import { createClaudeSession } from './agents/claude'
 import { createCodexSession } from './agents/codex'
 import type { AgentFactory, AgentSession } from './agents/types'
@@ -232,7 +234,38 @@ export class ChatManager {
     this.chats.delete(id)
     this.transcripts.delete(id)
     this.storage.remove(`transcripts/${id}`)
+    this.commentCache.delete(id)
+    this.storage.remove(`comments/${id}`)
     this.saveChats()
+  }
+
+  // ---------- Notizen ----------
+
+  comments(chatId: string): ChatComment[] {
+    let list = this.commentCache.get(chatId)
+    if (!list) {
+      list = cleanComments(this.storage.read<unknown>(`comments/${chatId}`, []))
+      this.commentCache.set(chatId, list)
+    }
+    return list
+  }
+
+  private setComments(chatId: string, list: ChatComment[]): ChatComment[] {
+    this.commentCache.set(chatId, list)
+    this.storage.write(`comments/${chatId}`, list)
+    return list
+  }
+
+  addComment(chatId: string, c: { itemId: string; quote?: string; text: string }): ChatComment[] {
+    return this.setComments(chatId, addComment(this.comments(chatId), { ...c, id: randomUUID() }))
+  }
+
+  updateComment(chatId: string, id: string, text: string): ChatComment[] {
+    return this.setComments(chatId, updateComment(this.comments(chatId), id, text))
+  }
+
+  removeComment(chatId: string, id: string): ChatComment[] {
+    return this.setComments(chatId, removeComment(this.comments(chatId), id))
   }
 
   transcript(id: string): Transcript {
@@ -387,6 +420,9 @@ export class ChatManager {
     writeFileSync(stateFile, JSON.stringify(acceptedMessages(this.transcript(chatId))))
     return { pluginDir, skillDir: join(pluginDir, 'skills', 'a2ui'), serverScript, execPath, stateFile, shadowHomeDir, componentsDir }
   }
+
+  /** Notizen je Chat (Ablage: `comments/<chatId>`). */
+  private commentCache = new Map<string, ChatComment[]>()
 
   private emit(id: string, e: AgentEvent): void {
     const chat = this.chats.get(id)
