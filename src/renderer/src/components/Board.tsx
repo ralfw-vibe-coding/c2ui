@@ -153,8 +153,40 @@ export function Board({ rootId, cellId }: { rootId: string; cellId: string }) {
   useEffect(() => {
     const ids = treeIds.split('|')
     useStore.getState().ensureTranscripts(ids)
-    for (const id of ids) useStore.getState().ensureComments(id)
+    for (const id of ids) {
+      useStore.getState().ensureComments(id)
+      useStore.getState().ensureBookmarks(id)
+    }
   }, [treeIds])
+  const bookmarks = useStore((s) => s.bookmarks)
+  /**
+   * Inhaltsverzeichnis: alle Lesezeichen des Baums in der Reihenfolge des Diskurses, also nach der
+   * Zeile ihres Turns im Graphen. Ohne eigene Beschriftung steht das Zitat bzw. die Nachricht da.
+   */
+  const toc = useMemo(() => {
+    const ids = treeIds.split('|')
+    const list: { chatId: string; id: string; row: number; lane: number; itemId: string; text: string; eigen: boolean }[] = []
+    for (const chatId of ids) {
+      const node = nodeOfItem(transcripts[chatId] ?? [])
+      for (const b of bookmarks[chatId] ?? []) {
+        const turn = node.get(b.itemId) ?? b.itemId
+        const n = model.nodes.find((x) => x.chatId === chatId && x.itemId === turn)
+        const run = n ? undefined : model.runs.find((r) => r.chatId === chatId && r.items.some((i) => i.itemId === turn))
+        const row = n?.row ?? run?.row
+        if (row === undefined) continue
+        list.push({
+          chatId,
+          id: b.id,
+          row,
+          lane: n?.lane ?? run?.lane ?? 0,
+          itemId: b.itemId,
+          text: b.label || b.quote || n?.label || 'Lesezeichen',
+          eigen: !!b.label
+        })
+      }
+    }
+    return list.sort((a, b) => a.row - b.row)
+  }, [bookmarks, treeIds, transcripts, model])
 
   if (!model.lanes.length) return <div className="muted center-hint">Dieser Chat existiert nicht mehr.</div>
   // Rechts neben den Spuren liegen die Klammern der Gruppen – je Schachtelungstiefe eine Spalte.
@@ -169,7 +201,7 @@ export function Board({ rootId, cellId }: { rootId: string; cellId: string }) {
   for (const f of model.collapsed) if (f.row !== undefined) foldedAt.set(f.row, [...(foldedAt.get(f.row) ?? []), f])
 
   return (
-    <div className="board">
+    <div className={`board${toc.length ? ' with-toc' : ''}`}>
       <div className="board-scroll">
         {model.nodes.length === 0 ? (
           <div className="muted center-hint">Noch keine Nachrichten.</div>
@@ -356,6 +388,35 @@ export function Board({ rootId, cellId }: { rootId: string; cellId: string }) {
           </div>
         )}
       </div>
+      {/* Inhaltsverzeichnis: die Lesezeichen des Diskurses, in seiner Reihenfolge */}
+      {toc.length > 0 && (
+        <div className="board-toc">
+          <div className="board-toc-head">
+            <Icon name="bookmark" size={13} /> Lesezeichen
+          </div>
+          <ul>
+            {toc.map((b) => (
+              <li key={b.id}>
+                <button
+                  className="board-toc-item"
+                  title={`${b.text}\nKlick: an dieser Stelle öffnen · ⌘-Klick: in neuer Zelle`}
+                  onClick={(e) => void useStore.getState().openFromBoard(cellId, b.chatId, b.itemId, e.metaKey)}
+                >
+                  <span className="board-toc-bar" style={{ background: colorOf(model.lanes[b.lane]?.color ?? 0) }} />
+                  <span className={`board-toc-text${b.eigen ? ' eigen' : ''}`}>{b.text}</span>
+                </button>
+                <button
+                  className="icon-btn board-toc-drop"
+                  title="Lesezeichen entfernen"
+                  onClick={() => void useStore.getState().removeBookmark(b.chatId, b.id)}
+                >
+                  <Icon name="bookmark-x" size={12} />
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   )
 }

@@ -19,10 +19,12 @@ import {
   type Transcript,
   type MergeMark,
   type ChatComment,
-  type BoardGroup
+  type BoardGroup,
+  type Bookmark
 } from '@shared/types'
 import { addComment, cleanComments, removeComment, updateComment } from './comments'
 import { cleanGroups } from './groups'
+import { addBookmark, cleanBookmarks, labelBookmark, removeBookmark } from './bookmarks'
 import { createClaudeSession } from './agents/claude'
 import { createCodexSession } from './agents/codex'
 import type { AgentFactory, AgentSession } from './agents/types'
@@ -64,6 +66,7 @@ export interface ChatManagerEvents {
   chatsChanged(chats: Chat[]): void
   commentsChanged(chatId: string, list: ChatComment[]): void
   groupsChanged(rootId: string, list: BoardGroup[]): void
+  bookmarksChanged(chatId: string, list: Bookmark[]): void
 }
 
 const factories: Record<AgentKind, AgentFactory> = {
@@ -247,7 +250,41 @@ export class ChatManager {
     this.storage.remove(`transcripts/${id}`)
     this.commentCache.delete(id)
     this.storage.remove(`comments/${id}`)
+    this.bookmarkCache.delete(id)
+    this.storage.remove(`bookmarks/${id}`)
     this.saveChats()
+  }
+
+  // ---------- Lesezeichen ----------
+
+  /** Lesezeichen eines Chats (Ablage: `bookmarks/<chatId>`). */
+  bookmarks(chatId: string): Bookmark[] {
+    let list = this.bookmarkCache.get(chatId)
+    if (!list) {
+      list = cleanBookmarks(this.storage.read<unknown>(`bookmarks/${chatId}`, []))
+      this.bookmarkCache.set(chatId, list)
+    }
+    return list
+  }
+
+  private setBookmarks(chatId: string, list: Bookmark[]): Bookmark[] {
+    this.bookmarkCache.set(chatId, list)
+    if (list.length) this.storage.write(`bookmarks/${chatId}`, list)
+    else this.storage.remove(`bookmarks/${chatId}`)
+    this.events.bookmarksChanged(chatId, list)
+    return list
+  }
+
+  addBookmark(chatId: string, b: { itemId: string; quote?: string; label?: string }): Bookmark[] {
+    return this.setBookmarks(chatId, addBookmark(this.bookmarks(chatId), { ...b, id: randomUUID() }))
+  }
+
+  labelBookmark(chatId: string, id: string, label: string): Bookmark[] {
+    return this.setBookmarks(chatId, labelBookmark(this.bookmarks(chatId), id, label))
+  }
+
+  removeBookmark(chatId: string, id: string): Bookmark[] {
+    return this.setBookmarks(chatId, removeBookmark(this.bookmarks(chatId), id))
   }
 
   // ---------- Gruppen im Board ----------
@@ -468,6 +505,8 @@ export class ChatManager {
   private commentCache = new Map<string, ChatComment[]>()
   /** Gruppen je Baum (Ablage: `boards/<rootId>`). */
   private groupCache = new Map<string, BoardGroup[]>()
+  /** Lesezeichen je Chat (Ablage: `bookmarks/<chatId>`). */
+  private bookmarkCache = new Map<string, Bookmark[]>()
 
   private emit(id: string, e: AgentEvent): void {
     const chat = this.chats.get(id)

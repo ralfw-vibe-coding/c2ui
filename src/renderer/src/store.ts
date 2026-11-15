@@ -10,7 +10,7 @@ import { parseUpdateState, type UpdateState } from '@shared/update'
 import * as Q from '@shared/queue'
 import { PASTE_FILE } from '@shared/paste'
 import { applyEvent } from '@shared/transcript'
-import { DEFAULT_MERGE, type AgentEvent, type BoardGroup, type ChatComment, type AgentKind, type Attachment, type Chat, type LayoutState, type MergeMark, type Settings, type Transcript } from '@shared/types'
+import { DEFAULT_MERGE, type AgentEvent, type BoardGroup, type Bookmark, type ChatComment, type AgentKind, type Attachment, type Chat, type LayoutState, type MergeMark, type Settings, type Transcript } from '@shared/types'
 
 export const CHAT_MIME = 'application/x-claude2ui-chat'
 export const BOARD_MIME = 'application/x-claude2ui-board'
@@ -56,6 +56,8 @@ interface State {
   commentCounts: Record<string, number>
   /** Gruppen je Baum (Diskursboard). */
   groups: Record<string, BoardGroup[] | undefined>
+  /** Lesezeichen je Chat. */
+  bookmarks: Record<string, Bookmark[] | undefined>
   /** Notiz, die gerade geschrieben wird (neu angelegt, noch ohne Text). */
   editingComment: string | null
   /** Dialog „Session übernehmen“ offen. */
@@ -117,6 +119,11 @@ interface Actions {
   renameChat(chatId: string, title: string): Promise<void>
   send(chatId: string, text: string, attachments?: Attachment[], merge?: MergeMark): Promise<void>
   /** Zusammenführen: Dialog öffnen/schließen, starten, Aufarbeitung nach A übernehmen. */
+  /** Lesezeichen eines Chats laden, setzen, beschriften, löschen. */
+  ensureBookmarks(chatId: string): void
+  addBookmark(chatId: string, b: { itemId: string; quote?: string; label?: string }): Promise<void>
+  labelBookmark(chatId: string, id: string, label: string): Promise<void>
+  removeBookmark(chatId: string, id: string): Promise<void>
   /** Gruppen eines Baums laden (einmal je Baum). */
   ensureGroups(rootId: string): Promise<void>
   /** Gruppen eines Baums ersetzen (anlegen, umbenennen, auf/zu, auflösen). */
@@ -177,6 +184,7 @@ interface Actions {
 const loading = new Set<string>()
 const loadingComments = new Set<string>()
 const loadingGroups = new Set<string>()
+const loadingBookmarks = new Set<string>()
 /** Laufende Aufarbeitungen: Nebenchat → was danach passiert. */
 const pendingMerges = new Map<string, { req: MergeRequest; adopt: string; preview: boolean; prepareItemId?: string }>()
 /** Board-Zelle → Zelle, in die es zuletzt einen Chat geöffnet hat. */
@@ -292,6 +300,7 @@ export const useStore = create<State & Actions>((set, get) => {
     comments: {},
     commentCounts: {},
     groups: {},
+    bookmarks: {},
     editingComment: null,
     adoptOpen: false,
     mergeDialog: null,
@@ -330,6 +339,7 @@ export const useStore = create<State & Actions>((set, get) => {
       })
       window.api.onChatsChanged((chats) => set({ chats }))
       window.api.onGroupsChanged((rootId, list) => set((st) => ({ groups: { ...st.groups, [rootId]: list } })))
+      window.api.onBookmarksChanged((chatId, list) => set((st) => ({ bookmarks: { ...st.bookmarks, [chatId]: list } })))
       window.api.onCommentsChanged((chatId, list) =>
         set((st) => ({ comments: { ...st.comments, [chatId]: list }, commentCounts: { ...st.commentCounts, [chatId]: list.length } }))
       )
@@ -499,6 +509,30 @@ export const useStore = create<State & Actions>((set, get) => {
         .comments(chatId)
         .then((list) => set((s) => ({ comments: { ...s.comments, [chatId]: list }, commentCounts: { ...s.commentCounts, [chatId]: list.length } })))
         .finally(() => loadingComments.delete(chatId))
+    },
+
+    ensureBookmarks(chatId) {
+      if (get().bookmarks[chatId] || loadingBookmarks.has(chatId)) return
+      loadingBookmarks.add(chatId)
+      void window.api
+        .bookmarks(chatId)
+        .then((list) => set((s) => ({ bookmarks: { ...s.bookmarks, [chatId]: list } })))
+        .finally(() => loadingBookmarks.delete(chatId))
+    },
+
+    async addBookmark(chatId, b) {
+      const list = await window.api.addBookmark(chatId, b)
+      set((s) => ({ bookmarks: { ...s.bookmarks, [chatId]: list } }))
+    },
+
+    async labelBookmark(chatId, id, label) {
+      const list = await window.api.labelBookmark(chatId, id, label)
+      set((s) => ({ bookmarks: { ...s.bookmarks, [chatId]: list } }))
+    },
+
+    async removeBookmark(chatId, id) {
+      const list = await window.api.removeBookmark(chatId, id)
+      set((s) => ({ bookmarks: { ...s.bookmarks, [chatId]: list } }))
     },
 
     async ensureGroups(rootId) {

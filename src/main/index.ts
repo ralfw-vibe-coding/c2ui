@@ -233,6 +233,10 @@ function registerIpc(): void {
   // homedir() folgt $HOME (für Prüfskripte mit Schein-Home); app.getPath('home') tut das nicht.
   ipcMain.handle('boards:groups', (_e, rootId: string) => manager.groups(rootId))
   ipcMain.handle('boards:setGroups', (_e, rootId: string, list: BoardGroup[]) => manager.setGroups(rootId, list))
+  ipcMain.handle('bookmarks:get', (_e, chatId: string) => manager.bookmarks(chatId))
+  ipcMain.handle('bookmarks:add', (_e, chatId: string, b: { itemId: string; quote?: string; label?: string }) => manager.addBookmark(chatId, b))
+  ipcMain.handle('bookmarks:label', (_e, chatId: string, id: string, label: string) => manager.labelBookmark(chatId, id, label))
+  ipcMain.handle('bookmarks:remove', (_e, chatId: string, id: string) => manager.removeBookmark(chatId, id))
   ipcMain.handle('comments:counts', () => manager.commentCounts())
   ipcMain.handle('comments:get', (_e, chatId: string) => manager.comments(chatId))
   ipcMain.handle('comments:add', (_e, chatId: string, c: { itemId: string; quote?: string; text: string }) => manager.addComment(chatId, c))
@@ -346,7 +350,8 @@ app.whenReady().then(() => {
       },
       chatsChanged: (chats) => send('chats:changed', chats),
       commentsChanged: (chatId, list) => send('comments:changed', chatId, list),
-      groupsChanged: (rootId, list) => send('boards:changed', rootId, list)
+      groupsChanged: (rootId, list) => send('boards:changed', rootId, list),
+      bookmarksChanged: (chatId, list) => send('bookmarks:changed', chatId, list)
     },
     {
       pluginDir: unpacked(join(app.getAppPath(), 'resources', 'a2ui-plugin')),

@@ -82,6 +82,21 @@ export interface Chat {
 }
 
 /**
+ * Lesezeichen an einer Stelle im Verlauf: zum Wiederfinden, mit optionaler Beschriftung.
+ * Zusammen bilden sie das Inhaltsverzeichnis eines Diskurses.
+ */
+export interface Bookmark {
+  id: string
+  /** Transkript-Eintrag, in dem die Stelle liegt. */
+  itemId: string
+  /** Markierter Absatz (zum Wiederfinden der Stelle); fehlt, wenn der ganze Eintrag gemeint ist. */
+  quote?: string
+  /** Eigene Beschriftung; ohne sie steht das Zitat bzw. der Anfang des Eintrags da. */
+  label?: string
+  createdAt: number
+}
+
+/**
  * Selbst angelegte Gruppe im Diskursboard: eine zusammenhängende Strecke von Nachrichten einer
  * Spur, benannt und zusammenklappbar. Sie gehört zum Baum, nicht zur Anzeige, und wird deshalb
  * neben den Chats gespeichert (`boards/<rootId>`).

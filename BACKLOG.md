@@ -22,8 +22,8 @@
   ältere bleiben in den Arbeitsschritten. Claude `TodoWrite`, Codex `update_plan`.
   Offen: der aktuelle Schritt am Zellenkopf, damit er auch sichtbar ist, wenn die Liste weggescrollt ist.
 - **Session übernehmen für Codex:** heute nur Claude; Codex-Threads liegen anderswo (`thread/resume`).
-- **Legende im Board als Inhaltsverzeichnis:** Liste der Chats des Baums, Klick springt zur Spur (wurde entfernt,
-  könnte so zurückkommen).
+- **Legende im Board:** Liste der Chats des Baums, Klick springt zur Spur (wurde entfernt, könnte zurückkommen).
+  Das Inhaltsverzeichnis gibt es inzwischen – es führt die Lesezeichen des Diskurses.
 
 ## Konzept „Diskurs“ (ausprobieren, erfühlen)
 

@@ -143,11 +143,11 @@ check((await page.locator('.comment-pin').count()) === 1 && (await page.locator(
 
 // Notiz ohne Markierung: Eintrag überfahren, Knopf oben rechts
 await page.locator('.unit[data-item-id="a1"]').hover()
-await page.locator('.comment-add').waitFor()
-const knopf = await page.locator('.comment-add').boundingBox()
+await page.locator('.comment-add:not(.bookmark)').waitFor()
+const knopf = await page.locator('.comment-add:not(.bookmark)').boundingBox()
 const innen2 = await page.locator('.transcript-inner').boundingBox()
 check(knopf.x + knopf.width > innen2.x + innen2.width - 30, 'Knopf steht oben rechts am Eintrag')
-await page.locator('.comment-add').click()
+await page.locator('.comment-add:not(.bookmark)').click()
 await page.locator('.comment-note.editing textarea').waitFor()
 check((await page.locator('.comment-note .comment-quote').count()) === 0, 'Notiz zum Eintrag hat kein Zitat')
 await page.locator('.comment-note.editing textarea').fill('Gilt für den ganzen Absatz')

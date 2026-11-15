@@ -52,6 +52,11 @@ Desktop-App (Electron), in der mehrere Chats mit der Claude CLI oder der Codex C
   Zelle daneben (bzw. der zuletzt vom Board geöffneten) und springt zur Nachricht; ⌘-Klick öffnet in einer neuen Zelle
   rechts davon; oder die Zeile auf eine beliebige Zelle ziehen (Mitte/Rand wie oben). Klick auf den Knoten einer
   Abzweigstelle (−/+) klappt die dort abgehenden Äste ein/aus. Aktualisiert sich live; übersteht einen Neustart.
+- **Lesezeichen:** Stelle im Verlauf markieren → „Lesezeichen“, oder über den Knopf am überfahrenen Eintrag.
+  Am Rand steht eine blaue Marke; ein Klick darauf gibt ihr eine Beschriftung (optional) oder nimmt sie wieder weg.
+  Alle Lesezeichen eines Baums bilden am Diskursboard rechts ein **Inhaltsverzeichnis** in der Reihenfolge des
+  Diskurses – Klick springt an die Stelle, ⌘-Klick öffnet sie in einer neuen Zelle. Ohne eigene Beschriftung steht
+  dort die markierte Stelle bzw. die Nachricht. Lesezeichen liegen neben dem Verlauf (`bookmarks/<chatId>`).
 - **Gruppen im Board:** Zusammengefasst wird nur, was man selbst zusammenfasst – von allein rafft das Board nichts.
   Eine Strecke bestimmen und benennen: ⇧-Klick auf die erste Zeile, ⇧-Klick auf die
   letzte, Namen eintippen (Vorschlag: erste Nachricht), fertig. Die Gruppe entsteht **offen** – es verschiebt sich
@@ -170,6 +175,7 @@ node scripts/chat-tree-check.mjs   # Chat-Baum (ohne Modellaufruf)
 node scripts/fork-nav-check.mjs    # Markierungen, Brotkrumen, Seitenleistenbreite (ohne Modellaufruf)
 node scripts/board-check.mjs       # Diskursboard (ohne Modellaufruf)
 node scripts/board-group-check.mjs # Gruppen im Board (ohne Modellaufruf)
+node scripts/bookmark-check.mjs    # Lesezeichen und Inhaltsverzeichnis (ohne Modellaufruf)
 node scripts/search-check.mjs      # Suche über alle Chats (ohne Modellaufruf)
 node scripts/comments-check.mjs    # Notizen zu Stellen im Verlauf (ohne Modellaufruf)
 node scripts/todos-check.mjs       # Aufgabenliste des Agenten (ohne Modellaufruf)

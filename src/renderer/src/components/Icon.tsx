@@ -34,6 +34,10 @@ const paths: Record<string, string | string[]> = {
   // Textzeichen, weil ▾/▸ in kleinen Schriftgraden kaum zu sehen sind.
   'chevron-down': 'm6 9 6 6 6-6',
   'chevron-right': 'm9 18 6-6-6-6',
+  // Lesezeichen (Lucide „bookmark“, „bookmark-plus“, „bookmark-x“, ISC-Lizenz)
+  bookmark: 'M17 3a2 2 0 0 1 2 2v15a1 1 0 0 1-1.496.868l-4.512-2.578a2 2 0 0 0-1.984 0l-4.512 2.578A1 1 0 0 1 5 20V5a2 2 0 0 1 2-2z',
+  'bookmark-plus': ['M12 7v6', 'M15 10H9', 'M17 3a2 2 0 0 1 2 2v15a1 1 0 0 1-1.496.868l-4.512-2.578a2 2 0 0 0-1.984 0l-4.512 2.578A1 1 0 0 1 5 20V5a2 2 0 0 1 2-2z'],
+  'bookmark-x': ['m14.5 7.5-5 5', 'm9.5 7.5 5 5', 'M17 3a2 2 0 0 1 2 2v15a1 1 0 0 1-1.496.868l-4.512-2.578a2 2 0 0 0-1.984 0l-4.512 2.578A1 1 0 0 1 5 20V5a2 2 0 0 1 2-2z'],
   // Umfang einer Gruppe: Nachrichten und Äste (Lucide „messages-square“/„list-tree“, ISC-Lizenz)
   'messages-square': [
     'M16 10a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 14.286V4a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z',

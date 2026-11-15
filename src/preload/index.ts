@@ -2,7 +2,7 @@ import { contextBridge, ipcRenderer, webFrame, webUtils, type IpcRendererEvent }
 import type { CompositeDef } from '@shared/a2ui-composites'
 import type { SessionInfo } from '../main/sessions'
 import type { SearchResult } from '../main/search'
-import type { AgentEvent, AgentKind, Attachment, BoardGroup, Chat, ChatComment, ChatPatch, LayoutState, MergeMark, ModelList, PermissionMode, Settings, Transcript } from '@shared/types'
+import type { AgentEvent, AgentKind, Attachment, BoardGroup, Bookmark, Chat, ChatComment, ChatPatch, LayoutState, MergeMark, ModelList, PermissionMode, Settings, Transcript } from '@shared/types'
 
 export interface InitState {
   settings: Settings
@@ -30,6 +30,14 @@ const api = {
   setGroups: (rootId: string, list: BoardGroup[]): Promise<BoardGroup[]> => ipcRenderer.invoke('boards:setGroups', rootId, list),
   onGroupsChanged: (cb: (rootId: string, list: BoardGroup[]) => void): void => {
     ipcRenderer.on('boards:changed', (_e, rootId: string, list: BoardGroup[]) => cb(rootId, list))
+  },
+  bookmarks: (chatId: string): Promise<Bookmark[]> => ipcRenderer.invoke('bookmarks:get', chatId),
+  addBookmark: (chatId: string, b: { itemId: string; quote?: string; label?: string }): Promise<Bookmark[]> =>
+    ipcRenderer.invoke('bookmarks:add', chatId, b),
+  labelBookmark: (chatId: string, id: string, label: string): Promise<Bookmark[]> => ipcRenderer.invoke('bookmarks:label', chatId, id, label),
+  removeBookmark: (chatId: string, id: string): Promise<Bookmark[]> => ipcRenderer.invoke('bookmarks:remove', chatId, id),
+  onBookmarksChanged: (cb: (chatId: string, list: Bookmark[]) => void): void => {
+    ipcRenderer.on('bookmarks:changed', (_e, chatId: string, list: Bookmark[]) => cb(chatId, list))
   },
   commentCounts: (): Promise<Record<string, number>> => ipcRenderer.invoke('comments:counts'),
   onCommentsChanged: (cb: (chatId: string, list: ChatComment[]) => void): void => {

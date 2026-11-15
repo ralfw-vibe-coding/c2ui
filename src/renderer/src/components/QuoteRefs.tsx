@@ -122,6 +122,19 @@ export function QuoteSelection({ chatId, scrollRef }: { chatId: string; scrollRe
             <Icon name="note" size={14} /> Notiz
           </button>
         )}
+        {sel.itemId && (
+          <button
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => {
+              void useStore.getState().addBookmark(chatId, { itemId: sel.itemId!, quote: sel.quote })
+              window.getSelection()?.removeAllRanges()
+              close()
+            }}
+            title="Lesezeichen setzen (erscheint im Inhaltsverzeichnis des Diskurses)"
+          >
+            <Icon name="bookmark-plus" size={14} /> Lesezeichen
+          </button>
+        )}
       </div>
     )
   }

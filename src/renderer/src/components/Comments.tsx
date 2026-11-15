@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import type { ChatComment } from '@shared/types'
+import type { Bookmark, ChatComment } from '@shared/types'
 import { cleanQuote, MAX_QUOTE } from '@shared/quotes'
 import { findQuoteRange } from '../textRange'
 import { useStore } from '../store'
@@ -15,7 +15,13 @@ import { Icon } from './Icon'
 const CARD = 250
 const PIN = 18
 interface Pin {
-  comment: ChatComment
+  /** Notiz oder Lesezeichen – beide hängen an derselben Stelle im Text. */
+  kind: 'note' | 'bookmark'
+  id: string
+  itemId: string
+  quote?: string
+  comment?: ChatComment
+  bookmark?: Bookmark
   /** Lage in der Ebene (= Innenfläche des Verlaufs). */
   left: number
   top: number
@@ -46,6 +52,7 @@ function useInner(innerRef: React.RefObject<HTMLDivElement | null>): HTMLDivElem
 
 export function CommentLayer({ chatId, innerRef }: { chatId: string; innerRef: React.RefObject<HTMLDivElement | null> }) {
   const comments = useStore((s) => s.comments[chatId])
+  const bookmarks = useStore((s) => s.bookmarks[chatId])
   const transcript = useStore((s) => s.transcripts[chatId])
   const editing = useStore((s) => s.editingComment)
   const [pins, setPins] = useState<Pin[]>([])
@@ -54,7 +61,10 @@ export function CommentLayer({ chatId, innerRef }: { chatId: string; innerRef: R
   const layerRef = useRef<HTMLDivElement>(null)
   const inner = useInner(innerRef)
 
-  useEffect(() => void useStore.getState().ensureComments(chatId), [chatId])
+  useEffect(() => {
+    useStore.getState().ensureComments(chatId)
+    useStore.getState().ensureBookmarks(chatId)
+  }, [chatId])
 
   // Eine frisch angelegte Notiz ist gleich offen (sie wird ja gerade geschrieben);
   // eine gelöschte oder verworfene gilt als eingeklappt.
@@ -117,27 +127,31 @@ export function CommentLayer({ chatId, innerRef }: { chatId: string; innerRef: R
 
   // Lage bestimmen: hinter das Ende der markierten Stelle, umgerechnet in Koordinaten der Ebene.
   const measure = useCallback((): void => {
-    if (!inner || !comments?.length) {
+    const marken: Pin[] = [
+      ...(comments ?? []).map((c) => ({ kind: 'note' as const, id: c.id, itemId: c.itemId, quote: c.quote, comment: c, left: 0, top: 0, found: true })),
+      ...(bookmarks ?? []).map((b) => ({ kind: 'bookmark' as const, id: b.id, itemId: b.itemId, quote: b.quote, bookmark: b, left: 0, top: 0, found: true }))
+    ]
+    if (!inner || !marken.length) {
       setPins([])
       return
     }
     const base = inner.getBoundingClientRect()
     const list: Pin[] = []
-    for (const c of comments) {
-      const unit = inner.querySelector<HTMLElement>(`.unit[data-item-id="${CSS.escape(c.itemId)}"]`)
+    for (const m of marken) {
+      const unit = inner.querySelector<HTMLElement>(`.unit[data-item-id="${CSS.escape(m.itemId)}"]`)
       if (!unit) continue
-      const range = c.quote ? findQuoteRange([unit], c.quote) : null
-      if (!c.quote) {
-        // Notiz zum ganzen Eintrag: Marke oben rechts, dort, wo auch der Knopf zum Anlegen steht.
+      const range = m.quote ? findQuoteRange([unit], m.quote) : null
+      if (!m.quote) {
+        // Marke zum ganzen Eintrag: oben rechts, dort, wo auch der Knopf zum Anlegen steht.
         const box = unitBox(unit)
-        list.push({ comment: c, left: base.width - PIN - 2, top: box.top - base.top + 2, found: true })
+        list.push({ ...m, left: base.width - PIN - 2, top: box.top - base.top + 2, found: true })
         continue
       }
       // Bei mehrzeiligen Stellen zählt die letzte Zeile der Stelle.
       const rects = range ? [...range.getClientRects()].filter((r) => r.width || r.height) : []
       const box = rects.length ? rects[rects.length - 1] : unitBox(unit)
       list.push({
-        comment: c,
+        ...m,
         left: lineEnd(range, box, unit) - base.left + 4,
         top: box.top - base.top + box.height / 2 - PIN / 2,
         found: !!range
@@ -153,7 +167,7 @@ export function CommentLayer({ chatId, innerRef }: { chatId: string; innerRef: R
     const max = Math.max(0, base.width - PIN - 2)
     for (const p of list) p.left = Math.min(Math.max(0, p.left), max)
     setPins(list)
-  }, [comments, inner])
+  }, [comments, bookmarks, inner])
 
   // Nachmessen, wenn sich am Verlauf etwas tut: Markdown, Bilder und Screens kommen verzögert,
   // und die Breite der Zelle ändert sich jederzeit.
@@ -196,75 +210,77 @@ export function CommentLayer({ chatId, innerRef }: { chatId: string; innerRef: R
   const neueNotiz = (): void => {
     if (hover) void useStore.getState().addComment(chatId, { itemId: hover.itemId })
   }
+  const neuesLesezeichen = (): void => {
+    if (hover) void useStore.getState().addBookmark(chatId, { itemId: hover.itemId })
+  }
 
-  if (!comments?.length && !addAt) return null
+  if (!comments?.length && !bookmarks?.length && !addAt) return null
   return (
     <div className="comment-layer" ref={layerRef}>
       {addAt && !open && (
-        <button
-          className="comment-add"
-          style={{ left: addAt.left, top: addAt.top }}
-          title="Notiz zu diesem Eintrag (geht nicht an die CLI)"
-          onClick={neueNotiz}
-        >
-          <Icon name="note" size={11} />
-        </button>
-      )}
-      {pins.map((p) => (
-        <span key={p.comment.id}>
+        <>
           <button
-            className={`comment-pin${p.found ? '' : ' lost'}${open === p.comment.id ? ' on' : ''}`}
-            style={{ left: p.left, top: p.top }}
-            title={p.comment.text || 'Notiz'}
-            onClick={() => setOpen(open === p.comment.id ? null : p.comment.id)}
+            className="comment-add"
+            style={{ left: addAt.left, top: addAt.top }}
+            title="Notiz zu diesem Eintrag (geht nicht an die CLI)"
+            onClick={neueNotiz}
           >
             <Icon name="note" size={11} />
           </button>
-          {open === p.comment.id && (
-            <CommentCard
-              chatId={chatId}
-              pin={p}
-              inner={inner}
-              editing={editing === p.comment.id}
-              onClose={() => setOpen(null)}
-            />
-          )}
-        </span>
-      ))}
+          <button
+            className="comment-add bookmark"
+            style={{ left: addAt.left - PIN - 2, top: addAt.top }}
+            title="Lesezeichen für diesen Eintrag"
+            onClick={neuesLesezeichen}
+          >
+            <Icon name="bookmark-plus" size={11} />
+          </button>
+        </>
+      )}
+      {pins.map((p) =>
+        p.kind === 'bookmark' ? (
+          <span key={p.id}>
+            <button
+              className={`bookmark-pin${p.found ? '' : ' lost'}${open === p.id ? ' on' : ''}`}
+              style={{ left: p.left, top: p.top }}
+              title={p.bookmark?.label || p.quote || 'Lesezeichen'}
+              onClick={() => setOpen(open === p.id ? null : p.id)}
+            >
+              <Icon name="bookmark" size={11} />
+            </button>
+            {open === p.id && <BookmarkCard chatId={chatId} pin={p} inner={inner} onClose={() => setOpen(null)} />}
+          </span>
+        ) : (
+          <span key={p.id}>
+            <button
+              className={`comment-pin${p.found ? '' : ' lost'}${open === p.id ? ' on' : ''}`}
+              style={{ left: p.left, top: p.top }}
+              title={p.comment?.text || 'Notiz'}
+              onClick={() => setOpen(open === p.id ? null : p.id)}
+            >
+              <Icon name="note" size={11} />
+            </button>
+            {open === p.id && (
+              <CommentCard chatId={chatId} pin={p} inner={inner} editing={editing === p.id} onClose={() => setOpen(null)} />
+            )}
+          </span>
+        )
+      )}
     </div>
   )
 }
 
-function CommentCard({
-  chatId,
-  pin,
-  inner,
-  editing,
-  onClose
-}: {
-  chatId: string
-  pin: Pin
-  inner: HTMLDivElement | null
-  editing: boolean
-  onClose: () => void
-}) {
-  const c = pin.comment
-  const [text, setText] = useState(c.text)
+/**
+ * Lage einer aufgeklappten Karte: bei der Marke, aber immer im sichtbaren Teil der Zelle –
+ * unter der Stelle, und wenn dort kein Platz ist, darüber.
+ */
+function useCardPlace(
+  card: React.RefObject<HTMLDivElement | null>,
+  inner: HTMLDivElement | null,
+  pin: Pin,
+  dep: unknown
+): { left: number; top: number; width: number } | null {
   const [box, setBox] = useState<{ left: number; top: number; width: number } | null>(null)
-  const area = useRef<HTMLTextAreaElement>(null)
-  const card = useRef<HTMLDivElement>(null)
-  const st = useStore.getState()
-
-  useEffect(() => setText(c.text), [c.text, editing])
-  useLayoutEffect(() => {
-    if (editing) {
-      area.current?.focus()
-      area.current?.select()
-    }
-  }, [editing])
-
-  // Das Feld liegt bei der Marke – aber immer im sichtbaren Teil der Zelle: unter der Stelle,
-  // und wenn dort kein Platz ist, darüber.
   useLayoutEffect(() => {
     const el = card.current
     if (!inner || !el) return
@@ -292,7 +308,38 @@ function CommentCard({
       scroller?.removeEventListener('scroll', place)
       ro.disconnect()
     }
-  }, [pin.left, pin.top, inner, editing, text])
+  }, [card, pin.left, pin.top, inner, dep])
+  return box
+}
+
+function CommentCard({
+  chatId,
+  pin,
+  inner,
+  editing,
+  onClose
+}: {
+  chatId: string
+  pin: Pin
+  inner: HTMLDivElement | null
+  editing: boolean
+  onClose: () => void
+}) {
+  const c = pin.comment!
+  const [text, setText] = useState(c.text)
+  const area = useRef<HTMLTextAreaElement>(null)
+  const card = useRef<HTMLDivElement>(null)
+  const st = useStore.getState()
+
+  useEffect(() => setText(c.text), [c.text, editing])
+  useLayoutEffect(() => {
+    if (editing) {
+      area.current?.focus()
+      area.current?.select()
+    }
+  }, [editing])
+
+  const box = useCardPlace(card, inner, pin, editing ? text : c.text)
 
   const save = (): void => void st.updateComment(chatId, c.id, text)
   // Die Notiz wird zur Frage an den Agenten: Stelle als Zitat, Notiztext als Anmerkung.
@@ -424,6 +471,57 @@ function quoteOfComment(chatId: string, c: ChatComment): string {
         ? (item as { text: string }).text
         : ''
   return cleanQuote(text).slice(0, MAX_QUOTE)
+}
+
+/**
+ * Lesezeichen am Rand: Klick klappt eine kleine Karte auf – Beschriftung eintippen (optional)
+ * oder das Lesezeichen wieder entfernen.
+ */
+function BookmarkCard({ chatId, pin, inner, onClose }: { chatId: string; pin: Pin; inner: HTMLDivElement | null; onClose: () => void }) {
+  const b = pin.bookmark!
+  const [label, setLabel] = useState(b.label ?? '')
+  const card = useRef<HTMLDivElement>(null)
+  useEffect(() => setLabel(b.label ?? ''), [b.label])
+  const box = useCardPlace(card, inner, pin, label)
+
+  const save = (): void => {
+    void useStore.getState().labelBookmark(chatId, b.id, label)
+    onClose()
+  }
+  return (
+    <div
+      ref={card}
+      className="comment-note bookmark-note"
+      style={box ? { left: box.left, top: box.top, width: box.width } : { left: pin.left, top: pin.top, width: CARD, opacity: 0 }}
+    >
+      <button className="icon-btn comment-close" title="Schließen (Esc)" onClick={onClose}>
+        <Icon name="close" size={12} />
+      </button>
+      {b.quote && <div className="comment-quote">{b.quote}</div>}
+      <input
+        autoFocus
+        value={label}
+        placeholder="Beschriftung (optional)"
+        onChange={(e) => setLabel(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') (e.preventDefault(), save())
+          else if (e.key === 'Escape') (e.preventDefault(), e.stopPropagation(), onClose())
+        }}
+      />
+      <div className="comment-actions">
+        <button
+          className="icon-btn comment-delete"
+          title="Lesezeichen entfernen"
+          onClick={() => void useStore.getState().removeBookmark(chatId, b.id)}
+        >
+          <Icon name="bookmark-x" size={13} />
+        </button>
+        <button className="btn primary small-btn" onClick={save} title="Beschriftung übernehmen (↩)">
+          Übernehmen
+        </button>
+      </div>
+    </div>
+  )
 }
 
 function when(ts: number): string {
