@@ -3064,7 +3064,7 @@ li > .fork-slot {
   color: var(--text);
 }
 
-/* Zusammengefasste Strecke im Board */
+/* Zugeklappte Gruppe im Board */
 .board-row.run {
   cursor: pointer;
 }
@@ -3076,14 +3076,6 @@ li > .fork-slot {
 }
 .board-run-hit {
   fill: transparent;
-}
-.board-run-mark {
-  fill: var(--bg);
-  stroke-width: 1.5;
-  stroke-dasharray: 3 2.5;
-}
-.board-run:hover .board-run-mark {
-  fill: var(--bg-sunken);
 }
 
 /* Gruppen im Board */

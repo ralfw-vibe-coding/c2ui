@@ -52,10 +52,8 @@ Desktop-App (Electron), in der mehrere Chats mit der Claude CLI oder der Codex C
   Zelle daneben (bzw. der zuletzt vom Board geöffneten) und springt zur Nachricht; ⌘-Klick öffnet in einer neuen Zelle
   rechts davon; oder die Zeile auf eine beliebige Zelle ziehen (Mitte/Rand wie oben). Klick auf den Knoten einer
   Abzweigstelle (−/+) klappt die dort abgehenden Äste ein/aus. Aktualisiert sich live; übersteht einen Neustart.
-  **Lange Strecken sind gerafft:** Fünf oder mehr gewöhnliche Nachrichten am Stück stehen als eine Zeile
-  („⋯ 18 Nachrichten“, Klammer auf der Spur); Klick zeigt sie einzeln, gemerkt je Board. Sichtbar bleiben immer
-  Anfang und Ende jeder Spur, Abzweig- und Übernahmestellen, Zwischenrufe, Aktionen und die gerade gelesene Stelle.
-- **Gruppen im Board:** Eine Strecke selbst bestimmen und benennen: ⇧-Klick auf die erste Zeile, ⇧-Klick auf die
+- **Gruppen im Board:** Zusammengefasst wird nur, was man selbst zusammenfasst – von allein rafft das Board nichts.
+  Eine Strecke bestimmen und benennen: ⇧-Klick auf die erste Zeile, ⇧-Klick auf die
   letzte, Namen eintippen (Vorschlag: erste Nachricht), fertig. Zugeklappt steht dort eine Zeile mit Namen,
   Umfang und – falls darin Äste abzweigen – deren Zahl; sie klappen mit weg. Auf der Spur zeigt ein Ordner den
   Zustand (offen/geschlossen), offen umfasst eine Klammer in der Farbe der Spur die Zeilen der Gruppe. Das „x“

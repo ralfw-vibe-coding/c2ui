@@ -247,40 +247,19 @@ log('nach ⌘-Klick in der Seitenleiste:', (await cellsNow()).join(' | '))
 check((await cellsNow()).join(' ') === 'quellen anderes haus archiv BOARD', 'Seitenleiste: ⌘-Klick öffnet neue Zelle rechts der markierten')
 await page.screenshot({ path: join(out, '4-zellen.png') })
 
-// Lange Strecken: Das Board eines langen Chats zeigt erst nur Anfang, Ende und eine Raffung.
+// Ein langer Chat bleibt vollständig: Zusammengefasst wird nur, was man selbst gruppiert.
 const langerChat = page.locator('.chat-item', { hasText: 'Langer Chat' })
 await langerChat.hover()
 await langerChat.locator('.icon-btn[title*="Diskursboard"]').click()
 await page.locator('.board-row').first().waitFor()
 await page.waitForTimeout(300)
-// Nur das Board des langen Chats ansehen; die Zeilen liegen absolut, also nach Höhe sortieren.
 const langBoard = page.locator('.cell', { hasText: 'Diskurs: Langer Chat' })
-const langZeilen = async () =>
-  langBoard.locator('.board-row').evaluateAll((ns) =>
-    ns
-      .map((n) => ({ top: parseFloat(n.style.top) || 0, text: n.innerText.replace(/\s+/g, ' ') }))
-      .sort((a, b) => a.top - b.top)
-      .map((z) => z.text)
-  )
-const zeilen = await langZeilen()
-log('langer Chat im Board:', zeilen.join(' | '))
-check(zeilen.length === 4, 'statt 21 Zeilen nur vier (Anfang, Raffung, Ende, Ast)')
-check(/Nachricht 1 /.test(zeilen[0]) && /Nachricht 20/.test(zeilen[2]), 'erste und letzte Nachricht stehen da')
-check(/⋯ 18 Nachrichten/.test(zeilen[1]), 'dazwischen die Zahl der gerafften')
-check(!zeilen.some((z) => /Nachricht 5 /.test(z)), 'was dazwischen liegt, ist nicht einzeln da')
-check((await langBoard.locator('.board-run-mark').count()) === 1, 'im Graphen eine Marke für die Strecke')
-await page.screenshot({ path: join(out, '5-strecke.png') })
-
-// Klick klappt die Strecke auf – und das übersteht den Neustart
-await langBoard.locator('.board-row.run').click()
-await page.waitForTimeout(400)
-check((await langBoard.locator('.board-row').count()) === 21, 'Klick zeigt alle zwanzig Nachrichten')
-check((await langBoard.locator('.board-row', { hasText: 'Nachricht 5 ' }).count()) === 1, 'auch die fünfte steht nun da')
-check((await langBoard.locator('.board-run-mark').count()) === 0, 'die Marke ist weg')
-await page.reload()
-await langBoard.locator('.board-row').first().waitFor()
-await page.waitForTimeout(400)
-check((await langBoard.locator('.board-row').count()) === 21, 'aufgeklappt bleibt es nach dem Neuladen')
+const zeilen = (await langBoard.locator('.board-row').allInnerTexts()).map((z) => z.replace(/\s+/g, ' '))
+log('langer Chat im Board:', zeilen.length, 'Zeilen')
+check(zeilen.length === 21, 'alle 21 Zeilen stehen da, nichts wird von selbst gerafft')
+check(zeilen.some((z) => /Nachricht 5 /.test(z)), 'auch die fünfte Nachricht')
+check((await langBoard.locator('.board-run').count()) === 0, 'keine Marke für eine Raffung')
+await page.screenshot({ path: join(out, '5-lang.png') })
 
 await app.close()
 log(failed ? 'FEHLGESCHLAGEN' : 'alles OK')

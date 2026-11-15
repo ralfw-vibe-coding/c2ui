@@ -42,13 +42,11 @@ Schritte, jeweils erst ausprobieren, bevor der nächste kommt:
    (wie `git log --graph`), Nutzernachrichten als Knoten, Abzweige als Kanten. Klick auf einen Knoten öffnet den
    Chat in der Zelle neben dem Board an dieser Stelle. Board = eigener Zelleninhalt (`leaf.board`).
    Offen: verworfene Äste ausgegraut (dafür fehlt noch ein „verwerfen“).
-4. **Semantischer Zoom und Mitlesen im Graphen:** ✓ erster Teil: lange Strecken ohne Abzweig, Zusammenführung
-   oder Besonderheit stehen zusammengefasst als eine Zeile („⋯ 18 Nachrichten“) und lassen sich aufklappen
-   (gemerkt je Board). Sichtbar bleiben Anfang und Ende jeder Spur, Abzweig- und Übernahmestellen, Zwischenrufe,
-   Aktionen und die Stelle, an der man gerade liest.
-   ✓ zweiter Teil: **eigene Gruppen** – Strecke mit ⇧-Klick markieren, benennen, zuklappen; Äste darin klappen
-   mit weg (Zahl steht in der Zeile), Ordner auf der Spur zeigt den Zustand, Klammer in Spurfarbe umfasst die
-   offene Gruppe. Gruppen liegen beim Baum (`boards/<rootId>`). Offen bleibt: Der Graph zeigt heute je Turn eine Zeile. Gewünscht ist
+4. **Semantischer Zoom und Mitlesen im Graphen:** ✓ **Gruppen** – Strecke mit ⇧-Klick markieren, benennen,
+   zuklappen; Äste darin klappen mit weg (Zahl steht in der Zeile), Ordner auf der Spur zeigt den Zustand,
+   Klammer in Spurfarbe umfasst die offene Gruppe. Gruppen liegen beim Baum (`boards/<rootId>`).
+   Automatisch gerafft wird nichts mehr: Das war unverständlich und ließ sich nicht gezielt zurücknehmen.
+   Offen bleibt: Der Graph zeigt heute je Turn eine Zeile. Gewünscht ist
    Hineinzoomen und Lesen an Ort und Stelle: weit = Abschnitte (Turns zwischen zwei Abzweig-/Merge-Punkten) als
    Kasten mit Zusammenfassung; mittel = Turns mit Kurztitel; nah = Frage und Antwort im Board selbst, Screens als
    Miniaturen. Mindestens: einen Turn in der Zeile aufklappen und dort lesen, ohne in eine andere Zelle zu wechseln

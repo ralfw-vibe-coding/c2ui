@@ -27,7 +27,6 @@ export function Board({ rootId, cellId }: { rootId: string; cellId: string }) {
   const transcripts = useStore((s) => s.transcripts)
   const busy = useStore((s) => s.busy)
   const [hidden, setHidden] = useState<Set<string>>(() => readHidden(rootId))
-  const [openRuns, setOpenRuns] = useState<Set<string>>(() => readOpenRuns(rootId))
   const groups = useStore((s) => s.groups[rootId])
   useEffect(() => void useStore.getState().ensureGroups(rootId), [rootId])
   /** Markierte Strecke: Anker (erster Klick) und Ende (⇧-Klick), beide in derselben Spur. */
@@ -91,20 +90,14 @@ export function Board({ rootId, cellId }: { rootId: string; cellId: string }) {
     setPick(null)
     setName('')
   }
-  const openRun = (key: string): void => {
-    const next = new Set(openRuns)
-    next.add(key)
-    setOpenRuns(next)
-    writeOpenRuns(rootId, next)
-  }
   // Hervorgehoben wird der zuletzt markierte Chat – aber nur, solange er in einer Zelle offen ist.
   const active = useStore((s) => (s.activeChatId && L.findCellOfChat(s.layout.root, s.activeChatId) ? s.activeChatId : null))
   // Markiert wird genau ein Knoten: der Turn, der im aktiven Chat gerade oben sichtbar ist (sonst sein erster).
   const viewItem = useStore((s) => (active ? s.viewTurn[active] : undefined))
   const model = useMemo(
     // Die gelesene Stelle bleibt sichtbar, auch wenn sie mitten in einer langen Strecke liegt.
-    () => boardModel(chats, transcripts, rootId, { hidden, expanded: openRuns, groups, keep: viewItem ? new Set([viewItem]) : undefined }),
-    [chats, transcripts, rootId, hidden, openRuns, viewItem, groups]
+    () => boardModel(chats, transcripts, rootId, { hidden, groups }),
+    [chats, transcripts, rootId, hidden, groups]
   )
   const activeNode = active
     ? (model.nodes.find((n) => n.chatId === active && n.itemId === viewItem) ?? model.nodes.find((n) => n.chatId === active))
@@ -173,56 +166,37 @@ export function Board({ rootId, cellId }: { rootId: string; cellId: string }) {
               onLaneDragOver={laneDragOver}
               onLaneDrop={laneDrop}
               onFork={(f) => update((h) => (f.open.length ? f.open.forEach((id) => h.add(id)) : f.closed.forEach((id) => h.delete(id))))}
-              onRun={openRun}
               onGroup={toggleGroup}
             />
-            {model.runs.map((r) => {
-              const lane = model.lanes[r.lane]
-              const bis = r.items[r.items.length - 1]
-              return (
-                <div
-                  key={r.key}
-                  role="button"
-                  tabIndex={0}
-                  className={`board-row run${r.groupId ? ' group' : ''}`}
-                  style={{ top: r.row * ROW, height: ROW, paddingLeft: width + 6 }}
-                  title={
-                    r.groupId
-                      ? `Gruppe „${r.label}“ · ${r.items.length} Nachrichten\nKlick: aufklappen`
-                      : `${r.items.length} Nachrichten zwischen „${r.items[0].label}“ und „${bis.label}“\nKlick: einzeln zeigen`
-                  }
-                  onClick={() => (r.groupId ? toggleGroup(r.groupId) : openRun(r.key))}
-                  onKeyDown={(e) =>
-                    (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), r.groupId ? toggleGroup(r.groupId) : openRun(r.key))
-                  }
+            {/* Zugeklappte Gruppen */}
+            {model.runs.map((r) => (
+              <div
+                key={r.groupId}
+                role="button"
+                tabIndex={0}
+                className="board-row run group"
+                style={{ top: r.row * ROW, height: ROW, paddingLeft: width + 6 }}
+                title={`Gruppe „${r.label}“ · ${r.items.length} Nachrichten\nKlick: aufklappen`}
+                onClick={() => toggleGroup(r.groupId)}
+                onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), toggleGroup(r.groupId))}
+              >
+                <Icon name="chevron-right" size={13} />
+                <span className="board-group-name">{r.label}</span>
+                <span className="board-label muted">
+                  · {r.items.length} Nachrichten{r.branches ? ` · ${r.branches} ${r.branches === 1 ? 'Ast' : 'Äste'}` : ''}
+                </span>
+                <button
+                  className="icon-btn board-group-drop"
+                  title="Gruppe auflösen"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    dropGroup(r.groupId)
+                  }}
                 >
-                  {r.groupId ? (
-                    <>
-                      <Icon name="chevron-right" size={13} />
-                      <span className="board-group-name">{r.label}</span>
-                      <span className="board-label muted">
-                        · {r.items.length} Nachrichten{r.branches ? ` · ${r.branches} ${r.branches === 1 ? 'Ast' : 'Äste'}` : ''}
-                      </span>
-                      <button
-                        className="icon-btn board-group-drop"
-                        title="Gruppe auflösen"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          dropGroup(r.groupId!)
-                        }}
-                      >
-                        <Icon name="close" size={12} />
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <span className="board-bar" style={{ background: colorOf(lane.color) }} />
-                      <span className="board-label muted">⋯ {r.items.length} Nachrichten</span>
-                    </>
-                  )}
-                </div>
-              )
-            })}
+                  <Icon name="close" size={12} />
+                </button>
+              </div>
+            ))}
             {/* Markierte Strecke: Umfang nennen, benennen, gruppieren */}
             {pick && pickInfo && (
               <div className="board-pick-bar" style={{ top: pickInfo.last * ROW + ROW - 4, left: width + 6 }}>
@@ -375,24 +349,6 @@ export function Board({ rootId, cellId }: { rootId: string; cellId: string }) {
 /** Anker für ⇧-Klick je Board – außerhalb der Komponente, weil das Board beim Öffnen eines Chats neu entsteht. */
 const anchors = new Map<string, { chatId: string; itemId: string }>()
 
-// Aufgeklappte Strecken je Board (pro Rechner, im localStorage).
-const openRunsKey = (rootId: string): string => `c2ui.boardRuns.${rootId}`
-function readOpenRuns(rootId: string): Set<string> {
-  try {
-    return new Set<string>(JSON.parse(localStorage.getItem(openRunsKey(rootId)) ?? '[]'))
-  } catch {
-    return new Set()
-  }
-}
-function writeOpenRuns(rootId: string, keys: Set<string>): void {
-  try {
-    if (keys.size) localStorage.setItem(openRunsKey(rootId), JSON.stringify([...keys]))
-    else localStorage.removeItem(openRunsKey(rootId))
-  } catch {
-    /* egal */
-  }
-}
-
 // Eingeklappte Äste je Board (pro Rechner, im localStorage).
 const hiddenKey = (rootId: string): string => `c2ui.boardHidden.${rootId}`
 function readHidden(rootId: string): Set<string> {
@@ -450,7 +406,6 @@ function Graph({
   height,
   activeNode,
   onFork,
-  onRun,
   onGroup,
   onLaneDragOver,
   onLaneDrop
@@ -460,7 +415,6 @@ function Graph({
   height: number
   activeNode?: BoardNode
   onFork: (f: Fork) => void
-  onRun: (key: string) => void
   onGroup: (groupId: string) => void
   onLaneDragOver: (chatId: string, e: React.DragEvent) => void
   onLaneDrop: (chatId: string, e: React.DragEvent) => void
@@ -511,33 +465,16 @@ function Graph({
           </g>
         )
       })}
-      {/* Zusammengefasste Strecken: Ordner (eigene Gruppe) bzw. schmale Klammer (automatisch) */}
+      {/* Zugeklappte Gruppen: geschlossener Ordner auf der Spur */}
       {model.runs.map((r) => {
         const cx = x(r.lane)
         const cy = y(r.row)
         const color = colorOf(model.lanes[r.lane].color)
         return (
-          <g
-            key={r.key}
-            className="board-run"
-            role="button"
-            aria-label={r.groupId ? `Gruppe ${r.label} aufklappen` : `${r.items.length} Nachrichten zeigen`}
-            onClick={() => (r.groupId ? onGroup(r.groupId) : onRun(r.key))}
-          >
+          <g key={r.groupId} className="board-run" role="button" aria-label={`Gruppe ${r.label} aufklappen`} onClick={() => onGroup(r.groupId)}>
             <rect x={cx - 9} y={cy - 10} width={18} height={20} rx={7} className="board-run-hit" />
-            {r.groupId ? (
-              <>
-                <Folder x={cx} y={cy} color={color} />
-                {!!r.branches && <path d={`M ${cx + 9} ${cy} h 9`} stroke={color} strokeWidth={2} strokeDasharray="3 3" />}
-              </>
-            ) : (
-              <>
-                <rect x={cx - 3.5} y={cy - 7} width={7} height={14} rx={3.5} className="board-run-mark" stroke={color} />
-                <circle cx={cx} cy={cy - 3} r={0.9} fill={color} />
-                <circle cx={cx} cy={cy} r={0.9} fill={color} />
-                <circle cx={cx} cy={cy + 3} r={0.9} fill={color} />
-              </>
-            )}
+            <Folder x={cx} y={cy} color={color} />
+            {!!r.branches && <path d={`M ${cx + 9} ${cy} h 9`} stroke={color} strokeWidth={2} strokeDasharray="3 3" />}
           </g>
         )
       })}

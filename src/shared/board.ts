@@ -70,19 +70,17 @@ export interface BoardCollapsed {
  * Zusammengefasste Strecke: aufeinanderfolgende gewöhnliche Nachrichten derselben Spur, zwischen
  * denen nichts Bemerkenswertes passiert. Sie stehen als eine Zeile da und lassen sich aufklappen.
  */
+/** Zugeklappte Gruppe: eine Zeile statt ihrer Knoten. */
 export interface BoardRun {
-  /** Erster verborgener Knoten bzw. Id der Gruppe – stabiler Schlüssel zum Aufklappen. */
-  key: string
+  groupId: string
+  label: string
   chatId: string
   lane: number
   row: number
   /** Verborgene Knoten, in Reihenfolge. */
   items: BoardNode[]
-  /** Benannte Gruppe (sonst automatisch geraffte Strecke). */
-  groupId?: string
-  label?: string
   /** Äste, die in der Gruppe stecken und mit eingeklappt sind. */
-  branches?: number
+  branches: number
 }
 
 /** Kopfzeile einer aufgeklappten Gruppe; die Klammer reicht von `row` + 1 bis `lastRow`. */
@@ -113,18 +111,9 @@ export interface BoardModel {
 export interface BoardOptions {
   /** Eingeklappte Äste: Chat-IDs, deren Spur samt Unterästen nicht gezeigt wird. */
   hidden?: ReadonlySet<string>
-  /** Aufgeklappte Strecken (Schlüssel aus `BoardRun.key`). */
-  expanded?: ReadonlySet<string>
-  /** Knoten, die auf jeden Fall sichtbar bleiben (z. B. die Stelle, an der man gerade liest). */
-  keep?: ReadonlySet<string>
-  /** Ab so vielen Knoten am Stück wird zusammengefasst (0 = nie). */
-  minRun?: number
   /** Selbst angelegte Gruppen dieses Baums. */
   groups?: readonly BoardGroup[]
 }
-
-/** Ab fünf gewöhnlichen Nachrichten am Stück wird zusammengefasst – kürzere Strecken lohnen nicht. */
-export const DEFAULT_MIN_RUN = 5
 
 /** Wurzel des Baums, zu dem ein Chat gehört. */
 export function rootOf(chats: Chat[], chatId: string): string {
@@ -174,9 +163,6 @@ export function boardModel(
   // Früher war der vierte Platz die Menge der eingeklappten Äste; das bleibt gültig.
   const o: BoardOptions = opts instanceof Set ? { hidden: opts } : (opts as BoardOptions)
   const hidden = o.hidden ?? new Set<string>()
-  const expanded = o.expanded ?? new Set<string>()
-  const keepItems = o.keep ?? new Set<string>()
-  const minRun = o.minRun ?? DEFAULT_MIN_RUN
   const groups = o.groups ?? []
   const tree = chatTree(chats)
   const find = (ns: ChatNode[]): ChatNode | undefined => {
@@ -302,23 +288,12 @@ export function boardModel(
     return firstTs === undefined ? undefined : [...pNodes].reverse().find((n) => n.ts <= firstTs)
   }
 
-  // Bemerkenswerte Knoten: Enden einer Spur, alles außer gewöhnlichen Nachrichten, Abzweig- und
-  // Zusammenführungsstellen und die Stelle, an der man gerade liest. Dazwischen darf gerafft werden.
-  const keep = new Set<BoardNode>()
-  for (const ns of allOfChat.values()) {
-    if (ns.length) {
-      keep.add(ns[0])
-      keep.add(ns[ns.length - 1])
-    }
-  }
-  for (const n of nodes) if (n.kind !== 'message' || keepItems.has(n.itemId)) keep.add(n)
   const anchors = new Map<string, BoardNode | undefined>()
   for (const c of [...order, ...folded.map((f) => f.node.chat)]) {
     const p = c.forkFrom?.chatId
     if (!p) continue
     const at = forkNode(c, p, allOfChat.get(c.id)?.[0]?.ts ?? userItems(c.id)[0]?.ts)
     anchors.set(c.id, at)
-    if (at) keep.add(at)
   }
   const mergePairs: { from: BoardNode; to: BoardNode; sourceId: string; itemId: string }[] = []
   for (const c of order) {
@@ -330,21 +305,18 @@ export function boardModel(
       if (!to || !src?.length) continue
       const from = (m.fromItemId && src.find((n) => n.itemId === m.fromItemId)) || [...src].reverse().find((n) => n.ts <= it.ts)
       if (!from) continue
-      keep.add(from)
-      keep.add(to)
       mergePairs.push({ from, to, sourceId: m.fromChatId, itemId: it.id })
     }
   }
 
-  // Eigene Gruppen gehen vor: Was darin liegt, wird nie automatisch gerafft.
   const groupOf = new Map<BoardNode, Resolved>()
   for (const r of resolved) {
     const items = new Set(r.items)
     for (const n of nodes) if (n.chatId === r.group.chatId && items.has(n.itemId)) groupOf.set(n, r)
   }
-  for (const [n, r] of groupOf) if (!r.group.closed) keep.add(n)
 
-  // Strecken zusammenfassen: nur, was in der Darstellung direkt untereinander in derselben Spur steht.
+  // Zeilen vergeben: jeder Knoten eine, jede Gruppe eine (zugeklappt statt ihrer Knoten,
+  // offen als Kopfzeile darüber).
   const shown: BoardNode[] = []
   const runs: BoardRun[] = []
   const heads: BoardGroupHead[] = []
@@ -365,7 +337,6 @@ export function boardModel(
       if (r.group.closed) {
         if (first) {
           const run: BoardRun = {
-            key: r.group.id,
             groupId: r.group.id,
             label: r.group.label,
             chatId: r.group.chatId,
@@ -399,25 +370,9 @@ export function boardModel(
       i++
       continue
     }
-    if (keep.has(n)) {
-      shown.push(n)
-      rowOrder.push(n)
-      i++
-      continue
-    }
-    let j = i
-    while (j < nodes.length && !keep.has(nodes[j]) && !groupOf.has(nodes[j]) && nodes[j].lane === n.lane) j++
-    const strecke = nodes.slice(i, j)
-    const key = strecke[0].itemId
-    if (minRun > 0 && strecke.length >= minRun && !expanded.has(key)) {
-      const run: BoardRun = { key, chatId: strecke[0].chatId, lane: strecke[0].lane, row: 0, items: strecke }
-      runs.push(run)
-      rowOrder.push(run)
-    } else {
-      shown.push(...strecke)
-      rowOrder.push(...strecke)
-    }
-    i = j
+    shown.push(n)
+    rowOrder.push(n)
+    i++
   }
   rowOrder.forEach((r, i) => (r.row = i))
   // Die Klammer reicht bis zum letzten Knoten der Gruppe.

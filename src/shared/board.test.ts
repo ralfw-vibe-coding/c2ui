@@ -114,59 +114,17 @@ describe('Diskursboard', () => {
     expect([...m.entries()]).toEqual([['n0', 'u1'], ['u1', 'u1'], ['a1', 'u1'], ['t1', 'u1'], ['u2', 'u2'], ['a2', 'u2']])
     expect(nodeOfItem([])).toEqual(new Map())
   })
-  describe('lange Strecken', () => {
-    // Ein Chat mit zwanzig gewöhnlichen Nachrichten, ein Ast zweigt nach der achten ab.
+  it('fasst von sich aus nichts zusammen – das macht nur, wer gruppiert', () => {
     const lang: Record<string, Transcript> = {
-      r: Array.from({ length: 20 }, (_, i) => user(`r${i + 1}`, 10 + i)) as unknown as Transcript,
-      a: [user('a1', 100)] as unknown as Transcript
+      r: Array.from({ length: 30 }, (_, i) => user(`r${i + 1}`, 10 + i)) as unknown as Transcript
     }
-    const langChats = [chat('r', 1), chat('a', 90, 'r', 8)]
-
-    it('fasst zusammen, was zwischen den bemerkenswerten Stellen liegt', () => {
-      const m = boardModel(langChats, lang, 'r')
-      // Sichtbar bleiben der erste Knoten, die Abzweigstelle (r8) und der letzte.
-      expect(m.nodes.filter((n) => n.chatId === 'r').map((n) => n.itemId)).toEqual(['r1', 'r8', 'r20'])
-      expect(m.runs.map((r) => ({ key: r.key, anzahl: r.items.length, row: r.row }))).toEqual([
-        { key: 'r2', anzahl: 6, row: 1 },
-        { key: 'r9', anzahl: 11, row: 3 }
-      ])
-      // Zeilen sind lückenlos, Knoten und Strecken gemeinsam.
-      expect([...m.nodes, ...m.runs].map((x) => x.row).sort((a, b) => a - b)).toEqual([0, 1, 2, 3, 4, 5])
-      // Die Kante zum Ast zeigt weiter auf die sichtbare Abzweigstelle.
-      expect(m.edges[0].from.row).toBe(m.nodes.find((n) => n.itemId === 'r8')!.row)
-    })
-
-    it('zeigt eine aufgeklappte Strecke wieder einzeln', () => {
-      const m = boardModel(langChats, lang, 'r', { expanded: new Set(['r2']) })
-      expect(m.runs.map((r) => r.key)).toEqual(['r9'])
-      expect(m.nodes.filter((n) => n.chatId === 'r').map((n) => n.itemId)).toEqual(['r1', 'r2', 'r3', 'r4', 'r5', 'r6', 'r7', 'r8', 'r20'])
-    })
-
-    it('hält die Stelle sichtbar, an der man gerade liest', () => {
-      const m = boardModel(langChats, lang, 'r', { keep: new Set(['r12']) })
-      expect(m.nodes.map((n) => n.itemId)).toContain('r12')
-      // Die hintere Strecke zerfällt: drei davor sind zu wenig zum Zusammenfassen, sieben danach nicht.
-      expect(m.runs.map((r) => ({ key: r.key, anzahl: r.items.length }))).toEqual([
-        { key: 'r2', anzahl: 6 },
-        { key: 'r13', anzahl: 7 }
-      ])
-      expect(m.nodes.filter((n) => n.chatId === 'r').map((n) => n.itemId)).toEqual(['r1', 'r8', 'r9', 'r10', 'r11', 'r12', 'r20'])
-    })
-
-    it('fasst nichts zusammen, wenn man es abschaltet oder die Strecke kurz ist', () => {
-      expect(boardModel(langChats, lang, 'r', { minRun: 0 }).runs).toEqual([])
-      expect(boardModel(langChats, lang, 'r', { minRun: 0 }).nodes.length).toBe(21)
-      // Vier dazwischen sind weniger als die Voreinstellung von fünf.
-      const kurz = { r: Array.from({ length: 6 }, (_, i) => user(`r${i + 1}`, 10 + i)) as unknown as Transcript }
-      expect(boardModel([chat('r', 1)], kurz, 'r').runs).toEqual([])
-    })
-
-    it('nimmt die alte Aufrufform mit eingeklappten Ästen weiter an', () => {
-      const m = boardModel(langChats, lang, 'r', new Set(['a']))
-      expect(m.lanes.map((l) => l.chatId)).toEqual(['r'])
-      expect(m.collapsed[0]).toMatchObject({ chatId: 'a', row: m.nodes.find((n) => n.itemId === 'r8')!.row })
-    })
+    const m = boardModel([chat('r', 1)], lang, 'r')
+    expect(m.runs).toEqual([])
+    expect(m.heads).toEqual([])
+    expect(m.nodes).toHaveLength(30)
+    expect(m.nodes.map((n) => n.row)).toEqual([...Array(30).keys()])
   })
+
   describe('eigene Gruppen', () => {
     // Wurzel mit zehn Nachrichten; nach der vierten zweigt ein Ast ab, der selbst einen Unterast hat.
     const t: Record<string, Transcript> = {
@@ -180,7 +138,7 @@ describe('Diskursboard', () => {
     })
 
     it('klappt die Strecke samt der Äste darin zu', () => {
-      const m = boardModel(cs, t, 'r', { groups: [gruppe()], minRun: 0 })
+      const m = boardModel(cs, t, 'r', { groups: [gruppe()] })
       expect(m.nodes.map((n) => n.itemId)).toEqual(['r1', 'r2', 'r7', 'r8', 'r9', 'r10'])
       expect(m.runs).toHaveLength(1)
       expect(m.runs[0]).toMatchObject({ groupId: 'g1', label: 'Bildbeschaffung', branches: 2, row: 2 })
@@ -191,7 +149,7 @@ describe('Diskursboard', () => {
     })
 
     it('zeigt die offene Gruppe mit Kopfzeile und Klammer', () => {
-      const m = boardModel(cs, t, 'r', { groups: [gruppe({ closed: false })], minRun: 0 })
+      const m = boardModel(cs, t, 'r', { groups: [gruppe({ closed: false })] })
       expect(m.runs).toEqual([])
       expect(m.heads).toHaveLength(1)
       expect(m.heads[0]).toMatchObject({ groupId: 'g1', label: 'Bildbeschaffung', items: 4, branches: 2, row: 2 })
@@ -201,14 +159,8 @@ describe('Diskursboard', () => {
       expect(m.lanes.map((l) => l.chatId)).toEqual(['r', 'a', 'a2'])
     })
 
-    it('rafft nicht automatisch, was in einer offenen Gruppe liegt', () => {
-      const m = boardModel(cs, t, 'r', { groups: [gruppe({ fromItemId: 'r2', toItemId: 'r9', closed: false })] })
-      expect(m.runs).toEqual([])
-      expect(m.nodes.filter((n) => n.chatId === 'r')).toHaveLength(10)
-    })
-
     it('übergeht Gruppen, deren Nachrichten es nicht mehr gibt', () => {
-      const m = boardModel(cs, t, 'r', { groups: [gruppe({ fromItemId: 'weg' })], minRun: 0 })
+      const m = boardModel(cs, t, 'r', { groups: [gruppe({ fromItemId: 'weg' })] })
       expect(m.runs).toEqual([])
       expect(m.nodes.filter((n) => n.chatId === 'r')).toHaveLength(10)
     })
@@ -220,12 +172,12 @@ describe('Diskursboard', () => {
       }
       const cs2 = [chat('r', 1), chat('a', 5, 'r', 4)]
       const g = gruppe({ fromItemId: 'r3', toItemId: 'r7', closed: false })
-      const m = boardModel(cs2, t2, 'r', { groups: [g], minRun: 0 })
+      const m = boardModel(cs2, t2, 'r', { groups: [g] })
       expect(m.heads).toHaveLength(1)
       expect(m.heads[0]).toMatchObject({ items: 5, branches: 1 })
       // Die Klammer reicht bis zum letzten Knoten der Gruppe, auch über den fremden hinweg.
       expect(m.nodes.find((n) => n.itemId === 'r7')!.row).toBe(m.heads[0].lastRow)
-      const zu = boardModel(cs2, t2, 'r', { groups: [{ ...g, closed: true }], minRun: 0 })
+      const zu = boardModel(cs2, t2, 'r', { groups: [{ ...g, closed: true }] })
       expect(zu.runs).toHaveLength(1)
       expect(zu.runs[0].items.map((n) => n.itemId)).toEqual(['r3', 'r4', 'r5', 'r6', 'r7'])
     })
