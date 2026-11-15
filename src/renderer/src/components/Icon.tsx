@@ -34,6 +34,12 @@ const paths: Record<string, string | string[]> = {
   // Textzeichen, weil ▾/▸ in kleinen Schriftgraden kaum zu sehen sind.
   'chevron-down': 'm6 9 6 6 6-6',
   'chevron-right': 'm9 18 6-6-6-6',
+  // Umfang einer Gruppe: Nachrichten und Äste (Lucide „messages-square“/„list-tree“, ISC-Lizenz)
+  'messages-square': [
+    'M16 10a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 14.286V4a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z',
+    'M20 9a2 2 0 0 1 2 2v10.286a.71.71 0 0 1-1.212.502l-2.202-2.202A2 2 0 0 0 17.172 19H10a2 2 0 0 1-2-2v-1'
+  ],
+  'list-tree': ['M8 5h13', 'M13 12h8', 'M13 19h8', 'M3 10a2 2 0 0 0 2 2h3', 'M3 5v12a2 2 0 0 0 2 2h3'],
   // Folgende fünf aus Lucide (ISC-Lizenz): pin, copy, message-circle-dashed, message-circle-warning, folder-up
   // („copy“ als Pfade statt Rechtecken, damit es zum übrigen Satz passt.)
   copy: ['M10 8h10a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H10a2 2 0 0 1-2-2V10a2 2 0 0 1 2-2z', 'M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2'],

@@ -3104,6 +3104,20 @@ li > .fork-slot {
 .board-row .board-group-drop:hover {
   opacity: 1;
 }
+.board-group-size {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  flex: none;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.board-group-size .icon {
+  margin-left: 4px;
+}
+.board-group-size .icon:first-child {
+  margin-left: 0;
+}
 .board-folder-bg {
   fill: var(--bg);
 }

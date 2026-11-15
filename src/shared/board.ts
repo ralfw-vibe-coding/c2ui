@@ -154,6 +154,51 @@ export function messageLabel(text: string, max = 90): string {
   return s.length > max ? s.slice(0, max - 1) + '…' : s || '(ohne Text)'
 }
 
+/**
+ * Äste, die innerhalb einer Strecke abzweigen (samt ihrer Unteräste). Sie gehören zur Gruppe:
+ * Ist sie zu, verschwinden sie mit. Liefert leere Menge, wenn die Strecke nicht auffindbar ist.
+ */
+export function branchesInRange(
+  chats: Chat[],
+  transcripts: Record<string, Transcript | undefined>,
+  range: { chatId: string; fromItemId: string; toItemId: string }
+): Set<string> {
+  const out = new Set<string>()
+  const userItems = (chatId: string) =>
+    (transcripts[chatId] ?? []).filter((it): it is Extract<Transcript[number], { type: 'user' }> => it.type === 'user')
+  const items = userItems(range.chatId)
+  const from = items.findIndex((i) => i.id === range.fromItemId)
+  const to = items.findIndex((i) => i.id === range.toItemId)
+  if (from < 0 || to < 0 || to < from) return out
+  const kidsOf = new Map<string, Chat[]>()
+  for (const c of chats) if (c.forkFrom?.chatId) kidsOf.set(c.forkFrom.chatId, [...(kidsOf.get(c.forkFrom.chatId) ?? []), c])
+  /** Nachricht Nr. k im Ursprung, an der ein Ast abzweigt. */
+  const forkK = (c: Chat): number => {
+    const turn = c.forkFrom?.at?.turn
+    if (turn !== undefined && turn > 0) return turn - 1
+    const first = userItems(c.id)[0]?.ts
+    const parent = userItems(c.forkFrom?.chatId ?? '')
+    if (first === undefined) return -1
+    for (let i = parent.length - 1; i >= 0; i--) if (parent[i].ts <= first) return i
+    return -1
+  }
+  const withKids = (id: string): void => {
+    for (const k of kidsOf.get(id) ?? []) {
+      if (out.has(k.id)) continue
+      out.add(k.id)
+      withKids(k.id)
+    }
+  }
+  for (const k of kidsOf.get(range.chatId) ?? []) {
+    const at = forkK(k)
+    if (at >= from && at <= to) {
+      out.add(k.id)
+      withKids(k.id)
+    }
+  }
+  return out
+}
+
 export function boardModel(
   chats: Chat[],
   transcripts: Record<string, Transcript | undefined>,
@@ -183,25 +228,6 @@ export function boardModel(
    * dazu: Ist die Gruppe zu, verschwinden sie mit – samt ihrer Unteräste.
    */
   const byId = new Map(chats.map((c) => [c.id, c]))
-  const kidsOf = new Map<string, Chat[]>()
-  for (const c of chats) if (c.forkFrom?.chatId) kidsOf.set(c.forkFrom.chatId, [...(kidsOf.get(c.forkFrom.chatId) ?? []), c])
-  /** Nachricht Nr. k im Ursprung, an der ein Ast abzweigt (wie `forkNode`, aber ohne Knoten). */
-  const forkK = (c: Chat): number => {
-    const turn = c.forkFrom?.at?.turn
-    if (turn !== undefined && turn > 0) return turn - 1
-    const first = userItems(c.id)[0]?.ts
-    const parent = userItems(c.forkFrom?.chatId ?? '')
-    if (first === undefined) return -1
-    for (let i = parent.length - 1; i >= 0; i--) if (parent[i].ts <= first) return i
-    return -1
-  }
-  const withKids = (id: string, into: Set<string>): void => {
-    for (const k of kidsOf.get(id) ?? []) {
-      if (into.has(k.id)) continue
-      into.add(k.id)
-      withKids(k.id, into)
-    }
-  }
   interface Resolved {
     group: BoardGroup
     items: string[]
@@ -214,15 +240,11 @@ export function boardModel(
     const from = items.findIndex((i) => i.id === g.fromItemId)
     const to = items.findIndex((i) => i.id === g.toItemId)
     if (from < 0 || to < 0 || to < from) continue
-    const branches = new Set<string>()
-    for (const k of kidsOf.get(g.chatId) ?? []) {
-      const at = forkK(k)
-      if (at >= from && at <= to) {
-        branches.add(k.id)
-        withKids(k.id, branches)
-      }
-    }
-    resolved.push({ group: g, items: items.slice(from, to + 1).map((i) => i.id), branches })
+    resolved.push({
+      group: g,
+      items: items.slice(from, to + 1).map((i) => i.id),
+      branches: branchesInRange(chats, transcripts, g)
+    })
   }
   // Was in einer zugeklappten Gruppe steckt, bekommt keine Spur – und auch keinen eigenen Chip.
   const inClosedGroup = new Set<string>()

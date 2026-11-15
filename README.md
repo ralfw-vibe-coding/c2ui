@@ -55,7 +55,7 @@ Desktop-App (Electron), in der mehrere Chats mit der Claude CLI oder der Codex C
 - **Gruppen im Board:** Zusammengefasst wird nur, was man selbst zusammenfasst – von allein rafft das Board nichts.
   Eine Strecke bestimmen und benennen: ⇧-Klick auf die erste Zeile, ⇧-Klick auf die
   letzte, Namen eintippen (Vorschlag: erste Nachricht), fertig. Zugeklappt steht dort eine Zeile mit Namen,
-  Umfang und – falls darin Äste abzweigen – deren Zahl; sie klappen mit weg. Auf der Spur zeigt ein Ordner den
+  Umfang und – falls darin Äste abzweigen – deren Zahl (als Symbole, ausgeschrieben im Tooltip); sie klappen mit weg. Auf der Spur zeigt ein Ordner den
   Zustand (offen/geschlossen), offen umfasst eine Klammer in der Farbe der Spur die Zeilen der Gruppe. Das „x“
   in der Zeile löst die Gruppe auf. Gruppen gehören zum Baum (`boards/<rootId>`), nicht zur Anzeige: sie
   überstehen den Neustart und gelten in jedem Board desselben Baums.

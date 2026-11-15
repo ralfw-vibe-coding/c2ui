@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { boardModel, nodeOfItem, sameAsTitle, type BoardModel, type BoardNode } from '@shared/board'
+import { boardModel, branchesInRange, nodeOfItem, sameAsTitle, type BoardModel, type BoardNode } from '@shared/board'
 import type { BoardGroup } from '@shared/types'
 import type { ChatComment } from '@shared/types'
 import * as L from '@shared/layout'
@@ -109,7 +109,12 @@ export function Board({ rootId, cellId }: { rootId: string; cellId: string }) {
     ? (() => {
         const ns = model.nodes.filter((n) => n.chatId === pick.chatId && inPick(model, pick, n))
         const rows = ns.map((n) => n.row)
-        return { count: ns.length, last: Math.max(...rows), lane: ns[0]?.lane ?? 0 }
+        return {
+          count: ns.length,
+          last: Math.max(...rows),
+          lane: ns[0]?.lane ?? 0,
+          branches: branchesInRange(chats, transcripts, { chatId: pick.chatId, fromItemId: pick.from, toItemId: pick.to }).size
+        }
       })()
     : null
 
@@ -182,9 +187,7 @@ export function Board({ rootId, cellId }: { rootId: string; cellId: string }) {
               >
                 <Icon name="chevron-right" size={13} />
                 <span className="board-group-name">{r.label}</span>
-                <span className="board-label muted">
-                  · {r.items.length} Nachrichten{r.branches ? ` · ${r.branches} ${r.branches === 1 ? 'Ast' : 'Äste'}` : ''}
-                </span>
+                <Umfang items={r.items.length} branches={r.branches} />
                 <button
                   className="icon-btn board-group-drop"
                   title="Gruppe auflösen"
@@ -200,9 +203,7 @@ export function Board({ rootId, cellId }: { rootId: string; cellId: string }) {
             {/* Markierte Strecke: Umfang nennen, benennen, gruppieren */}
             {pick && pickInfo && (
               <div className="board-pick-bar" style={{ top: pickInfo.last * ROW + ROW - 4, left: width + 6 }}>
-                <span className="muted small">
-                  {pickInfo.count} {pickInfo.count === 1 ? 'Nachricht' : 'Nachrichten'}
-                </span>
+                <Umfang items={pickInfo.count} branches={pickInfo.branches} />
                 <input
                   autoFocus
                   value={name}
@@ -236,9 +237,7 @@ export function Board({ rootId, cellId }: { rootId: string; cellId: string }) {
               >
                 <Icon name="chevron-down" size={13} />
                 <span className="board-group-name">{h.label}</span>
-                <span className="board-label muted">
-                  · {h.items} Nachrichten{h.branches ? ` · ${h.branches} ${h.branches === 1 ? 'Ast' : 'Äste'}` : ''}
-                </span>
+                <Umfang items={h.items} branches={h.branches} />
                 <button
                   className="icon-btn board-group-drop"
                   title="Gruppe auflösen"
@@ -365,6 +364,20 @@ function writeHidden(rootId: string, ids: Set<string>): void {
   } catch {
     /* egal */
   }
+}
+
+/** Umfang einer Gruppe: Nachrichten und (falls vorhanden) Äste – knapp, mit Symbolen. */
+function Umfang({ items, branches }: { items: number; branches: number }) {
+  return (
+    <span className="board-group-size" title={`${items} ${items === 1 ? 'Nachricht' : 'Nachrichten'}${branches ? `, ${branches} ${branches === 1 ? 'Ast' : 'Äste'}` : ''}`}>
+      <Icon name="messages-square" size={12} /> {items}
+      {!!branches && (
+        <>
+          <Icon name="list-tree" size={12} /> {branches}
+        </>
+      )}
+    </span>
+  )
 }
 
 /** Reihenfolge zweier Knoten derselben Spur (Anker kann unter dem zweiten liegen). */
