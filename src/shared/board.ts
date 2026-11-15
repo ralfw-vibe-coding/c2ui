@@ -77,6 +77,8 @@ export interface BoardRun {
   chatId: string
   lane: number
   row: number
+  /** Schachtelungstiefe (0 = nicht in einer anderen Gruppe). */
+  depth: number
   /** Verborgene Knoten, in Reihenfolge. */
   items: BoardNode[]
   /** Äste, die in der Gruppe stecken und mit eingeklappt sind. */
@@ -91,6 +93,8 @@ export interface BoardGroupHead {
   lane: number
   row: number
   lastRow: number
+  /** Schachtelungstiefe (0 = nicht in einer anderen Gruppe). */
+  depth: number
   items: number
   branches: number
 }
@@ -232,6 +236,11 @@ export function boardModel(
     group: BoardGroup
     items: string[]
     branches: Set<string>
+    from: number
+    to: number
+    /** Gruppen, die diese umschließen – von außen nach innen. */
+    outer: Resolved[]
+    depth: number
   }
   const resolved: Resolved[] = []
   for (const g of groups) {
@@ -243,8 +252,26 @@ export function boardModel(
     resolved.push({
       group: g,
       items: items.slice(from, to + 1).map((i) => i.id),
-      branches: branchesInRange(chats, transcripts, g)
+      branches: branchesInRange(chats, transcripts, g),
+      from,
+      to,
+      outer: [],
+      depth: 0
     })
+  }
+  // Schachtelung: Eine Gruppe liegt in einer anderen, wenn ihr Bereich darin steckt.
+  for (const r of resolved) {
+    r.outer = resolved
+      .filter(
+        (o) =>
+          o !== r &&
+          o.group.chatId === r.group.chatId &&
+          o.from <= r.from &&
+          o.to >= r.to &&
+          (o.to - o.from > r.to - r.from || (o.to - o.from === r.to - r.from && o.group.createdAt < r.group.createdAt))
+      )
+      .sort((a, b) => b.to - b.from - (a.to - a.from))
+    r.depth = r.outer.length
   }
   // Was in einer zugeklappten Gruppe steckt, bekommt keine Spur – und auch keinen eigenen Chip.
   const inClosedGroup = new Set<string>()
@@ -331,76 +358,76 @@ export function boardModel(
     }
   }
 
-  const groupOf = new Map<BoardNode, Resolved>()
-  for (const r of resolved) {
-    const items = new Set(r.items)
-    for (const n of nodes) if (n.chatId === r.group.chatId && items.has(n.itemId)) groupOf.set(n, r)
+  // Zu welchen Gruppen gehört ein Knoten? Von außen nach innen.
+  const groupsOf = new Map<BoardNode, Resolved[]>()
+  for (const n of nodes) {
+    const list = resolved.filter((r) => r.group.chatId === n.chatId && r.items.includes(n.itemId))
+    if (list.length) groupsOf.set(n, list.sort((a, b) => a.depth - b.depth))
   }
 
-  // Zeilen vergeben: jeder Knoten eine, jede Gruppe eine (zugeklappt statt ihrer Knoten,
-  // offen als Kopfzeile darüber).
+  // Zeilen vergeben: jeder sichtbare Knoten eine, jede Gruppe eine (zugeklappt statt ihrer Knoten,
+  // offen als Kopfzeile darüber). Geschachtelte Gruppen stehen eingerückt darin.
   const shown: BoardNode[] = []
   const runs: BoardRun[] = []
   const heads: BoardGroupHead[] = []
   const rowOrder: (BoardNode | BoardRun | BoardGroupHead)[] = []
-  const headOf = new Map<string, BoardGroupHead>()
+  const belongs = new Map<BoardNode | BoardRun | BoardGroupHead, Resolved[]>()
   // Knoten je Gruppe (nicht unbedingt am Stück: dazwischen können Knoten anderer Spuren liegen).
   const nodesOfGroup = new Map<string, BoardNode[]>()
-  for (const [n, r] of groupOf) nodesOfGroup.set(r.group.id, [...(nodesOfGroup.get(r.group.id) ?? []), n])
+  for (const [n, list] of groupsOf) for (const r of list) nodesOfGroup.set(r.group.id, [...(nodesOfGroup.get(r.group.id) ?? []), n])
   const started = new Set<string>()
-  for (let i = 0; i < nodes.length; ) {
-    const n = nodes[i]
-    const r = groupOf.get(n)
-    if (r) {
-      // Die Zeile der Gruppe entsteht beim ersten ihrer Knoten – auch wenn die Knoten nicht
-      // lückenlos untereinander stehen, weil dazwischen ein Ast etwas gesagt hat.
-      const first = !started.has(r.group.id)
-      started.add(r.group.id)
-      if (r.group.closed) {
-        if (first) {
-          const run: BoardRun = {
-            groupId: r.group.id,
-            label: r.group.label,
-            chatId: r.group.chatId,
-            lane: n.lane,
-            row: 0,
-            items: nodesOfGroup.get(r.group.id) ?? [],
-            branches: r.branches.size
-          }
-          runs.push(run)
-          rowOrder.push(run)
+  for (const n of nodes) {
+    const chain = groupsOf.get(n) ?? []
+    // Zugeklappt ist, was in der äußersten geschlossenen Gruppe steckt – nur deren Zeile erscheint.
+    const closed = chain.find((r) => r.group.closed)
+    if (closed) {
+      if (!started.has(closed.group.id)) {
+        started.add(closed.group.id)
+        const run: BoardRun = {
+          groupId: closed.group.id,
+          label: closed.group.label,
+          chatId: closed.group.chatId,
+          lane: n.lane,
+          row: 0,
+          depth: closed.depth,
+          items: nodesOfGroup.get(closed.group.id) ?? [],
+          branches: closed.branches.size
         }
-      } else {
-        if (first) {
-          const head: BoardGroupHead = {
-            groupId: r.group.id,
-            label: r.group.label,
-            chatId: r.group.chatId,
-            lane: n.lane,
-            row: 0,
-            lastRow: 0,
-            items: (nodesOfGroup.get(r.group.id) ?? []).length,
-            branches: r.branches.size
-          }
-          heads.push(head)
-          headOf.set(r.group.id, head)
-          rowOrder.push(head)
-        }
-        shown.push(n)
-        rowOrder.push(n)
+        runs.push(run)
+        rowOrder.push(run)
+        belongs.set(run, closed.outer)
       }
-      i++
       continue
+    }
+    // Offene Gruppen, die hier beginnen: Kopfzeile, von außen nach innen.
+    for (const r of chain) {
+      if (started.has(r.group.id)) continue
+      started.add(r.group.id)
+      const head: BoardGroupHead = {
+        groupId: r.group.id,
+        label: r.group.label,
+        chatId: r.group.chatId,
+        lane: n.lane,
+        row: 0,
+        lastRow: 0,
+        depth: r.depth,
+        items: (nodesOfGroup.get(r.group.id) ?? []).length,
+        branches: r.branches.size
+      }
+      heads.push(head)
+      rowOrder.push(head)
+      belongs.set(head, r.outer)
     }
     shown.push(n)
     rowOrder.push(n)
-    i++
+    belongs.set(n, chain)
   }
   rowOrder.forEach((r, i) => (r.row = i))
-  // Die Klammer reicht bis zum letzten Knoten der Gruppe.
+  // Die Klammer reicht bis zur letzten Zeile, die zur Gruppe gehört – auch über geschachtelte hinweg.
   for (const h of heads) {
-    const last = [...rowOrder].reverse().find((r) => 'itemId' in r && groupOf.get(r as BoardNode)?.group.id === h.groupId)
-    h.lastRow = last ? last.row : h.row
+    let last = h.row
+    for (const [row, list] of belongs) if (list.some((r) => r.group.id === h.groupId)) last = Math.max(last, row.row)
+    h.lastRow = last
   }
   nodes.length = 0
   nodes.push(...shown)

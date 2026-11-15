@@ -44,7 +44,8 @@ Schritte, jeweils erst ausprobieren, bevor der nächste kommt:
    Offen: verworfene Äste ausgegraut (dafür fehlt noch ein „verwerfen“).
 4. **Semantischer Zoom und Mitlesen im Graphen:** ✓ **Gruppen** – Strecke mit ⇧-Klick markieren, benennen,
    zuklappen; Äste darin klappen mit weg (Zahl steht in der Zeile), Ordner auf der Spur zeigt den Zustand,
-   Klammer in Spurfarbe umfasst die offene Gruppe. Gruppen liegen beim Baum (`boards/<rootId>`).
+   Klammer in Spurfarbe umfasst die offene Gruppe, geschachtelte Gruppen eine Spalte weiter rechts.
+   Gruppen liegen beim Baum (`boards/<rootId>`).
    Automatisch gerafft wird nichts mehr: Das war unverständlich und ließ sich nicht gezielt zurücknehmen.
    Offen bleibt: Der Graph zeigt heute je Turn eine Zeile. Gewünscht ist
    Hineinzoomen und Lesen an Ort und Stelle: weit = Abschnitte (Turns zwischen zwei Abzweig-/Merge-Punkten) als

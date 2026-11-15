@@ -10,6 +10,8 @@ import { AgentLogo } from './AgentLogo'
 const ROW = 30
 const LANE = 20
 const PAD = 14
+/** Abstand der Klammern geschachtelter Gruppen. */
+const BRACKET = 10
 /** Farben der Spuren (in beiden Themes lesbar). */
 const COLORS = ['#d97757', '#4a8fd9', '#3fa66b', '#a970d6', '#d9a441', '#d95f8c', '#3fb0b0', '#8a8f98']
 const colorOf = (lane: number): string => COLORS[lane % COLORS.length]
@@ -114,10 +116,8 @@ export function Board({ rootId, cellId }: { rootId: string; cellId: string }) {
   const pickInfo = pick
     ? (() => {
         const ns = model.nodes.filter((n) => n.chatId === pick.chatId && inPick(model, pick, n))
-        const rows = ns.map((n) => n.row)
         return {
           count: ns.length,
-          last: Math.max(...rows),
           lane: ns[0]?.lane ?? 0,
           branches: branchesInRange(chats, transcripts, { chatId: pick.chatId, fromItemId: pick.from, toItemId: pick.to }).size
         }
@@ -154,7 +154,10 @@ export function Board({ rootId, cellId }: { rootId: string; cellId: string }) {
   }, [treeIds])
 
   if (!model.lanes.length) return <div className="muted center-hint">Dieser Chat existiert nicht mehr.</div>
-  const width = x(model.lanes.length - 1) + PAD
+  // Rechts neben den Spuren liegen die Klammern der Gruppen – je Schachtelungstiefe eine Spalte.
+  const maxDepth = Math.max(0, ...model.heads.map((h) => h.depth))
+  const gutter = model.heads.length ? 12 + maxDepth * BRACKET + 6 : PAD
+  const width = x(model.lanes.length - 1) + Math.max(PAD, gutter)
   const height = Math.max(1, model.nodes.length + model.runs.length) * ROW
   const firstOfLane = new Set(model.lanes.map((l) => `${l.chatId}:${l.first}`))
   const lastOfLane = new Map(model.lanes.map((l) => [l.chatId, l.last]))
@@ -208,29 +211,6 @@ export function Board({ rootId, cellId }: { rootId: string; cellId: string }) {
                 </button>
               </div>
             ))}
-            {/* Markierte Strecke: Umfang nennen, benennen, gruppieren */}
-            {pick && pickInfo && (
-              <div className="board-pick-bar" style={{ top: pickInfo.last * ROW + ROW - 4, left: width + 6 }}>
-                <Umfang items={pickInfo.count} branches={pickInfo.branches} />
-                <input
-                  autoFocus
-                  value={name}
-                  placeholder={defaultName}
-                  onChange={(e) => setName(e.target.value)}
-                  onKeyDown={(e) => {
-                    e.stopPropagation()
-                    if (e.key === 'Enter') makeGroup()
-                    else if (e.key === 'Escape') (setPick(null), setName(''))
-                  }}
-                />
-                <button className="btn primary small-btn" onClick={makeGroup}>
-                  Gruppe
-                </button>
-                <button className="icon-btn" title="Abbrechen (Esc)" onClick={() => (setPick(null), setName(''))}>
-                  <Icon name="close" size={12} />
-                </button>
-              </div>
-            )}
             {/* Kopfzeile einer offenen Gruppe */}
             {model.heads.map((h) => (
               <div
@@ -349,6 +329,29 @@ export function Board({ rootId, cellId }: { rootId: string; cellId: string }) {
           </div>
         )}
       </div>
+      {/* Markierte Strecke: Umfang nennen, benennen, gruppieren – unten in der Zelle */}
+      {pick && pickInfo && (
+        <div className="board-pick-bar">
+          <Umfang items={pickInfo.count} branches={pickInfo.branches} />
+          <input
+            autoFocus
+            value={name}
+            placeholder={defaultName}
+            onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => {
+              e.stopPropagation()
+              if (e.key === 'Enter') makeGroup()
+              else if (e.key === 'Escape') (setPick(null), setName(''))
+            }}
+          />
+          <button className="btn primary small-btn" onClick={makeGroup}>
+            Gruppe
+          </button>
+          <button className="icon-btn" title="Abbrechen (Esc)" onClick={() => (setPick(null), setName(''))}>
+            <Icon name="close" size={12} />
+          </button>
+        </div>
+      )}
     </div>
   )
 }
@@ -479,7 +482,8 @@ function Graph({
       {/* Offene Gruppen: Ordner an der Kopfzeile und Klammer über ihre Zeilen, in der Farbe der Spur */}
       {model.heads.map((h) => {
         const color = colorOf(model.lanes[h.lane].color)
-        const bx = x(model.lanes.length - 1) + 12
+        // Je tiefer geschachtelt, desto weiter rechts steht die Klammer.
+        const bx = x(model.lanes.length - 1) + 12 + h.depth * BRACKET
         return (
           <g key={h.groupId} className="board-group" role="button" aria-label={`Gruppe ${h.label} zuklappen`} onClick={() => onGroup(h.groupId)}>
             <path

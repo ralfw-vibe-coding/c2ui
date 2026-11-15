@@ -133,6 +133,53 @@ await zeile('Bildbeschaffung').click()
 await page.waitForTimeout(400)
 check((await page.locator('.board-row').count()) === 7, 'und wieder zuklappbar')
 
+// Geschachtelte Gruppe: erst die äußere wieder öffnen, dann darin eine engere Strecke markieren
+await zeile('Bildbeschaffung').click()
+await page.waitForTimeout(400)
+await zeile('Nachricht 4').click({ modifiers: ['Shift'] })
+await zeile('Nachricht 5').click({ modifiers: ['Shift'] })
+await page.waitForTimeout(300)
+await leiste.locator('input').fill('Motive')
+await leiste.locator('.btn.primary').click()
+await page.waitForTimeout(500)
+const verschachtelt = await zeilen()
+log('mit innerer Gruppe:', verschachtelt.join(' | '))
+check(verschachtelt.length === 13, 'zwei Kopfzeilen plus alle Zeilen')
+check(/Motive/.test(verschachtelt[4]), 'die innere Kopfzeile steht vor Nachricht 4')
+// Die Schachtelung zeigt sich an den Klammern: die innere steht weiter rechts.
+const klammern = await page.locator('.board-group path').evaluateAll((ns) =>
+  // Je Gruppe eine Klammer („M x …“) und ein Ordner; nur die Klammern zählen.
+  ns.map((n) => /^M\s*([\d.]+)/.exec(n.getAttribute('d') ?? '')?.[1]).filter(Boolean).map(Number)
+)
+log('Klammern bei x =', JSON.stringify(klammern))
+check(klammern.length === 2 && klammern[1] > klammern[0], 'zwei Klammern, die innere weiter rechts')
+await page.screenshot({ path: join(out, '4-geschachtelt.png') })
+
+// Innere zuklappen: die äußere bleibt offen
+await zeile('Motive').click()
+await page.waitForTimeout(500)
+const innenZu = await zeilen()
+log('innere zugeklappt:', innenZu.join(' | '))
+// Zwei Nachrichten und der Ast, der in ihnen abzweigt, machen drei Zeilen weniger.
+check(innenZu.length === 10, 'drei Zeilen weniger (zwei Nachrichten und der Ast darin)')
+check(!innenZu.some((z) => /Welche Motive/.test(z)), 'der Ast steckt in der inneren Gruppe')
+check(/Bildbeschaffung/.test(innenZu[2]) && /Motive/.test(innenZu[4]), 'äußere Kopfzeile und innere Gruppenzeile')
+check(!innenZu.some((z) => /Nachricht 4 /.test(z)), 'die inneren Nachrichten sind weg')
+
+// Äußere zuklappen: die innere verschwindet mit
+await zeile('Bildbeschaffung').click()
+await page.waitForTimeout(500)
+const beideZu = await zeilen()
+log('äußere zugeklappt:', beideZu.join(' | '))
+check(beideZu.length === 7, 'nur noch die äußere Zeile')
+check(!beideZu.some((z) => /Motive/.test(z)), 'die innere Gruppe steckt darin')
+await zeile('Bildbeschaffung').click()
+await page.waitForTimeout(400)
+await zeile('Motive').hover()
+await zeile('Motive').locator('.board-group-drop').click()
+await page.waitForTimeout(400)
+check((await page.locator('.board-row.group-head').count()) === 1, 'innere Gruppe aufgelöst')
+
 // Auflösen
 await zeile('Bildbeschaffung').hover()
 await zeile('Bildbeschaffung').locator('.board-group-drop').click()

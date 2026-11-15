@@ -181,5 +181,38 @@ describe('Diskursboard', () => {
       expect(zu.runs).toHaveLength(1)
       expect(zu.runs[0].items.map((n) => n.itemId)).toEqual(['r3', 'r4', 'r5', 'r6', 'r7'])
     })
+    it('schachtelt Gruppen ineinander', () => {
+      const aussen = gruppe({ id: 'g1', fromItemId: 'r2', toItemId: 'r9', label: 'Außen', closed: false })
+      const innen = gruppe({ id: 'g2', fromItemId: 'r4', toItemId: 'r6', label: 'Innen', closed: false })
+      const m = boardModel(cs, t, 'r', { groups: [aussen, innen] })
+      expect(m.heads.map((h) => [h.label, h.depth, h.row])).toEqual([
+        ['Außen', 0, 1],
+        ['Innen', 1, 4]
+      ])
+      // Die äußere Klammer reicht über die innere hinweg bis zu ihrem letzten Knoten.
+      const bisR9 = m.nodes.find((n) => n.itemId === 'r9')!.row
+      expect(m.heads[0].lastRow).toBe(bisR9)
+      expect(m.heads[1].lastRow).toBe(m.nodes.find((n) => n.itemId === 'r6')!.row)
+    })
+
+    it('zeigt die innere Gruppe zugeklappt in der offenen äußeren', () => {
+      const m = boardModel(cs, t, 'r', {
+        groups: [gruppe({ id: 'g1', fromItemId: 'r2', toItemId: 'r9', label: 'Außen', closed: false }), gruppe({ id: 'g2', fromItemId: 'r4', toItemId: 'r6', label: 'Innen', closed: true })]
+      })
+      expect(m.heads.map((h) => h.label)).toEqual(['Außen'])
+      expect(m.runs.map((r) => [r.label, r.depth, r.items.length])).toEqual([['Innen', 1, 3]])
+      expect(m.nodes.filter((n) => n.chatId === 'r').map((n) => n.itemId)).toEqual(['r1', 'r2', 'r3', 'r7', 'r8', 'r9', 'r10'])
+      // Die äußere Klammer endet bei r9, nicht schon bei der inneren Gruppe.
+      expect(m.heads[0].lastRow).toBe(m.nodes.find((n) => n.itemId === 'r9')!.row)
+    })
+
+    it('verschluckt die innere Gruppe, wenn die äußere zu ist', () => {
+      const m = boardModel(cs, t, 'r', {
+        groups: [gruppe({ id: 'g1', fromItemId: 'r2', toItemId: 'r9', label: 'Außen', closed: true }), gruppe({ id: 'g2', fromItemId: 'r4', toItemId: 'r6', label: 'Innen', closed: false })]
+      })
+      expect(m.heads).toEqual([])
+      expect(m.runs.map((r) => [r.label, r.items.length])).toEqual([['Außen', 8]])
+      expect(m.nodes.filter((n) => n.chatId === 'r').map((n) => n.itemId)).toEqual(['r1', 'r10'])
+    })
   })
 })

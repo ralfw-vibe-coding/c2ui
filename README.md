@@ -58,7 +58,9 @@ Desktop-App (Electron), in der mehrere Chats mit der Claude CLI oder der Codex C
   nichts, nur die Klammer kommt dazu; zugeklappt wird, wenn man mag. Zugeklappt steht dort eine Zeile mit Namen,
   Umfang und – falls darin Äste abzweigen – deren Zahl (als Symbole, ausgeschrieben im Tooltip); sie klappen mit weg. Auf der Spur zeigt ein Ordner den
   Zustand (offen/geschlossen), offen umfasst eine Klammer in der Farbe der Spur die Zeilen der Gruppe. Das „x“
-  in der Zeile löst die Gruppe auf. Gruppen gehören zum Baum (`boards/<rootId>`), nicht zur Anzeige: sie
+  in der Zeile löst die Gruppe auf. **Gruppen lassen sich schachteln:** Markiert man innerhalb einer offenen
+  Gruppe eine engere Strecke, steht deren Klammer eine Spalte weiter rechts; die äußere Klammer reicht über sie
+  hinweg. Klappt die äußere zu, verschwindet alles darin – auch die inneren Gruppen. Gruppen gehören zum Baum (`boards/<rootId>`), nicht zur Anzeige: sie
   überstehen den Neustart und gelten in jedem Board desselben Baums.
 - **Zusammenführen (Merge):** Im Board einen Knoten eines Asts auf eine andere Spur ziehen, oder im Nebenchat
   „⤴ Zurückführen“. Der Dialog hat zwei Prompts: Aufarbeitung im Nebenchat B und Übernahme in den Zielchat A
