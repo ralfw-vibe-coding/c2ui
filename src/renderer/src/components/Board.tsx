@@ -29,8 +29,34 @@ export function Board({ rootId, cellId }: { rootId: string; cellId: string }) {
   const transcripts = useStore((s) => s.transcripts)
   const busy = useStore((s) => s.busy)
   const [hidden, setHidden] = useState<Set<string>>(() => readHidden(rootId))
-  /** Inhaltsverzeichnis auf- oder zugeklappt (bleibt so, auch beim nächsten Board). */
+  /** Inhaltsverzeichnis auf- oder zugeklappt und wie breit (bleibt so, auch beim nächsten Board). */
   const [tocOpen, setTocOpen] = useState(readTocOpen)
+  const [tocWidth, setTocWidth] = useState(readTocWidth)
+  /** Breite per Ziehen am linken Rand; Doppelklick setzt sie zurück. */
+  const startResize = (e: React.PointerEvent<HTMLDivElement>): void => {
+    e.preventDefault()
+    const startX = e.clientX
+    const startW = tocWidth
+    const handle = e.currentTarget
+    handle.setPointerCapture(e.pointerId)
+    document.body.classList.add('resizing-col')
+    let w = startW
+    const move = (ev: PointerEvent): void => {
+      // Nach links ziehen macht breiter: das Verzeichnis liegt am rechten Rand.
+      w = clampTocWidth(startW - (ev.clientX - startX))
+      setTocWidth(w)
+    }
+    const up = (): void => {
+      handle.removeEventListener('pointermove', move)
+      handle.removeEventListener('pointerup', up)
+      handle.removeEventListener('pointercancel', up)
+      document.body.classList.remove('resizing-col')
+      writeTocWidth(w)
+    }
+    handle.addEventListener('pointermove', move)
+    handle.addEventListener('pointerup', up)
+    handle.addEventListener('pointercancel', up)
+  }
   const groups = useStore((s) => s.groups[rootId])
   useEffect(() => void useStore.getState().ensureGroups(rootId), [rootId])
   /** Markierte Strecke: Anker (erster Klick) und Ende (⇧-Klick), beide in derselben Spur. */
@@ -394,7 +420,18 @@ export function Board({ rootId, cellId }: { rootId: string; cellId: string }) {
       </div>
       {/* Inhaltsverzeichnis: die Lesezeichen des Diskurses, in seiner Reihenfolge */}
       {toc.length > 0 && (
-        <div className={`board-toc${tocOpen ? '' : ' zu'}`}>
+        <div className={`board-toc${tocOpen ? '' : ' zu'}`} style={tocOpen ? { width: tocWidth } : undefined}>
+          {tocOpen && (
+            <div
+              className="board-toc-resizer"
+              title="Breite ziehen · Doppelklick: Standardbreite"
+              onPointerDown={startResize}
+              onDoubleClick={() => {
+                setTocWidth(TOC_WIDTH)
+                writeTocWidth(TOC_WIDTH)
+              }}
+            />
+          )}
           <button
             className="board-toc-head"
             title={tocOpen ? 'Inhaltsverzeichnis zuklappen' : `Inhaltsverzeichnis aufklappen (${toc.length})`}
@@ -457,6 +494,27 @@ function writeTocOpen(open: boolean): void {
   try {
     if (open) localStorage.removeItem(TOC_KEY)
     else localStorage.setItem(TOC_KEY, 'zu')
+  } catch {
+    /* egal */
+  }
+}
+
+// Breite des Verzeichnisses (pro Rechner, im localStorage).
+const TOC_WIDTH = 210
+const WIDTH_KEY = 'c2ui.boardTocWidth'
+const clampTocWidth = (w: number): number => Math.round(Math.min(560, Math.max(130, w)))
+function readTocWidth(): number {
+  try {
+    const v = Number(localStorage.getItem(WIDTH_KEY))
+    return v ? clampTocWidth(v) : TOC_WIDTH
+  } catch {
+    return TOC_WIDTH
+  }
+}
+function writeTocWidth(w: number): void {
+  try {
+    if (w === TOC_WIDTH) localStorage.removeItem(WIDTH_KEY)
+    else localStorage.setItem(WIDTH_KEY, String(w))
   } catch {
     /* egal */
   }
