@@ -43,7 +43,10 @@ const tr = {
   anderes: [u('x1', 100, 'Etwas ganz anderes.'), a('xa1')],
   // Ein langer Chat – für das Zusammenfassen langer Strecken. Der kurze Ast daran sorgt nur dafür,
   // dass es in der Seitenleiste einen Knopf fürs Board gibt (Abzweig gleich nach der ersten Nachricht).
-  lang: Array.from({ length: 20 }, (_, i) => [u(`x${i + 1}`, 200 + i, `Nachricht ${i + 1} in einem langen Chat`), a(`xa${i + 1}`)]).flat(),
+  lang: Array.from({ length: 20 }, (_, i) => [
+    u(`x${i + 1}`, 200 + i, `Nachricht ${i + 1} in einem langen Chat`),
+    { type: 'assistant', id: `xa${i + 1}`, blocks: [{ type: 'text', text: Array.from({ length: 8 }, (_, k) => `Antwort ${i + 1}, Absatz ${k + 1}.`).join('\n\n') }] }
+  ]).flat(),
   langast: [{ type: 'notice', id: 'n', text: 'Abgezweigt aus „Langer Chat“' }, u('l1', 260, 'Kurzer Ast'), a('la1')]
 }
 for (const [id, t] of Object.entries(tr)) writeFileSync(join(userData, 'transcripts', `${id}.json`), JSON.stringify(t))
@@ -257,6 +260,23 @@ const langBoard = page.locator('.cell', { hasText: 'Diskurs: Langer Chat' })
 const zeilen = (await langBoard.locator('.board-row').allInnerTexts()).map((z) => z.replace(/\s+/g, ' '))
 log('langer Chat im Board:', zeilen.length, 'Zeilen')
 check(zeilen.length === 21, 'alle 21 Zeilen stehen da, nichts wird von selbst gerafft')
+// Klick auf eine Zeile mitten im Chat: genau diese wird markiert, nicht die darüber.
+// Erst den Chat öffnen (so steht er schon in einer Zelle), dann eine andere Zeile anklicken.
+await langBoard.locator('.board-row', { hasText: 'Nachricht 4 ' }).click()
+await page.waitForTimeout(700)
+await langBoard.locator('.board-row', { hasText: 'Nachricht 12' }).click()
+await page.waitForTimeout(900)
+const markiert = await langBoard.locator('.board-row.active').allInnerTexts()
+log('markiert nach Klick auf Nachricht 12:', markiert.map((t) => t.replace(/\s+/g, ' ').slice(0, 30)))
+check(markiert.length === 1 && /Nachricht 12 /.test(markiert[0]), 'der angeklickte Turn ist markiert')
+// Ein Scrollereignis gleich nach dem Sprung (nachgeladene Bilder, wachsende Screens) darf die
+// Markierung nicht verschieben – genau daran lag es.
+await page.evaluate(() => {
+  const t = [...document.querySelectorAll('.transcript')].pop()
+  t?.dispatchEvent(new Event('scroll'))
+})
+await page.waitForTimeout(300)
+check(/Nachricht 12 /.test((await langBoard.locator('.board-row.active').allInnerTexts())[0] ?? ''), 'und bleibt es auch, wenn sich gleich danach etwas bewegt')
 check(zeilen.some((z) => /Nachricht 5 /.test(z)), 'auch die fünfte Nachricht')
 check((await langBoard.locator('.board-run').count()) === 0, 'keine Marke für eine Raffung')
 await page.screenshot({ path: join(out, '5-lang.png') })

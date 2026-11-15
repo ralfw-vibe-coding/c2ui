@@ -3,6 +3,7 @@ import { chatSurfaces } from '../a2ui/chatSurfaces'
 import { scrollToSurface } from '../a2ui/A2uiBlock'
 import { ScreenStrip } from '../a2ui/ScreenStrip'
 import { AGENTS, DEFAULT_SETTINGS, type BackgroundTask } from '@shared/types'
+import { nodeOfItem } from '@shared/board'
 import { ipcError, useChat, useStore } from '../store'
 import { Icon } from './Icon'
 import { TranscriptView } from './TranscriptView'
@@ -66,11 +67,13 @@ export function ChatPanel({ chatId, active }: { chatId: string; active: boolean 
 
   // Welcher Turn steht oben im sichtbaren Bereich? (Das Board markiert ihn.)
   const viewRaf = useRef(0)
+  /** Nach einem Sprung gilt kurz die angesprungene Stelle, nicht das, was oben steht. */
+  const viewLock = useRef(0)
   const trackViewTurn = (): void => {
     cancelAnimationFrame(viewRaf.current)
     viewRaf.current = requestAnimationFrame(() => {
       const root = scrollRef.current
-      if (!root) return
+      if (!root || performance.now() < viewLock.current) return
       const rect = root.getBoundingClientRect()
       // Maßgeblich ist das obere Drittel; ganz unten zählt alles Sichtbare (sonst wäre der letzte Turn nie dran).
       const atEnd = root.scrollHeight - root.scrollTop - root.clientHeight < 30
@@ -115,6 +118,17 @@ export function ChatPanel({ chatId, active }: { chatId: string; active: boolean 
     setAtBottom(true)
   }
 
+  /**
+   * Nach einem Sprung ist die angesprungene Stelle gemeint – auch wenn sie in die Mitte gescrollt
+   * wird und oben im Bild der Turn davor steht. Sonst markiert das Board den falschen Knoten.
+   */
+  const markViewTurn = (itemId?: string): void => {
+    if (!itemId || !transcript) return
+    const turn = nodeOfItem(transcript).get(itemId) ?? itemId
+    viewLock.current = performance.now() + 900
+    useStore.setState((s) => (s.viewTurn[chatId] === turn ? s : { viewTurn: { ...s.viewTurn, [chatId]: turn } }))
+  }
+
   // Sprung an eine Stelle (z. B. Abzweigstelle eines Nebenchats), sobald sie gerendert ist.
   const jump = useStore((s) => (s.jump?.chatId === chatId ? s.jump : null))
   useEffect(() => {
@@ -142,6 +156,7 @@ export function ChatPanel({ chatId, active }: { chatId: string; active: boolean 
         const first = (found[0]?.startContainer.parentElement as HTMLElement | null) ?? el
         first.scrollIntoView({ block: 'center' })
         if (found.length) highlightRange(found)
+        markViewTurn(jump.itemId)
         useStore.getState().clearJump(jump.n)
         return
       }
@@ -157,6 +172,7 @@ export function ChatPanel({ chatId, active }: { chatId: string; active: boolean 
       flash.classList.remove('jump-flash')
       void flash.offsetWidth
       flash.classList.add('jump-flash')
+      markViewTurn(jump.itemId)
       useStore.getState().clearJump(jump.n)
     }
     raf = requestAnimationFrame(tryJump)
