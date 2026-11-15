@@ -6,7 +6,7 @@ import { LOCAL_FILE_SCHEME } from '@shared/a2ui'
 import { listClaudeSessions } from './sessions'
 import { searchChats } from './search'
 import { doneMessage, isOnScreen, isSignOfLife, shouldNotify, stalledMessage, TurnWatch } from './notifications'
-import type { AgentEvent, AgentKind, Attachment, ChatPatch, LayoutState, MergeMark, PermissionMode, Settings } from '@shared/types'
+import type { AgentEvent, AgentKind, Attachment, BoardGroup, ChatPatch, LayoutState, MergeMark, PermissionMode, Settings } from '@shared/types'
 import { ChatManager } from './chats'
 import { ensureComponentsDir, loadComposites } from './componentsLoader'
 import { existsSync, watch } from 'node:fs'
@@ -231,6 +231,8 @@ function registerIpc(): void {
     manager.create(cwd, agent, mode)
   )
   // homedir() folgt $HOME (für Prüfskripte mit Schein-Home); app.getPath('home') tut das nicht.
+  ipcMain.handle('boards:groups', (_e, rootId: string) => manager.groups(rootId))
+  ipcMain.handle('boards:setGroups', (_e, rootId: string, list: BoardGroup[]) => manager.setGroups(rootId, list))
   ipcMain.handle('comments:counts', () => manager.commentCounts())
   ipcMain.handle('comments:get', (_e, chatId: string) => manager.comments(chatId))
   ipcMain.handle('comments:add', (_e, chatId: string, c: { itemId: string; quote?: string; text: string }) => manager.addComment(chatId, c))
@@ -343,7 +345,8 @@ app.whenReady().then(() => {
         turnWatch.setBusy(id, b)
       },
       chatsChanged: (chats) => send('chats:changed', chats),
-      commentsChanged: (chatId, list) => send('comments:changed', chatId, list)
+      commentsChanged: (chatId, list) => send('comments:changed', chatId, list),
+      groupsChanged: (rootId, list) => send('boards:changed', rootId, list)
     },
     {
       pluginDir: unpacked(join(app.getAppPath(), 'resources', 'a2ui-plugin')),

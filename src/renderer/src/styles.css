@@ -3085,3 +3085,59 @@ li > .fork-slot {
 .board-run:hover .board-run-mark {
   fill: var(--bg-sunken);
 }
+
+/* Gruppen im Board */
+.board-row.picked {
+  background: var(--accent-soft);
+}
+.board-row.group-head,
+.board-row.run.group {
+  cursor: pointer;
+}
+.board-group-name {
+  font-weight: 600;
+  font-size: 13px;
+  flex: none;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.board-row .board-group-drop {
+  margin-left: 6px;
+  opacity: 0;
+}
+.board-row:hover .board-group-drop {
+  opacity: 0.7;
+}
+.board-row .board-group-drop:hover {
+  opacity: 1;
+}
+.board-folder-bg {
+  fill: var(--bg);
+}
+.board-group {
+  cursor: pointer;
+}
+/* Leiste zum Benennen einer markierten Strecke */
+.board-pick-bar {
+  position: absolute;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 7px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--bg-elev);
+  box-shadow: var(--shadow);
+}
+.board-pick-bar input {
+  font: inherit;
+  font-size: 12px;
+  width: 150px;
+  padding: 2px 6px;
+  border: 1px solid var(--border-strong);
+  border-radius: 5px;
+  background: var(--bg);
+  color: var(--text);
+}

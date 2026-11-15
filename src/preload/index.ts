@@ -2,7 +2,7 @@ import { contextBridge, ipcRenderer, webFrame, webUtils, type IpcRendererEvent }
 import type { CompositeDef } from '@shared/a2ui-composites'
 import type { SessionInfo } from '../main/sessions'
 import type { SearchResult } from '../main/search'
-import type { AgentEvent, AgentKind, Attachment, Chat, ChatComment, ChatPatch, LayoutState, MergeMark, ModelList, PermissionMode, Settings, Transcript } from '@shared/types'
+import type { AgentEvent, AgentKind, Attachment, BoardGroup, Chat, ChatComment, ChatPatch, LayoutState, MergeMark, ModelList, PermissionMode, Settings, Transcript } from '@shared/types'
 
 export interface InitState {
   settings: Settings
@@ -26,6 +26,11 @@ const api = {
     ipcRenderer.invoke('chats:create', cwd, agent, mode),
   updateChat: (id: string, patch: ChatPatch): Promise<Chat> =>
     ipcRenderer.invoke('chats:update', id, patch),
+  groups: (rootId: string): Promise<BoardGroup[]> => ipcRenderer.invoke('boards:groups', rootId),
+  setGroups: (rootId: string, list: BoardGroup[]): Promise<BoardGroup[]> => ipcRenderer.invoke('boards:setGroups', rootId, list),
+  onGroupsChanged: (cb: (rootId: string, list: BoardGroup[]) => void): void => {
+    ipcRenderer.on('boards:changed', (_e, rootId: string, list: BoardGroup[]) => cb(rootId, list))
+  },
   commentCounts: (): Promise<Record<string, number>> => ipcRenderer.invoke('comments:counts'),
   onCommentsChanged: (cb: (chatId: string, list: ChatComment[]) => void): void => {
     ipcRenderer.on('comments:changed', (_e, chatId: string, list: ChatComment[]) => cb(chatId, list))

@@ -81,6 +81,24 @@ export interface Chat {
   updatedAt: number
 }
 
+/**
+ * Selbst angelegte Gruppe im Diskursboard: eine zusammenhängende Strecke von Nachrichten einer
+ * Spur, benannt und zusammenklappbar. Sie gehört zum Baum, nicht zur Anzeige, und wird deshalb
+ * neben den Chats gespeichert (`boards/<rootId>`).
+ */
+export interface BoardGroup {
+  id: string
+  /** Chat, in dessen Spur die Strecke liegt. */
+  chatId: string
+  /** Erste und letzte Nachricht der Strecke (Transkript-Einträge). */
+  fromItemId: string
+  toItemId: string
+  label: string
+  /** Zugeklappt (sonst offen mit Klammer). */
+  closed: boolean
+  createdAt: number
+}
+
 /** Auswahlliste für das Modell-Dropdown. */
 export interface ModelList {
   options: { value: string; label: string }[]

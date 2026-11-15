@@ -55,6 +55,12 @@ Desktop-App (Electron), in der mehrere Chats mit der Claude CLI oder der Codex C
   **Lange Strecken sind gerafft:** Fünf oder mehr gewöhnliche Nachrichten am Stück stehen als eine Zeile
   („⋯ 18 Nachrichten“, Klammer auf der Spur); Klick zeigt sie einzeln, gemerkt je Board. Sichtbar bleiben immer
   Anfang und Ende jeder Spur, Abzweig- und Übernahmestellen, Zwischenrufe, Aktionen und die gerade gelesene Stelle.
+- **Gruppen im Board:** Eine Strecke selbst bestimmen und benennen: ⇧-Klick auf die erste Zeile, ⇧-Klick auf die
+  letzte, Namen eintippen (Vorschlag: erste Nachricht), fertig. Zugeklappt steht dort eine Zeile mit Namen,
+  Umfang und – falls darin Äste abzweigen – deren Zahl; sie klappen mit weg. Auf der Spur zeigt ein Ordner den
+  Zustand (offen/geschlossen), offen umfasst eine Klammer in der Farbe der Spur die Zeilen der Gruppe. Das „x“
+  in der Zeile löst die Gruppe auf. Gruppen gehören zum Baum (`boards/<rootId>`), nicht zur Anzeige: sie
+  überstehen den Neustart und gelten in jedem Board desselben Baums.
 - **Zusammenführen (Merge):** Im Board einen Knoten eines Asts auf eine andere Spur ziehen, oder im Nebenchat
   „⤴ Zurückführen“. Der Dialog hat zwei Prompts: Aufarbeitung im Nebenchat B und Übernahme in den Zielchat A
   (leer = Standard, in den Einstellungen änderbar; Platzhalter `{Titel}` = B, `{Ziel}` = A). B arbeitet seine
@@ -162,6 +168,7 @@ node scripts/codex-resume-e2e.mjs   # Codex-Chat über Neustart fortsetzen
 node scripts/chat-tree-check.mjs   # Chat-Baum (ohne Modellaufruf)
 node scripts/fork-nav-check.mjs    # Markierungen, Brotkrumen, Seitenleistenbreite (ohne Modellaufruf)
 node scripts/board-check.mjs       # Diskursboard (ohne Modellaufruf)
+node scripts/board-group-check.mjs # Gruppen im Board (ohne Modellaufruf)
 node scripts/search-check.mjs      # Suche über alle Chats (ohne Modellaufruf)
 node scripts/comments-check.mjs    # Notizen zu Stellen im Verlauf (ohne Modellaufruf)
 node scripts/todos-check.mjs       # Aufgabenliste des Agenten (ohne Modellaufruf)

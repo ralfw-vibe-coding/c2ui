@@ -1,6 +1,6 @@
 import { A2UI_ACTION_PREFIX } from './a2ui'
 import { chatTree, type ChatNode } from './chatTree'
-import type { Chat, Transcript } from './types'
+import type { BoardGroup, Chat, Transcript } from './types'
 
 /**
  * Diskursboard (Schritt 3): Graph wie `git log --graph`. Zeit läuft nach unten, jeder Chat eines
@@ -71,13 +71,30 @@ export interface BoardCollapsed {
  * denen nichts Bemerkenswertes passiert. Sie stehen als eine Zeile da und lassen sich aufklappen.
  */
 export interface BoardRun {
-  /** Erster verborgener Knoten – stabiler Schlüssel zum Aufklappen. */
+  /** Erster verborgener Knoten bzw. Id der Gruppe – stabiler Schlüssel zum Aufklappen. */
   key: string
   chatId: string
   lane: number
   row: number
   /** Verborgene Knoten, in Reihenfolge. */
   items: BoardNode[]
+  /** Benannte Gruppe (sonst automatisch geraffte Strecke). */
+  groupId?: string
+  label?: string
+  /** Äste, die in der Gruppe stecken und mit eingeklappt sind. */
+  branches?: number
+}
+
+/** Kopfzeile einer aufgeklappten Gruppe; die Klammer reicht von `row` + 1 bis `lastRow`. */
+export interface BoardGroupHead {
+  groupId: string
+  label: string
+  chatId: string
+  lane: number
+  row: number
+  lastRow: number
+  items: number
+  branches: number
 }
 
 export interface BoardModel {
@@ -89,6 +106,8 @@ export interface BoardModel {
   collapsed: BoardCollapsed[]
   /** Eingeklappte Strecken (in `nodes` fehlen deren Knoten). */
   runs: BoardRun[]
+  /** Aufgeklappte Gruppen: Kopfzeile und Umfang der Klammer. */
+  heads: BoardGroupHead[]
 }
 
 export interface BoardOptions {
@@ -100,6 +119,8 @@ export interface BoardOptions {
   keep?: ReadonlySet<string>
   /** Ab so vielen Knoten am Stück wird zusammengefasst (0 = nie). */
   minRun?: number
+  /** Selbst angelegte Gruppen dieses Baums. */
+  groups?: readonly BoardGroup[]
 }
 
 /** Ab fünf gewöhnlichen Nachrichten am Stück wird zusammengefasst – kürzere Strecken lohnen nicht. */
@@ -156,6 +177,7 @@ export function boardModel(
   const expanded = o.expanded ?? new Set<string>()
   const keepItems = o.keep ?? new Set<string>()
   const minRun = o.minRun ?? DEFAULT_MIN_RUN
+  const groups = o.groups ?? []
   const tree = chatTree(chats)
   const find = (ns: ChatNode[]): ChatNode | undefined => {
     for (const n of ns) {
@@ -166,7 +188,60 @@ export function boardModel(
     return undefined
   }
   const root = find(tree)
-  if (!root) return { rootId, lanes: [], nodes: [], edges: [], merges: [], collapsed: [], runs: [] }
+  if (!root) return { rootId, lanes: [], nodes: [], edges: [], merges: [], collapsed: [], runs: [], heads: [] }
+
+  const userItems = (chatId: string) => (transcripts[chatId] ?? []).filter((it): it is Extract<Transcript[number], { type: 'user' }> => it.type === 'user')
+
+  /**
+   * Gruppen auf Nachrichtenbereiche abbilden. Äste, die innerhalb einer Strecke abzweigen, gehören
+   * dazu: Ist die Gruppe zu, verschwinden sie mit – samt ihrer Unteräste.
+   */
+  const byId = new Map(chats.map((c) => [c.id, c]))
+  const kidsOf = new Map<string, Chat[]>()
+  for (const c of chats) if (c.forkFrom?.chatId) kidsOf.set(c.forkFrom.chatId, [...(kidsOf.get(c.forkFrom.chatId) ?? []), c])
+  /** Nachricht Nr. k im Ursprung, an der ein Ast abzweigt (wie `forkNode`, aber ohne Knoten). */
+  const forkK = (c: Chat): number => {
+    const turn = c.forkFrom?.at?.turn
+    if (turn !== undefined && turn > 0) return turn - 1
+    const first = userItems(c.id)[0]?.ts
+    const parent = userItems(c.forkFrom?.chatId ?? '')
+    if (first === undefined) return -1
+    for (let i = parent.length - 1; i >= 0; i--) if (parent[i].ts <= first) return i
+    return -1
+  }
+  const withKids = (id: string, into: Set<string>): void => {
+    for (const k of kidsOf.get(id) ?? []) {
+      if (into.has(k.id)) continue
+      into.add(k.id)
+      withKids(k.id, into)
+    }
+  }
+  interface Resolved {
+    group: BoardGroup
+    items: string[]
+    branches: Set<string>
+  }
+  const resolved: Resolved[] = []
+  for (const g of groups) {
+    if (!byId.has(g.chatId)) continue
+    const items = userItems(g.chatId)
+    const from = items.findIndex((i) => i.id === g.fromItemId)
+    const to = items.findIndex((i) => i.id === g.toItemId)
+    if (from < 0 || to < 0 || to < from) continue
+    const branches = new Set<string>()
+    for (const k of kidsOf.get(g.chatId) ?? []) {
+      const at = forkK(k)
+      if (at >= from && at <= to) {
+        branches.add(k.id)
+        withKids(k.id, branches)
+      }
+    }
+    resolved.push({ group: g, items: items.slice(from, to + 1).map((i) => i.id), branches })
+  }
+  // Was in einer zugeklappten Gruppe steckt, bekommt keine Spur – und auch keinen eigenen Chip.
+  const inClosedGroup = new Set<string>()
+  for (const r of resolved) if (r.group.closed) for (const id of r.branches) inClosedGroup.add(id)
+  const hiddenAll = new Set([...hidden, ...inClosedGroup])
 
   // Spuren in Baum-Reihenfolge (vorne zuerst): Ursprung links, Nebenchats rechts davon.
   // Eingeklappte Äste (nie die Wurzel) bekommen keine Spur; ihr Teilbaum wird mitgezählt.
@@ -180,8 +255,9 @@ export function boardModel(
   }
   number(root)
   const walk = (n: ChatNode, parent?: Chat): void => {
-    if (parent && hidden.has(n.chat.id)) {
-      folded.push({ node: n, parent, color: colorOf.get(n.chat.id)! })
+    if (parent && hiddenAll.has(n.chat.id)) {
+      // In einer Gruppe steckende Äste bekommen keinen Chip – die Gruppe sagt schon, dass da welche sind.
+      if (!inClosedGroup.has(n.chat.id)) folded.push({ node: n, parent, color: colorOf.get(n.chat.id)! })
       return
     }
     lanes.push({ chatId: n.chat.id, lane: lanes.length, title: n.chat.title, agent: n.chat.agent, color: colorOf.get(n.chat.id)! })
@@ -191,7 +267,6 @@ export function boardModel(
   walk(root)
   const laneOf = new Map(lanes.map((l) => [l.chatId, l]))
 
-  const userItems = (chatId: string) => (transcripts[chatId] ?? []).filter((it): it is Extract<Transcript[number], { type: 'user' }> => it.type === 'user')
   const nodes: BoardNode[] = []
   for (const c of order) {
     userItems(c.id).forEach((it, k) => {
@@ -261,19 +336,77 @@ export function boardModel(
     }
   }
 
+  // Eigene Gruppen gehen vor: Was darin liegt, wird nie automatisch gerafft.
+  const groupOf = new Map<BoardNode, Resolved>()
+  for (const r of resolved) {
+    const items = new Set(r.items)
+    for (const n of nodes) if (n.chatId === r.group.chatId && items.has(n.itemId)) groupOf.set(n, r)
+  }
+  for (const [n, r] of groupOf) if (!r.group.closed) keep.add(n)
+
   // Strecken zusammenfassen: nur, was in der Darstellung direkt untereinander in derselben Spur steht.
   const shown: BoardNode[] = []
   const runs: BoardRun[] = []
-  const rowOrder: (BoardNode | BoardRun)[] = []
+  const heads: BoardGroupHead[] = []
+  const rowOrder: (BoardNode | BoardRun | BoardGroupHead)[] = []
+  const headOf = new Map<string, BoardGroupHead>()
+  // Knoten je Gruppe (nicht unbedingt am Stück: dazwischen können Knoten anderer Spuren liegen).
+  const nodesOfGroup = new Map<string, BoardNode[]>()
+  for (const [n, r] of groupOf) nodesOfGroup.set(r.group.id, [...(nodesOfGroup.get(r.group.id) ?? []), n])
+  const started = new Set<string>()
   for (let i = 0; i < nodes.length; ) {
-    if (keep.has(nodes[i])) {
-      shown.push(nodes[i])
-      rowOrder.push(nodes[i])
+    const n = nodes[i]
+    const r = groupOf.get(n)
+    if (r) {
+      // Die Zeile der Gruppe entsteht beim ersten ihrer Knoten – auch wenn die Knoten nicht
+      // lückenlos untereinander stehen, weil dazwischen ein Ast etwas gesagt hat.
+      const first = !started.has(r.group.id)
+      started.add(r.group.id)
+      if (r.group.closed) {
+        if (first) {
+          const run: BoardRun = {
+            key: r.group.id,
+            groupId: r.group.id,
+            label: r.group.label,
+            chatId: r.group.chatId,
+            lane: n.lane,
+            row: 0,
+            items: nodesOfGroup.get(r.group.id) ?? [],
+            branches: r.branches.size
+          }
+          runs.push(run)
+          rowOrder.push(run)
+        }
+      } else {
+        if (first) {
+          const head: BoardGroupHead = {
+            groupId: r.group.id,
+            label: r.group.label,
+            chatId: r.group.chatId,
+            lane: n.lane,
+            row: 0,
+            lastRow: 0,
+            items: (nodesOfGroup.get(r.group.id) ?? []).length,
+            branches: r.branches.size
+          }
+          heads.push(head)
+          headOf.set(r.group.id, head)
+          rowOrder.push(head)
+        }
+        shown.push(n)
+        rowOrder.push(n)
+      }
+      i++
+      continue
+    }
+    if (keep.has(n)) {
+      shown.push(n)
+      rowOrder.push(n)
       i++
       continue
     }
     let j = i
-    while (j < nodes.length && !keep.has(nodes[j]) && nodes[j].lane === nodes[i].lane) j++
+    while (j < nodes.length && !keep.has(nodes[j]) && !groupOf.has(nodes[j]) && nodes[j].lane === n.lane) j++
     const strecke = nodes.slice(i, j)
     const key = strecke[0].itemId
     if (minRun > 0 && strecke.length >= minRun && !expanded.has(key)) {
@@ -287,6 +420,11 @@ export function boardModel(
     i = j
   }
   rowOrder.forEach((r, i) => (r.row = i))
+  // Die Klammer reicht bis zum letzten Knoten der Gruppe.
+  for (const h of heads) {
+    const last = [...rowOrder].reverse().find((r) => 'itemId' in r && groupOf.get(r as BoardNode)?.group.id === h.groupId)
+    h.lastRow = last ? last.row : h.row
+  }
   nodes.length = 0
   nodes.push(...shown)
 
@@ -337,7 +475,7 @@ export function boardModel(
       chats: all.length
     })
   }
-  return { rootId, lanes, nodes, edges, merges, collapsed, runs }
+  return { rootId, lanes, nodes, edges, merges, collapsed, runs, heads }
 }
 
 /**

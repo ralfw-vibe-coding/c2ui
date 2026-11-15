@@ -18,9 +18,11 @@ import {
   type Settings,
   type Transcript,
   type MergeMark,
-  type ChatComment
+  type ChatComment,
+  type BoardGroup
 } from '@shared/types'
 import { addComment, cleanComments, removeComment, updateComment } from './comments'
+import { cleanGroups } from './groups'
 import { createClaudeSession } from './agents/claude'
 import { createCodexSession } from './agents/codex'
 import type { AgentFactory, AgentSession } from './agents/types'
@@ -61,6 +63,7 @@ export interface ChatManagerEvents {
   busy(chatId: string, busy: boolean): void
   chatsChanged(chats: Chat[]): void
   commentsChanged(chatId: string, list: ChatComment[]): void
+  groupsChanged(rootId: string, list: BoardGroup[]): void
 }
 
 const factories: Record<AgentKind, AgentFactory> = {
@@ -245,6 +248,27 @@ export class ChatManager {
     this.commentCache.delete(id)
     this.storage.remove(`comments/${id}`)
     this.saveChats()
+  }
+
+  // ---------- Gruppen im Board ----------
+
+  /** Gruppen eines Baums (Ablage: `boards/<rootId>`). */
+  groups(rootId: string): BoardGroup[] {
+    let list = this.groupCache.get(rootId)
+    if (!list) {
+      list = cleanGroups(this.storage.read<unknown>(`boards/${rootId}`, []))
+      this.groupCache.set(rootId, list)
+    }
+    return list
+  }
+
+  setGroups(rootId: string, list: BoardGroup[]): BoardGroup[] {
+    const clean = cleanGroups(list)
+    this.groupCache.set(rootId, clean)
+    if (clean.length) this.storage.write(`boards/${rootId}`, clean)
+    else this.storage.remove(`boards/${rootId}`)
+    this.events.groupsChanged(rootId, clean)
+    return clean
   }
 
   // ---------- Notizen ----------
@@ -442,6 +466,8 @@ export class ChatManager {
 
   /** Notizen je Chat (Ablage: `comments/<chatId>`). */
   private commentCache = new Map<string, ChatComment[]>()
+  /** Gruppen je Baum (Ablage: `boards/<rootId>`). */
+  private groupCache = new Map<string, BoardGroup[]>()
 
   private emit(id: string, e: AgentEvent): void {
     const chat = this.chats.get(id)
