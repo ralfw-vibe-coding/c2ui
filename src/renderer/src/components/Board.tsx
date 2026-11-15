@@ -116,8 +116,11 @@ export function Board({ rootId, cellId }: { rootId: string; cellId: string }) {
   const pickInfo = pick
     ? (() => {
         const ns = model.nodes.filter((n) => n.chatId === pick.chatId && inPick(model, pick, n))
+        const rows = ns.map((n) => n.row)
         return {
           count: ns.length,
+          /** Mitte der Strecke – dort steht die Leiste. */
+          mid: (Math.min(...rows) + Math.max(...rows)) / 2,
           lane: ns[0]?.lane ?? 0,
           branches: branchesInRange(chats, transcripts, { chatId: pick.chatId, fromItemId: pick.from, toItemId: pick.to }).size
         }
@@ -211,6 +214,30 @@ export function Board({ rootId, cellId }: { rootId: string; cellId: string }) {
                 </button>
               </div>
             ))}
+            {/* Markierte Strecke: benennen und gruppieren – mittig in der Strecke, nicht unter ihr:
+                dort stünde sie genau auf der Zeile, die man als Nächstes anklickt. */}
+            {pick && pickInfo && (
+              <div className="board-pick-bar" style={{ top: pickInfo.mid * ROW + ROW / 2 }}>
+                <Umfang items={pickInfo.count} branches={pickInfo.branches} />
+                <input
+                  autoFocus
+                  value={name}
+                  placeholder={defaultName}
+                  onChange={(e) => setName(e.target.value)}
+                  onKeyDown={(e) => {
+                    e.stopPropagation()
+                    if (e.key === 'Enter') makeGroup()
+                    else if (e.key === 'Escape') (setPick(null), setName(''))
+                  }}
+                />
+                <button className="btn primary small-btn" onClick={makeGroup}>
+                  Gruppe
+                </button>
+                <button className="icon-btn" title="Abbrechen (Esc)" onClick={() => (setPick(null), setName(''))}>
+                  <Icon name="close" size={12} />
+                </button>
+              </div>
+            )}
             {/* Kopfzeile einer offenen Gruppe */}
             {model.heads.map((h) => (
               <div
@@ -329,29 +356,6 @@ export function Board({ rootId, cellId }: { rootId: string; cellId: string }) {
           </div>
         )}
       </div>
-      {/* Markierte Strecke: Umfang nennen, benennen, gruppieren – unten in der Zelle */}
-      {pick && pickInfo && (
-        <div className="board-pick-bar">
-          <Umfang items={pickInfo.count} branches={pickInfo.branches} />
-          <input
-            autoFocus
-            value={name}
-            placeholder={defaultName}
-            onChange={(e) => setName(e.target.value)}
-            onKeyDown={(e) => {
-              e.stopPropagation()
-              if (e.key === 'Enter') makeGroup()
-              else if (e.key === 'Escape') (setPick(null), setName(''))
-            }}
-          />
-          <button className="btn primary small-btn" onClick={makeGroup}>
-            Gruppe
-          </button>
-          <button className="icon-btn" title="Abbrechen (Esc)" onClick={() => (setPick(null), setName(''))}>
-            <Icon name="close" size={12} />
-          </button>
-        </div>
-      )}
     </div>
   )
 }

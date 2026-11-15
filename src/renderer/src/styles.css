@@ -3124,11 +3124,11 @@ li > .fork-slot {
 .board-group {
   cursor: pointer;
 }
-/* Leiste zum Benennen einer markierten Strecke: unten in der Zelle, damit sie keine Zeile verdeckt */
+/* Leiste zum Benennen: mittig in der markierten Strecke (dort klickt man nicht weiter) */
 .board-pick-bar {
   position: absolute;
-  left: 10px;
-  bottom: 10px;
+  left: 50%;
+  transform: translate(-50%, -50%);
   z-index: 4;
   display: flex;
   align-items: center;
