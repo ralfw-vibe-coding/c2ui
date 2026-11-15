@@ -37,7 +37,9 @@ export function ScreenStrip({ chatId, surfaceIds }: { chatId: string; surfaceIds
         <span>
           {surfaceIds.length} {surfaceIds.length === 1 ? 'Screen' : 'Screens'}
         </span>
-        <span className="screen-strip-chevron">{collapsed ? '▸' : '▾'}</span>
+        <span className="screen-strip-chevron">
+          <Icon name={collapsed ? 'chevron-right' : 'chevron-down'} size={15} />
+        </span>
       </button>
       {!collapsed && (
         <div className="screen-strip-items">

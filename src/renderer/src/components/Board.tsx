@@ -213,7 +213,8 @@ export function Board({ rootId, cellId }: { rootId: string; cellId: string }) {
                         toggle(f.chatId)
                       }}
                     >
-                      ▸ <span className="board-folded-title">{f.title}</span> · {f.messages}
+                      <Icon name="chevron-right" size={13} />
+                      <span className="board-folded-title">{f.title}</span> · {f.messages}
                     </button>
                   ))}
                   {n.chatId === dropLane && lastOfLane.get(n.chatId) === n.row && (

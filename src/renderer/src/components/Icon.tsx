@@ -30,6 +30,10 @@ const paths: Record<string, string | string[]> = {
   play: 'M7 4l13 8-13 8z',
   steer: 'M13 3L5 14h6l-1 7 8-11h-6z',
   board: 'M6 3v12M18 3a3 3 0 1 0 0 6 3 3 0 1 0 0-6zM6 15a3 3 0 1 0 0 6 3 3 0 1 0 0-6zM18 9a9 9 0 0 1-9 9',
+  // Klapp-Pfeile (Lucide „chevron-down“/„chevron-right“, ISC-Lizenz) – als Symbol statt als
+  // Textzeichen, weil ▾/▸ in kleinen Schriftgraden kaum zu sehen sind.
+  'chevron-down': 'm6 9 6 6 6-6',
+  'chevron-right': 'm9 18 6-6-6-6',
   // Folgende fünf aus Lucide (ISC-Lizenz): pin, copy, message-circle-dashed, message-circle-warning, folder-up
   // („copy“ als Pfade statt Rechtecken, damit es zum übrigen Satz passt.)
   copy: ['M10 8h10a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H10a2 2 0 0 1-2-2V10a2 2 0 0 1 2-2z', 'M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2'],

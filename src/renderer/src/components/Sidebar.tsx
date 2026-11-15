@@ -232,7 +232,7 @@ function ChatItem({
             toggleCollapsed(chat.id)
           }}
         >
-          {collapsed ? '▸' : '▾'}
+          <Icon name={collapsed ? 'chevron-right' : 'chevron-down'} size={15} />
         </button>
       ) : (
         showToggle && <span className="tree-toggle placeholder" />

@@ -76,7 +76,9 @@ function StepsGroup({ groupKey, blocks, chatId, running }: { groupKey: string; b
   return (
     <div className={`steps${open ? ' open' : ''}`}>
       <button className="steps-head" onClick={toggle} title={open ? 'Arbeitsschritte einklappen' : 'Arbeitsschritte anzeigen'}>
-        <span className="steps-chevron">{open ? '▾' : '▸'}</span>
+        <span className="steps-chevron">
+          <Icon name={open ? 'chevron-down' : 'chevron-right'} size={15} />
+        </span>
         {running ? (
           <span className="spinner" />
         ) : (

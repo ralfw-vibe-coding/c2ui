@@ -1642,7 +1642,9 @@ button.a2ui-update:hover {
   color: var(--text);
 }
 .screen-strip-chevron {
-  font-size: 10px;
+  display: inline-flex;
+  align-items: center;
+  color: var(--text-muted);
 }
 .screen-strip-items {
   display: flex;
@@ -1785,9 +1787,10 @@ button.a2ui-update:hover {
   color: var(--danger);
 }
 .steps-chevron {
-  width: 10px;
-  font-size: 10px;
+  display: inline-flex;
+  align-items: center;
   flex-shrink: 0;
+  color: var(--text-muted);
 }
 .steps-count {
   flex-shrink: 0;
@@ -2240,14 +2243,16 @@ fieldset.agent-settings {
 }
 .tree-toggle {
   flex: none;
-  width: 14px;
+  width: 16px;
   height: 18px;
   margin-right: -4px;
   padding: 0;
   border: 0;
   background: transparent;
   color: var(--text-muted);
-  font-size: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
 }
 .tree-toggle:hover {
