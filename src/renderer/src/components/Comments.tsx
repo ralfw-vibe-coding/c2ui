@@ -14,12 +14,16 @@ import { Icon } from './Icon'
 
 const CARD = 250
 const PIN = 18
+/** Absätze eines Eintrags: an jedem lässt sich ein Lesezeichen setzen, nicht nur am Anfang des Turns. */
+const BLOCKS = 'p, li, blockquote, pre, table, h1, h2, h3, h4, h5, h6'
 interface Pin {
   /** Notiz oder Lesezeichen – beide hängen an derselben Stelle im Text. */
   kind: 'note' | 'bookmark'
   id: string
   itemId: string
   quote?: string
+  /** Das Zitat ist ein ganzer Absatz: die Marke steht an seinem Anfang. */
+  block?: boolean
   comment?: ChatComment
   bookmark?: Bookmark
   /** Lage in der Ebene (= Innenfläche des Verlaufs). */
@@ -57,7 +61,7 @@ export function CommentLayer({ chatId, innerRef }: { chatId: string; innerRef: R
   const editing = useStore((s) => s.editingComment)
   const [pins, setPins] = useState<Pin[]>([])
   const [open, setOpen] = useState<string | null>(null)
-  const [hover, setHover] = useState<{ itemId: string; top: number } | null>(null)
+  const [hover, setHover] = useState<{ itemId: string; top: number; blockTop: number; quote?: string } | null>(null)
   const layerRef = useRef<HTMLDivElement>(null)
   const inner = useInner(innerRef)
 
@@ -101,11 +105,23 @@ export function CommentLayer({ chatId, innerRef }: { chatId: string; innerRef: R
       // Über der Ebene selbst (Knopf, Marken, offene Notiz) bleibt es beim zuletzt überfahrenen Eintrag,
       // sonst wäre der Knopf weg, sobald die Maus ihn erreicht.
       if ((e.target as HTMLElement | null)?.closest('.comment-layer')) return
-      const unit = (e.target as HTMLElement | null)?.closest<HTMLElement>('.unit[data-item-id]')
+      const el = e.target as HTMLElement | null
+      const unit = el?.closest<HTMLElement>('.unit[data-item-id]')
       const itemId = unit?.dataset.itemId
       if (!unit || !itemId) return setHover(null)
-      const top = unitBox(unit).top - inner.getBoundingClientRect().top + 2
-      setHover((h) => (h?.itemId === itemId && Math.abs(h.top - top) < 1 ? h : { itemId, top }))
+      const base = inner.getBoundingClientRect()
+      const top = unitBox(unit).top - base.top + 2
+      // Absatz unter der Maus: so lässt sich auch mitten in einer Antwort ein Lesezeichen setzen.
+      const block = el?.closest<HTMLElement>(BLOCKS)
+      const box = block && unit.contains(block) ? block.getBoundingClientRect() : null
+      const blockTop = box ? box.top - base.top + 2 : top
+      const text = box && blockTop > top + 4 ? cleanQuote(block!.innerText).slice(0, MAX_QUOTE) : ''
+      const quote = text || undefined
+      setHover((h) =>
+        h?.itemId === itemId && h.quote === quote && Math.abs(h.top - top) < 1 && Math.abs(h.blockTop - blockTop) < 1
+          ? h
+          : { itemId, top, blockTop, quote }
+      )
     }
     const onLeave = (): void => setHover(null)
     inner.addEventListener('mousemove', onOver)
@@ -116,20 +132,43 @@ export function CommentLayer({ chatId, innerRef }: { chatId: string; innerRef: R
     }
   }, [inner])
 
-  // Der Knopf stellt sich unter die Marken, die an dieser Stelle schon stehen.
+  /**
+   * Die Knöpfe zum Anlegen: die Notiz oben am Eintrag, das Lesezeichen am Anfang des überfahrenen
+   * Absatzes. Beide stellen sich unter die Marken, die dort schon stehen; stehen sie auf derselben
+   * Höhe, rückt das Lesezeichen daneben.
+   */
   const addAt = useMemo(() => {
     if (!hover || !inner) return null
-    const left = inner.getBoundingClientRect().width - PIN - 2
-    let top = hover.top
-    for (const p of pins) if (Math.abs(p.left - left) < PIN && p.top >= top - 2 && p.top < top + PIN + 1) top = p.top + PIN + 2
-    return { left, top }
+    const right = inner.getBoundingClientRect().width - PIN - 2
+    const frei = (top: number): number => {
+      let t = top
+      for (const p of pins) if (Math.abs(p.left - right) < PIN && p.top >= t - 2 && p.top < t + PIN + 1) t = p.top + PIN + 2
+      return t
+    }
+    const note = { left: right, top: frei(hover.top) }
+    const mark = hover.quote ? { left: right, top: frei(hover.blockTop) } : { left: right - PIN - 2, top: note.top }
+    if (mark.left === note.left && Math.abs(mark.top - note.top) < PIN + 2) {
+      mark.left = note.left - PIN - 2
+      mark.top = note.top
+    }
+    return { note, mark }
   }, [hover, pins, inner])
 
   // Lage bestimmen: hinter das Ende der markierten Stelle, umgerechnet in Koordinaten der Ebene.
   const measure = useCallback((): void => {
     const marken: Pin[] = [
       ...(comments ?? []).map((c) => ({ kind: 'note' as const, id: c.id, itemId: c.itemId, quote: c.quote, comment: c, left: 0, top: 0, found: true })),
-      ...(bookmarks ?? []).map((b) => ({ kind: 'bookmark' as const, id: b.id, itemId: b.itemId, quote: b.quote, bookmark: b, left: 0, top: 0, found: true }))
+      ...(bookmarks ?? []).map((b) => ({
+        kind: 'bookmark' as const,
+        id: b.id,
+        itemId: b.itemId,
+        quote: b.quote,
+        block: b.block,
+        bookmark: b,
+        left: 0,
+        top: 0,
+        found: true
+      }))
     ]
     if (!inner || !marken.length) {
       setPins([])
@@ -141,9 +180,17 @@ export function CommentLayer({ chatId, innerRef }: { chatId: string; innerRef: R
       const unit = inner.querySelector<HTMLElement>(`.unit[data-item-id="${CSS.escape(m.itemId)}"]`)
       if (!unit) continue
       const range = m.quote ? findQuoteRange([unit], m.quote) : null
-      if (!m.quote) {
+      if (!m.quote || (m.block && !range)) {
         // Marke zum ganzen Eintrag: oben rechts, dort, wo auch der Knopf zum Anlegen steht.
+        // Ein Absatz, der nicht mehr da ist, fällt auf diese Stelle zurück.
         const box = unitBox(unit)
+        list.push({ ...m, left: base.width - PIN - 2, top: box.top - base.top + 2, found: !m.quote })
+        continue
+      }
+      if (m.block && range) {
+        // Lesezeichen an einem Absatz: rechts auf Höhe seiner ersten Zeile.
+        const erste = [...range.getClientRects()].filter((r) => r.width || r.height)[0]
+        const box = erste ?? unitBox(unit)
         list.push({ ...m, left: base.width - PIN - 2, top: box.top - base.top + 2, found: true })
         continue
       }
@@ -211,7 +258,7 @@ export function CommentLayer({ chatId, innerRef }: { chatId: string; innerRef: R
     if (hover) void useStore.getState().addComment(chatId, { itemId: hover.itemId })
   }
   const neuesLesezeichen = (): void => {
-    if (hover) void useStore.getState().addBookmark(chatId, { itemId: hover.itemId })
+    if (hover) void useStore.getState().addBookmark(chatId, { itemId: hover.itemId, ...(hover.quote ? { quote: hover.quote, block: true } : {}) })
   }
 
   if (!comments?.length && !bookmarks?.length && !addAt) return null
@@ -221,7 +268,7 @@ export function CommentLayer({ chatId, innerRef }: { chatId: string; innerRef: R
         <>
           <button
             className="comment-add"
-            style={{ left: addAt.left, top: addAt.top }}
+            style={{ left: addAt.note.left, top: addAt.note.top }}
             title="Notiz zu diesem Eintrag (geht nicht an die CLI)"
             onClick={neueNotiz}
           >
@@ -229,8 +276,8 @@ export function CommentLayer({ chatId, innerRef }: { chatId: string; innerRef: R
           </button>
           <button
             className="comment-add bookmark"
-            style={{ left: addAt.left - PIN - 2, top: addAt.top }}
-            title="Lesezeichen für diesen Eintrag"
+            style={{ left: addAt.mark.left, top: addAt.mark.top }}
+            title={hover?.quote ? 'Lesezeichen für diesen Absatz' : 'Lesezeichen für diesen Eintrag'}
             onClick={neuesLesezeichen}
           >
             <Icon name="bookmark-plus" size={11} />

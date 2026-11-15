@@ -20,7 +20,8 @@ import {
   type MergeMark,
   type ChatComment,
   type BoardGroup,
-  type Bookmark
+  type Bookmark,
+  type NewBookmark
 } from '@shared/types'
 import { addComment, cleanComments, removeComment, updateComment } from './comments'
 import { cleanGroups } from './groups'
@@ -275,7 +276,7 @@ export class ChatManager {
     return list
   }
 
-  addBookmark(chatId: string, b: { itemId: string; quote?: string; label?: string }): Bookmark[] {
+  addBookmark(chatId: string, b: NewBookmark): Bookmark[] {
     return this.setBookmarks(chatId, addBookmark(this.bookmarks(chatId), { ...b, id: randomUUID() }))
   }
 

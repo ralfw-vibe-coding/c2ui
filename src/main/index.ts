@@ -6,7 +6,7 @@ import { LOCAL_FILE_SCHEME } from '@shared/a2ui'
 import { listClaudeSessions } from './sessions'
 import { searchChats } from './search'
 import { doneMessage, isOnScreen, isSignOfLife, shouldNotify, stalledMessage, TurnWatch } from './notifications'
-import type { AgentEvent, AgentKind, Attachment, BoardGroup, ChatPatch, LayoutState, MergeMark, PermissionMode, Settings } from '@shared/types'
+import type { AgentEvent, AgentKind, Attachment, BoardGroup, ChatPatch, LayoutState, MergeMark, NewBookmark, PermissionMode, Settings } from '@shared/types'
 import { ChatManager } from './chats'
 import { ensureComponentsDir, loadComposites } from './componentsLoader'
 import { existsSync, watch } from 'node:fs'
@@ -234,7 +234,7 @@ function registerIpc(): void {
   ipcMain.handle('boards:groups', (_e, rootId: string) => manager.groups(rootId))
   ipcMain.handle('boards:setGroups', (_e, rootId: string, list: BoardGroup[]) => manager.setGroups(rootId, list))
   ipcMain.handle('bookmarks:get', (_e, chatId: string) => manager.bookmarks(chatId))
-  ipcMain.handle('bookmarks:add', (_e, chatId: string, b: { itemId: string; quote?: string; label?: string }) => manager.addBookmark(chatId, b))
+  ipcMain.handle('bookmarks:add', (_e, chatId: string, b: NewBookmark) => manager.addBookmark(chatId, b))
   ipcMain.handle('bookmarks:label', (_e, chatId: string, id: string, label: string) => manager.labelBookmark(chatId, id, label))
   ipcMain.handle('bookmarks:remove', (_e, chatId: string, id: string) => manager.removeBookmark(chatId, id))
   ipcMain.handle('comments:counts', () => manager.commentCounts())

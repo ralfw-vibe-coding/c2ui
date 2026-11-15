@@ -10,6 +10,18 @@ describe('Lesezeichen', () => {
     expect(addBookmark([], { id: 'c', itemId: 'i3', quote: 'x'.repeat(400) }, 1)[0].quote?.length).toBe(300)
   })
 
+  it('merkt sich, dass die Stelle ein ganzer Absatz ist', () => {
+    expect(addBookmark([], { id: 'd', itemId: 'i4', quote: 'Der erste Satz des Absatzes.', block: true }, 5)[0]).toEqual({
+      id: 'd',
+      itemId: 'i4',
+      quote: 'Der erste Satz des Absatzes.',
+      block: true,
+      createdAt: 5
+    })
+    // Ohne Zitat gibt es keinen Absatz – dann gilt der ganze Eintrag.
+    expect(addBookmark([], { id: 'e', itemId: 'i5', block: true }, 5)[0].block).toBeUndefined()
+  })
+
   it('beschriftet, benennt um und nimmt die Beschriftung wieder weg', () => {
     const mitLabel = labelBookmark(eins, 'a', '  Kapitel 2  ')
     expect(mitLabel[0].label).toBe('Kapitel 2')

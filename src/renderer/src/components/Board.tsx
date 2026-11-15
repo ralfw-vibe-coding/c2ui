@@ -29,6 +29,8 @@ export function Board({ rootId, cellId }: { rootId: string; cellId: string }) {
   const transcripts = useStore((s) => s.transcripts)
   const busy = useStore((s) => s.busy)
   const [hidden, setHidden] = useState<Set<string>>(() => readHidden(rootId))
+  /** Inhaltsverzeichnis auf- oder zugeklappt (bleibt so, auch beim nächsten Board). */
+  const [tocOpen, setTocOpen] = useState(readTocOpen)
   const groups = useStore((s) => s.groups[rootId])
   useEffect(() => void useStore.getState().ensureGroups(rootId), [rootId])
   /** Markierte Strecke: Anker (erster Klick) und Ende (⇧-Klick), beide in derselben Spur. */
@@ -165,7 +167,7 @@ export function Board({ rootId, cellId }: { rootId: string; cellId: string }) {
    */
   const toc = useMemo(() => {
     const ids = treeIds.split('|')
-    const list: { chatId: string; id: string; row: number; lane: number; itemId: string; text: string; eigen: boolean }[] = []
+    const list: { chatId: string; id: string; row: number; lane: number; itemId: string; needle?: string; text: string; eigen: boolean }[] = []
     for (const chatId of ids) {
       const node = nodeOfItem(transcripts[chatId] ?? [])
       for (const b of bookmarks[chatId] ?? []) {
@@ -180,7 +182,9 @@ export function Board({ rootId, cellId }: { rootId: string; cellId: string }) {
           row,
           lane: n?.lane ?? run?.lane ?? 0,
           itemId: b.itemId,
-          text: b.label || b.quote || n?.label || 'Lesezeichen',
+          // Bei einem Lesezeichen an einem Absatz führt der Klick genau dorthin, nicht nur zum Turn.
+          needle: b.block ? b.quote : undefined,
+          text: einzeilig(b.label || b.quote || n?.label || 'Lesezeichen'),
           eigen: !!b.label
         })
       }
@@ -390,17 +394,24 @@ export function Board({ rootId, cellId }: { rootId: string; cellId: string }) {
       </div>
       {/* Inhaltsverzeichnis: die Lesezeichen des Diskurses, in seiner Reihenfolge */}
       {toc.length > 0 && (
-        <div className="board-toc">
-          <div className="board-toc-head">
-            <Icon name="bookmark" size={13} /> Lesezeichen
-          </div>
-          <ul>
+        <div className={`board-toc${tocOpen ? '' : ' zu'}`}>
+          <button
+            className="board-toc-head"
+            title={tocOpen ? 'Inhaltsverzeichnis zuklappen' : `Inhaltsverzeichnis aufklappen (${toc.length})`}
+            onClick={() => (setTocOpen(!tocOpen), writeTocOpen(!tocOpen))}
+          >
+            <Icon name={tocOpen ? 'chevron-down' : 'chevron-right'} size={15} />
+            <Icon name="bookmark" size={13} />
+            {tocOpen ? <span className="board-toc-title">Lesezeichen</span> : null}
+            <span className="board-toc-count">{toc.length}</span>
+          </button>
+          <ul hidden={!tocOpen}>
             {toc.map((b) => (
               <li key={b.id}>
                 <button
                   className="board-toc-item"
                   title={`${b.text}\nKlick: an dieser Stelle öffnen · ⌘-Klick: in neuer Zelle`}
-                  onClick={(e) => void useStore.getState().openFromBoard(cellId, b.chatId, b.itemId, e.metaKey)}
+                  onClick={(e) => void useStore.getState().openFromBoard(cellId, b.chatId, b.itemId, e.metaKey, b.needle)}
                 >
                   <span className="board-toc-bar" style={{ background: colorOf(model.lanes[b.lane]?.color ?? 0) }} />
                   <span className={`board-toc-text${b.eigen ? ' eigen' : ''}`}>{b.text}</span>
@@ -433,6 +444,29 @@ function readHidden(rootId: string): Set<string> {
     return new Set()
   }
 }
+/** Inhaltsverzeichnis auf/zu (pro Rechner, im localStorage – gilt für alle Boards). */
+const TOC_KEY = 'c2ui.boardToc'
+function readTocOpen(): boolean {
+  try {
+    return localStorage.getItem(TOC_KEY) !== 'zu'
+  } catch {
+    return true
+  }
+}
+function writeTocOpen(open: boolean): void {
+  try {
+    if (open) localStorage.removeItem(TOC_KEY)
+    else localStorage.setItem(TOC_KEY, 'zu')
+  } catch {
+    /* egal */
+  }
+}
+
+/** Ein Absatz als Zeile im Verzeichnis: Umbrüche und Leerraum zusammengezogen. */
+function einzeilig(text: string): string {
+  return text.replace(/\s+/g, ' ').trim()
+}
+
 function writeHidden(rootId: string, ids: Set<string>): void {
   try {
     if (ids.size) localStorage.setItem(hiddenKey(rootId), JSON.stringify([...ids]))

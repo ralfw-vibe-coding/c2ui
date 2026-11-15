@@ -3211,9 +3211,35 @@ li > .fork-slot {
   display: flex;
   align-items: center;
   gap: 5px;
+  width: 100%;
   padding: 0 6px 6px;
+  border: 0;
+  background: none;
+  font: inherit;
   font-size: 12px;
   color: var(--text-muted);
+  cursor: pointer;
+}
+.board-toc-head:hover {
+  color: var(--text);
+}
+.board-toc-title {
+  flex: 1;
+  text-align: left;
+}
+.board-toc-count {
+  font-size: 11px;
+  opacity: 0.7;
+}
+/* Zugeklappt bleibt nur ein schmaler Streifen mit Chevron, Symbol und Anzahl. */
+.board-toc.zu {
+  width: auto;
+  padding: 8px 5px;
+}
+.board-toc.zu .board-toc-head {
+  flex-direction: column;
+  gap: 3px;
+  padding: 0;
 }
 .board-toc ul {
   list-style: none;

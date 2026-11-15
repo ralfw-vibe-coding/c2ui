@@ -1,15 +1,18 @@
 import { MAX_QUOTE } from '@shared/quotes'
-import type { Bookmark } from '@shared/types'
+import type { Bookmark, NewBookmark } from '@shared/types'
 
 /**
  * Lesezeichen an Stellen im Verlauf. Sie liegen neben dem Transkript (`bookmarks/<chatId>`) und
  * gehen nie an die CLI; hier nur die reinen Listenoperationen.
  */
 
-export function addBookmark(list: Bookmark[], b: { id: string; itemId: string; quote?: string; label?: string }, now = Date.now()): Bookmark[] {
+export function addBookmark(list: Bookmark[], b: NewBookmark & { id: string }, now = Date.now()): Bookmark[] {
   const quote = b.quote?.trim().slice(0, MAX_QUOTE)
   const label = b.label?.trim()
-  return [...list, { id: b.id, itemId: b.itemId, ...(quote ? { quote } : {}), ...(label ? { label } : {}), createdAt: now }]
+  return [
+    ...list,
+    { id: b.id, itemId: b.itemId, ...(quote ? { quote } : {}), ...(quote && b.block ? { block: true } : {}), ...(label ? { label } : {}), createdAt: now }
+  ]
 }
 
 /** Beschriftung ändern; leer heißt „keine eigene Beschriftung“ (dann steht das Zitat da). */

@@ -91,10 +91,15 @@ export interface Bookmark {
   itemId: string
   /** Markierter Absatz (zum Wiederfinden der Stelle); fehlt, wenn der ganze Eintrag gemeint ist. */
   quote?: string
+  /** Das Zitat ist ein ganzer Absatz: die Marke steht an seinem Anfang, nicht hinter der Stelle. */
+  block?: boolean
   /** Eigene Beschriftung; ohne sie steht das Zitat bzw. der Anfang des Eintrags da. */
   label?: string
   createdAt: number
 }
+
+/** Angaben beim Anlegen eines Lesezeichens (Rest kommt von der Ablage). */
+export type NewBookmark = Pick<Bookmark, 'itemId' | 'quote' | 'block' | 'label'>
 
 /**
  * Selbst angelegte Gruppe im Diskursboard: eine zusammenhängende Strecke von Nachrichten einer

@@ -10,7 +10,7 @@ import { parseUpdateState, type UpdateState } from '@shared/update'
 import * as Q from '@shared/queue'
 import { PASTE_FILE } from '@shared/paste'
 import { applyEvent } from '@shared/transcript'
-import { DEFAULT_MERGE, type AgentEvent, type BoardGroup, type Bookmark, type ChatComment, type AgentKind, type Attachment, type Chat, type LayoutState, type MergeMark, type Settings, type Transcript } from '@shared/types'
+import { DEFAULT_MERGE, type AgentEvent, type BoardGroup, type Bookmark, type ChatComment, type AgentKind, type Attachment, type Chat, type LayoutState, type MergeMark, type NewBookmark, type Settings, type Transcript } from '@shared/types'
 
 export const CHAT_MIME = 'application/x-claude2ui-chat'
 export const BOARD_MIME = 'application/x-claude2ui-board'
@@ -121,7 +121,7 @@ interface Actions {
   /** Zusammenführen: Dialog öffnen/schließen, starten, Aufarbeitung nach A übernehmen. */
   /** Lesezeichen eines Chats laden, setzen, beschriften, löschen. */
   ensureBookmarks(chatId: string): void
-  addBookmark(chatId: string, b: { itemId: string; quote?: string; label?: string }): Promise<void>
+  addBookmark(chatId: string, b: NewBookmark): Promise<void>
   labelBookmark(chatId: string, id: string, label: string): Promise<void>
   removeBookmark(chatId: string, id: string): Promise<void>
   /** Gruppen eines Baums laden (einmal je Baum). */
@@ -166,7 +166,7 @@ interface Actions {
   /** Board aus der Zelle entfernen (Zelle bleibt). */
   closeBoard(cellId: string): void
   /** Vom Board aus einen Chat an einer Nachricht öffnen – in der Zelle neben dem Board. */
-  openFromBoard(boardCellId: string, chatId: string, itemId: string, newCell?: boolean): Promise<void>
+  openFromBoard(boardCellId: string, chatId: string, itemId: string, newCell?: boolean, needle?: string): Promise<void>
   /** Transkripte laden (z. B. alle Chats eines Boards). */
   ensureTranscripts(chatIds: string[]): void
   /** Im Verlauf eines Chats an eine Stelle springen (nachdem er geöffnet ist). */
@@ -758,7 +758,7 @@ export const useStore = create<State & Actions>((set, get) => {
       get().setLayout({ ...get().layout, root: L.setChat(get().layout.root, cellId, null) })
     },
 
-    async openFromBoard(boardCellId, chatId, itemId, newCell) {
+    async openFromBoard(boardCellId, chatId, itemId, newCell, needle) {
       const { layout } = get()
       const prevCell = boardTargets.get(boardCellId)
       if (newCell && !L.findCellOfChat(layout.root, chatId)) {
@@ -780,7 +780,7 @@ export const useStore = create<State & Actions>((set, get) => {
           await get().openChat(chatId, nl.id)
         }
       } else await get().openChat(chatId)
-      get().jumpTo({ chatId, itemId })
+      get().jumpTo({ chatId, itemId, ...(needle ? { needle } : {}) })
     },
 
     ensureTranscripts(chatIds) {
