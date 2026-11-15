@@ -85,7 +85,8 @@ export function Board({ rootId, cellId }: { rootId: string; cellId: string }) {
     const label = name.trim() || defaultName
     setGroups([
       ...(groups ?? []),
-      { id: `g-${Date.now().toString(36)}`, chatId: pick.chatId, fromItemId: pick.from, toItemId: pick.to, label, closed: true, createdAt: Date.now() }
+      // Offen angelegt: Es soll sich nichts bewegen, nur die Klammer kommt dazu. Zuklappen entscheidet man selbst.
+      { id: `g-${Date.now().toString(36)}`, chatId: pick.chatId, fromItemId: pick.from, toItemId: pick.to, label, closed: false, createdAt: Date.now() }
     ])
     setPick(null)
     setName('')
@@ -99,9 +100,14 @@ export function Board({ rootId, cellId }: { rootId: string; cellId: string }) {
     () => boardModel(chats, transcripts, rootId, { hidden, groups }),
     [chats, transcripts, rootId, hidden, groups]
   )
+  // Markiert wird die Stelle, an der man im Chat gerade liest. Steckt sie in einer zugeklappten
+  // Gruppe, markiert deren Zeile – aber nie ersatzweise der erste Knoten des Chats.
   const activeNode = active
-    ? (model.nodes.find((n) => n.chatId === active && n.itemId === viewItem) ?? model.nodes.find((n) => n.chatId === active))
+    ? (model.nodes.find((n) => n.chatId === active && n.itemId === viewItem) ??
+      (viewItem ? undefined : model.nodes.find((n) => n.chatId === active)))
     : undefined
+  const activeRun =
+    active && viewItem && !activeNode ? model.runs.find((r) => r.chatId === active && r.items.some((i) => i.itemId === viewItem)) : undefined
 
   // Vorschlag für den Namen: die erste Nachricht der Strecke, knapp.
   const defaultName = pick ? (model.nodes.find((n) => n.chatId === pick.chatId && n.itemId === pick.from)?.label ?? 'Gruppe').slice(0, 40) : ''
@@ -168,6 +174,8 @@ export function Board({ rootId, cellId }: { rootId: string; cellId: string }) {
               width={width}
               height={height}
               activeNode={activeNode}
+              activeRow={activeRun?.row ?? activeNode?.row}
+              activeLane={activeRun?.lane ?? activeNode?.lane}
               onLaneDragOver={laneDragOver}
               onLaneDrop={laneDrop}
               onFork={(f) => update((h) => (f.open.length ? f.open.forEach((id) => h.add(id)) : f.closed.forEach((id) => h.delete(id))))}
@@ -179,7 +187,7 @@ export function Board({ rootId, cellId }: { rootId: string; cellId: string }) {
                 key={r.groupId}
                 role="button"
                 tabIndex={0}
-                className="board-row run group"
+                className={`board-row run group${activeRun?.groupId === r.groupId ? ' active' : ''}`}
                 style={{ top: r.row * ROW, height: ROW, paddingLeft: width + 6 }}
                 title={`Gruppe „${r.label}“ · ${r.items.length} Nachrichten\nKlick: aufklappen`}
                 onClick={() => toggleGroup(r.groupId)}
@@ -418,6 +426,8 @@ function Graph({
   width,
   height,
   activeNode,
+  activeRow,
+  activeLane,
   onFork,
   onGroup,
   onLaneDragOver,
@@ -427,6 +437,9 @@ function Graph({
   width: number
   height: number
   activeNode?: BoardNode
+  /** Zeile und Spur der markierten Stelle (auch wenn sie in einer zugeklappten Gruppe steckt). */
+  activeRow?: number
+  activeLane?: number
   onFork: (f: Fork) => void
   onGroup: (groupId: string) => void
   onLaneDragOver: (chatId: string, e: React.DragEvent) => void
@@ -436,7 +449,9 @@ function Graph({
   return (
     <svg className="board-graph" width={width} height={height}>
       {/* Wo man im aktiven Chat gerade ist: gelber Hof um den Knoten */}
-      {activeNode && <circle className="board-active-node" cx={x(activeNode.lane)} cy={y(activeNode.row)} r={10} />}
+      {activeRow !== undefined && activeLane !== undefined && (
+        <circle className="board-active-node" cx={x(activeLane)} cy={y(activeRow)} r={10} />
+      )}
       {/* Spuren */}
       {model.lanes.map((l) =>
         l.first !== undefined && l.last !== undefined && l.last > l.first ? (

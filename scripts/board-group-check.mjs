@@ -67,13 +67,36 @@ check((await leiste.locator('input').getAttribute('placeholder')) === 'Nachricht
 check(/4 Nachrichten, 1 Ast/.test((await leiste.locator('.board-group-size').getAttribute('title')) ?? ''), 'die Leiste nennt auch den Ast in der Strecke')
 await page.screenshot({ path: join(out, '1-markiert.png') })
 
-// Benennen und gruppieren – zugeklappt, Ast verschwindet mit
+// Vor dem Gruppieren einen Turn öffnen – die Markierung darf danach nicht wandern
+await zeile('Nachricht 3').click()
+await page.waitForTimeout(700)
+const markierung = async () => ((await page.locator('.board-row.active').allInnerTexts())[0] ?? '').replace(/\s+/g, ' ')
+const vorher = await markierung()
+log('markiert vor dem Gruppieren:', vorher.slice(0, 30))
+check(/Nachricht 3 /.test(vorher), 'Nachricht 3 ist markiert')
+await zeile('Nachricht 3').click({ modifiers: ['Shift'] })
+await zeile('Nachricht 6').click({ modifiers: ['Shift'] })
+await page.waitForTimeout(300)
+
+// Benennen und gruppieren – die Gruppe entsteht offen, nichts verschiebt sich
 await leiste.locator('input').fill('Bildbeschaffung')
 await leiste.locator('.btn.primary').click()
 await page.waitForTimeout(500)
+const offenGleich = await zeilen()
+log('nach dem Anlegen:', offenGleich.join(' | '))
+check(offenGleich.length === 12, 'die Gruppe ist offen: alle Zeilen plus Kopfzeile')
+check(/Bildbeschaffung/.test(offenGleich[2]), 'die Kopfzeile steht über der Strecke')
+const danach = await markierung()
+log('markiert nach dem Gruppieren:', danach.slice(0, 30))
+check(/Nachricht 3 /.test(danach), 'die Markierung bleibt, wo sie war')
+
+// Zuklappen entscheidet man selbst
+await zeile('Bildbeschaffung').click()
+await page.waitForTimeout(500)
 const nachher = await zeilen()
 log('zugeklappt:', nachher.join(' | '))
-check(nachher.length === 7, 'aus elf Zeilen werden sieben')
+check(nachher.length === 7, 'zugeklappt bleiben sieben Zeilen')
+check(/Bildbeschaffung/.test(await markierung()), 'die markierte Stelle steckt nun in der Gruppe – die Zeile ist markiert')
 check(/Bildbeschaffung/.test(nachher[2]) && /\b4\b/.test(nachher[2]) && /\b1\b/.test(nachher[2]), 'die Gruppenzeile nennt Namen und Umfang')
 const umfang = zeile('Bildbeschaffung').locator('.board-group-size')
 check((await umfang.locator('.icon').count()) === 2, 'Umfang steht mit Symbolen da (Nachrichten und Äste)')
@@ -90,7 +113,7 @@ const gespeichert = JSON.parse(readFileSync(datei, 'utf8'))
 log('gespeichert:', JSON.stringify(gespeichert))
 check(gespeichert[0]?.label === 'Bildbeschaffung' && gespeichert[0]?.closed === true, 'mit Namen und zugeklappt')
 
-// Aufklappen: Kopfzeile, Klammer, Ast wieder da
+// Wieder aufklappen: Kopfzeile, Klammer, Ast wieder da
 await zeile('Bildbeschaffung').click()
 await page.waitForTimeout(400)
 const offen = await zeilen()
