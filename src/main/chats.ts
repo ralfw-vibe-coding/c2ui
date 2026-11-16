@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { acceptedMessages, callMessages, isA2uiCall, surfaceIdOf } from '@shared/a2ui'
 import type { A2uiSetup } from './agents/a2ui'
 import { basename } from 'node:path'
+import { recentDirs, withRecentDir } from '@shared/paths'
 import { applyEvent } from '@shared/transcript'
 import {
   chatModel,
@@ -100,6 +101,13 @@ export class ChatManager {
       const kaputt = c.context && c.context.max && c.context.used > c.context.max
       this.chats.set(c.id, c.background || kaputt ? { ...c, background: undefined, ...(kaputt ? { context: undefined } : {}) } : c)
     }
+    // Zuletzt benutzte Verzeichnisse: beim ersten Start nach dem Update aus den Chats füllen,
+    // dann verschwundene Ordner wegwerfen – sie taugen für keinen neuen Chat.
+    const bekannt = this.settings.recentDirectories.length
+      ? this.settings.recentDirectories
+      : this.list().filter((c) => !c.purpose).map((c) => c.cwd)
+    const recent = recentDirs(bekannt).filter((d) => existsSync(d))
+    if (recent.join('\n') !== this.settings.recentDirectories.join('\n')) this.setSettings({ recentDirectories: recent })
   }
 
   // ---------- Settings & Layout ----------
@@ -149,7 +157,8 @@ export class ChatManager {
       updatedAt: now
     }
     this.chats.set(chat.id, chat)
-    if (!opts.purpose) this.setSettings({ lastDirectory: cwd })
+    if (!opts.purpose)
+      this.setSettings({ lastDirectory: cwd, recentDirectories: withRecentDir(this.settings.recentDirectories, cwd) })
     this.saveChats()
     return chat
   }

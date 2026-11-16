@@ -2670,8 +2670,6 @@ li > .fork-slot {
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
-  direction: rtl;
-  text-align: left;
 }
 .adopt-list {
   list-style: none;
@@ -2712,6 +2710,63 @@ li > .fork-slot {
 .adopt-meta {
   flex: none;
   white-space: nowrap;
+}
+
+/* Verzeichniswahl für einen neuen Chat */
+.dir-dialog {
+  width: 440px;
+}
+.dir-dialog h2 {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.dir-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 46vh;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.dir-list li + li {
+  border-top: 1px solid var(--border);
+}
+.dir-item {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 10px;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+.dir-item:hover {
+  background: var(--bg);
+}
+.dir-item svg {
+  flex: none;
+  align-self: center;
+}
+.dir-name {
+  flex: none;
+  max-width: 55%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.dir-path {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 /* Kontextfüllstand im Zellenkopf */

@@ -1,5 +1,6 @@
 import type { BackgroundTask } from './background'
 import { DEFAULT_PASTE, type PasteLimits } from './paste'
+import { recentDirs } from './paths'
 export type { BackgroundTask }
 
 // Datentypen, die Main-Prozess und Renderer gemeinsam nutzen.
@@ -149,6 +150,8 @@ export interface Settings {
   /** Nach so vielen Minuten Leerlauf wird ein dauerhafter CLI-Prozess (Claude) beendet. */
   idleTimeoutMinutes: number
   lastDirectory: string
+  /** Zuletzt für einen Chat benutzte Arbeitsverzeichnisse, neuestes zuerst. */
+  recentDirectories: string[]
   /** Arbeitsschritte (Werkzeuge, Zwischentexte) je Turn einklappen. */
   collapseSteps: boolean
   /** Größte Breite des Chats in einer Zelle (px); 0 = so breit wie die Zelle. Lange Zeilen liest man schlecht. */
@@ -192,6 +195,7 @@ export const DEFAULT_SETTINGS: Settings = {
   },
   idleTimeoutMinutes: 10,
   lastDirectory: '',
+  recentDirectories: [],
   collapseSteps: true,
   chatWidth: 820,
   paste: DEFAULT_PASTE,
@@ -205,6 +209,7 @@ export function migrateSettings(raw: any): Settings {
   if (!raw || typeof raw !== 'object') return s
   if (typeof raw.idleTimeoutMinutes === 'number') s.idleTimeoutMinutes = raw.idleTimeoutMinutes
   if (typeof raw.lastDirectory === 'string') s.lastDirectory = raw.lastDirectory
+  if (Array.isArray(raw.recentDirectories)) s.recentDirectories = recentDirs(raw.recentDirectories)
   if (typeof raw.collapseSteps === 'boolean') s.collapseSteps = raw.collapseSteps
   if (typeof raw.chatWidth === 'number' && raw.chatWidth >= 0) s.chatWidth = Math.round(raw.chatWidth)
   if (raw.paste && typeof raw.paste === 'object') {

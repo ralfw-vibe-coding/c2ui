@@ -24,3 +24,21 @@ export function displayDir(p: string, home: string, max = 28): string {
   }
   return '…/' + out
 }
+
+/** So viele zuletzt benutzte Arbeitsverzeichnisse merkt sich die App. */
+export const RECENT_DIRS = 12
+
+/** Liste ohne Dubletten und Leereinträge, Reihenfolge bleibt (neuestes zuerst), höchstens `max`. */
+export function recentDirs(dirs: readonly string[], max = RECENT_DIRS): string[] {
+  const out: string[] = []
+  for (const d of dirs) {
+    const dir = typeof d === 'string' ? d.replace(/\/+$/, '') : ''
+    if (dir && !out.includes(dir)) out.push(dir)
+  }
+  return out.slice(0, max)
+}
+
+/** Verzeichnis nach vorn in die Liste der zuletzt benutzten. */
+export function withRecentDir(dirs: readonly string[], dir: string, max = RECENT_DIRS): string[] {
+  return recentDirs([dir, ...dirs], max)
+}

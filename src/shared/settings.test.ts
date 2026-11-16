@@ -17,6 +17,10 @@ describe('migrateSettings', () => {
     const s = migrateSettings({ agents: { codex: { model: 'gpt-x' } } })
     expect(s.agents.codex).toEqual({ ...DEFAULT_SETTINGS.agents.codex, model: 'gpt-x' })
   })
+  it('übernimmt die zuletzt benutzten Verzeichnisse, ohne Dubletten und Unsinn', () => {
+    expect(migrateSettings({ recentDirectories: ['/a', '/a/', 7, '', '/b'] }).recentDirectories).toEqual(['/a', '/b'])
+    expect(migrateSettings({ recentDirectories: 'nein' }).recentDirectories).toEqual([])
+  })
   it('übernimmt die größte Chatbreite, 0 heißt „so breit wie die Zelle“', () => {
     expect(migrateSettings({ chatWidth: 640 }).chatWidth).toBe(640)
     expect(migrateSettings({ chatWidth: 0 }).chatWidth).toBe(0)

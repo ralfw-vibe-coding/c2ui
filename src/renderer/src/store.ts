@@ -9,6 +9,7 @@ import * as M from '@shared/merge'
 import { parseUpdateState, type UpdateState } from '@shared/update'
 import * as Q from '@shared/queue'
 import { PASTE_FILE } from '@shared/paste'
+import { withRecentDir } from '@shared/paths'
 import { applyEvent } from '@shared/transcript'
 import { DEFAULT_MERGE, type AgentEvent, type BoardGroup, type Bookmark, type ChatComment, type AgentKind, type Attachment, type Chat, type LayoutState, type MergeMark, type NewBookmark, type Settings, type Transcript } from '@shared/types'
 
@@ -62,6 +63,8 @@ interface State {
   editingComment: string | null
   /** Dialog „Session übernehmen“ offen. */
   adoptOpen: boolean
+  /** Neuer Chat, für den noch das Arbeitsverzeichnis gewählt wird. */
+  dirPick: { agent: AgentKind; cellId?: string } | null
   /** Dialog zum Zusammenführen (Einrichten, Aufarbeitung prüfen, Fehler). */
   mergeDialog: MergeDialogState | null
   /** Nebenchats, deren Aufarbeitung für eine Zusammenführung gerade läuft (→ Ziel). */
@@ -106,7 +109,12 @@ interface Actions {
   setLayout(l: LayoutState, persist?: boolean): void
   selectCell(cellId: string): void
   openChat(chatId: string, cellId?: string): Promise<void>
+  /** Fragt zuerst nach dem Arbeitsverzeichnis (→ `dirPick`, dann `startChatIn`). */
   newChat(agent: AgentKind, cellId?: string): Promise<void>
+  /** Neuen Chat in diesem Verzeichnis anlegen und öffnen. */
+  startChatIn(dir: string): Promise<void>
+  /** Verzeichniswahl abbrechen – es entsteht kein Chat. */
+  cancelNewChat(): void
   /** Werkstatt-Chat zum Bauen/Bearbeiten eigener Komponenten in einer neuen Zelle öffnen. */
   openWorkshop(component?: string): Promise<void>
   closeChat(cellId: string): Promise<void>
@@ -303,6 +311,7 @@ export const useStore = create<State & Actions>((set, get) => {
     bookmarks: {},
     editingComment: null,
     adoptOpen: false,
+    dirPick: null,
     mergeDialog: null,
     merging: {},
 
@@ -383,15 +392,34 @@ export const useStore = create<State & Actions>((set, get) => {
     },
 
     async newChat(agent, cellId) {
-      const dir = await window.api.pickDirectory(get().settings?.lastDirectory || undefined)
-      if (!dir) return
-      const c = await window.api.createChat(dir, agent)
+      // Ohne bekannte Verzeichnisse ist eine Liste sinnlos: gleich der normale Ordnerdialog.
+      if (!get().settings?.recentDirectories.length) {
+        const dir = await window.api.pickDirectory(get().settings?.lastDirectory || undefined)
+        if (!dir) return
+        set({ dirPick: { agent, ...(cellId ? { cellId } : {}) } })
+        await get().startChatIn(dir)
+        return
+      }
+      set({ dirPick: { agent, ...(cellId ? { cellId } : {}) } })
+    },
+
+    cancelNewChat() {
+      set({ dirPick: null })
+    },
+
+    async startChatIn(dir) {
+      const pick = get().dirPick
+      if (!pick) return
+      set({ dirPick: null })
+      const c = await window.api.createChat(dir, pick.agent)
       set((s) => ({
         chats: s.chats.some((x) => x.id === c.id) ? s.chats : [c, ...s.chats],
         transcripts: { ...s.transcripts, [c.id]: [] },
-        settings: s.settings ? { ...s.settings, lastDirectory: dir } : s.settings
+        settings: s.settings
+          ? { ...s.settings, lastDirectory: dir, recentDirectories: withRecentDir(s.settings.recentDirectories, dir) }
+          : s.settings
       }))
-      await get().openChat(c.id, cellId)
+      await get().openChat(c.id, pick.cellId)
     },
 
     async openWorkshop(component) {
