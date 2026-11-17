@@ -411,6 +411,16 @@ export function Board({ rootId, cellId }: { rootId: string; cellId: string }) {
                     <span className="board-merge-hint">⤵ hier zusammenführen{dropTitle ? ` (in „${dropTitle}“)` : ''}</span>
                   )}
                   {running && <span className="spinner" />}
+                  <button
+                    className="board-fork"
+                    title="Hier abzweigen: Nebenchat mit dem bisherigen Verlauf, eigene Frage"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      void useStore.getState().forkFrom(n.chatId, n.itemId, cellId)
+                    }}
+                  >
+                    <Icon name="branch" size={13} />
+                  </button>
                   <span className="board-time">{time(n.ts)}</span>
                 </div>
               )

@@ -30,6 +30,8 @@ const paths: Record<string, string | string[]> = {
   play: 'M7 4l13 8-13 8z',
   steer: 'M13 3L5 14h6l-1 7 8-11h-6z',
   board: 'M6 3v12M18 3a3 3 0 1 0 0 6 3 3 0 1 0 0-6zM6 15a3 3 0 1 0 0 6 3 3 0 1 0 0-6zM18 9a9 9 0 0 1-9 9',
+  // Abzweigen: Strang, der nach rechts weggeht und dort als eigener weiterläuft.
+  branch: ['M6 4v9a4 4 0 0 0 4 4h8', 'm15 13 4 4-4 4'],
   // Klapp-Pfeile (Lucide „chevron-down“/„chevron-right“, ISC-Lizenz) – als Symbol statt als
   // Textzeichen, weil ▾/▸ in kleinen Schriftgraden kaum zu sehen sind.
   'chevron-down': 'm6 9 6 6 6-6',

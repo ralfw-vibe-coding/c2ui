@@ -30,6 +30,20 @@ function MergeSourceLabel({ chatId, fromChatId, fromItemId, title }: { chatId: s
   )
 }
 
+/** Am Ende einer Antwort abzweigen: Nebenchat daneben, ohne dass etwas markiert sein muss. */
+function ForkHere({ chatId, itemId }: { chatId: string; itemId: string }) {
+  return (
+    <button
+      className="turn-fork"
+      title="Hier abzweigen: Nebenchat mit dem bisherigen Verlauf, eigene Frage"
+      onClick={() => void useStore.getState().forkFrom(chatId, itemId)}
+    >
+      <Icon name="branch" size={12} />
+      <span>abzweigen</span>
+    </button>
+  )
+}
+
 export const TranscriptItemView = memo(function TranscriptItemView({ item, chatId }: { item: TranscriptItem; chatId: string }) {
   switch (item.type) {
     case 'user':
@@ -89,6 +103,7 @@ export const TranscriptItemView = memo(function TranscriptItemView({ item, chatI
           {item.costUsd !== undefined &&
             ` · ${item.costUsd.toLocaleString('de-DE', { style: 'currency', currency: 'USD', maximumFractionDigits: 3 })}`}
           {item.model && ` · ${item.model}`}
+          <ForkHere chatId={chatId} itemId={item.id} />
         </div>
       )
   }

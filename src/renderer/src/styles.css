@@ -766,10 +766,36 @@ button.cell-cwd:hover {
   padding: 2px 0 2px 8px;
 }
 .msg-turn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-size: 11px;
   color: var(--text-muted);
   align-self: flex-start;
   margin-top: -4px;
+}
+/* Abzweigen am Ende einer Antwort: erscheint beim Überfahren der Zeile. */
+.turn-fork {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 5px 1px 3px;
+  border: 0;
+  border-radius: 5px;
+  background: none;
+  color: var(--text-muted);
+  font: inherit;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.1s;
+}
+.msg-turn:hover .turn-fork,
+.turn-fork:focus-visible {
+  opacity: 1;
+}
+.turn-fork:hover {
+  background: var(--bg-elev);
+  color: var(--accent);
 }
 .working {
   display: flex;
@@ -2487,9 +2513,31 @@ li > .fork-slot {
   white-space: nowrap;
   text-overflow: ellipsis;
 }
-.board-time {
+/* Abzweigen an einer Zeile: erscheint beim Überfahren, links neben der Uhrzeit. */
+.board-fork {
   flex: none;
   margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  padding: 2px;
+  border: 0;
+  border-radius: 5px;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  opacity: 0;
+}
+.board-row:hover .board-fork,
+.board-fork:focus-visible {
+  opacity: 1;
+}
+.board-fork:hover {
+  background: var(--bg);
+  color: var(--accent);
+}
+.board-time {
+  flex: none;
+  margin-left: 6px;
   color: var(--text-muted);
   font-size: 11px;
   font-variant-numeric: tabular-nums;

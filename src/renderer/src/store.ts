@@ -11,7 +11,7 @@ import * as Q from '@shared/queue'
 import { PASTE_FILE } from '@shared/paste'
 import { withRecentDir } from '@shared/paths'
 import { applyEvent } from '@shared/transcript'
-import { DEFAULT_MERGE, type AgentEvent, type BoardGroup, type Bookmark, type ChatComment, type AgentKind, type Attachment, type Chat, type LayoutState, type MergeMark, type NewBookmark, type Settings, type Transcript } from '@shared/types'
+import { DEFAULT_MERGE, NEW_CHAT_TITLE, type AgentEvent, type BoardGroup, type Bookmark, type ChatComment, type AgentKind, type Attachment, type Chat, type LayoutState, type MergeMark, type NewBookmark, type Settings, type Transcript } from '@shared/types'
 
 export const CHAT_MIME = 'application/x-claude2ui-chat'
 export const BOARD_MIME = 'application/x-claude2ui-board'
@@ -175,6 +175,13 @@ interface Actions {
   closeBoard(cellId: string): void
   /** Vom Board aus einen Chat an einer Nachricht öffnen – in der Zelle neben dem Board. */
   openFromBoard(boardCellId: string, chatId: string, itemId: string, newCell?: boolean, needle?: string): Promise<void>
+  /**
+   * Ohne Markierung an dieser Stelle abzweigen: Nebenchat in einer neuen Zelle daneben,
+   * Eingabe leer – die erste Nachricht gibt ihm den Titel.
+   * @param itemId Transkript-Eintrag, nach dem abgezweigt wird (Turn-Fußzeile bzw. Board-Zeile)
+   * @param boardCellId Zelle des Boards, wenn der Abzweig von dort kommt
+   */
+  forkFrom(chatId: string, itemId: string, boardCellId?: string): Promise<void>
   /** Transkripte laden (z. B. alle Chats eines Boards). */
   ensureTranscripts(chatIds: string[]): void
   /** Im Verlauf eines Chats an eine Stelle springen (nachdem er geöffnet ist). */
@@ -809,6 +816,22 @@ export const useStore = create<State & Actions>((set, get) => {
         }
       } else await get().openChat(chatId)
       get().jumpTo({ chatId, itemId, ...(needle ? { needle } : {}) })
+    },
+
+    async forkFrom(chatId, itemId, boardCellId) {
+      const c = await window.api.forkChat(chatId, NEW_CHAT_TITLE, { itemId })
+      set((s) => ({ chats: s.chats.some((x) => x.id === c.id) ? s.chats : [c, ...s.chats] }))
+      const { layout } = get()
+      // Vom Board aus neben die Zelle, in die es zuletzt geöffnet hat (sonst neben das Board selbst);
+      // aus einem Chat heraus neben diesen Chat.
+      const letzte = boardCellId ? boardTargets.get(boardCellId) : undefined
+      const beside = boardCellId
+        ? letzte && L.findLeaf(layout.root, letzte) ? letzte : boardCellId
+        : L.findCellOfChat(layout.root, chatId)?.id ?? layout.selectedCellId
+      const nl = L.leaf()
+      get().setLayout({ root: L.splitCell(layout.root, beside, 'row', 'after', nl), selectedCellId: nl.id })
+      if (boardCellId) boardTargets.set(boardCellId, nl.id)
+      await get().openChat(c.id, nl.id)
     },
 
     ensureTranscripts(chatIds) {

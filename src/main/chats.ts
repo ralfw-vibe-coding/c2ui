@@ -22,7 +22,8 @@ import {
   type ChatComment,
   type BoardGroup,
   type Bookmark,
-  type NewBookmark
+  type NewBookmark,
+  NEW_CHAT_TITLE
 } from '@shared/types'
 import { addComment, cleanComments, removeComment, updateComment } from './comments'
 import { cleanGroups } from './groups'
@@ -32,7 +33,7 @@ import { createCodexSession } from './agents/codex'
 import type { AgentFactory, AgentSession } from './agents/types'
 import type { Storage } from './storage'
 
-const DEFAULT_TITLE = 'Neuer Chat'
+const DEFAULT_TITLE = NEW_CHAT_TITLE
 const IMAGE_FILE = /\.(png|jpe?g|gif|webp|svg|bmp|avif|heic|tiff?)$/i
 
 function safeName(name: string): string {
@@ -194,6 +195,11 @@ export class ChatManager {
     const src = this.chats.get(sourceId)
     if (!src) throw new Error('Unbekannter Chat')
     const now = Date.now()
+    // Abzweigstelle: Nachrichten bis zu diesem Eintrag – sonst (ohne Angabe) der ganze bisherige Verlauf.
+    const items = this.transcript(sourceId)
+    const bis = at.itemId ? items.findIndex((i) => i.id === at.itemId) : -1
+    const turn = (bis >= 0 ? items.slice(0, bis + 1) : items).filter((i) => i.type === 'user').length
+    const turns = items.filter((i) => i.type === 'user').length
     const chat: Chat = {
       id: randomUUID(),
       title: title.trim() || `Nachfrage: ${src.title}`,
@@ -206,7 +212,7 @@ export class ChatManager {
         title: src.title,
         ...(src.sessionStarted ? { sessionId: src.sessionId } : {}),
         at: {
-          turn: this.transcript(src.id).filter((i) => i.type === 'user').length,
+          turn,
           ...(at.itemId ? { itemId: at.itemId } : {}),
           ...(at.quote ? { quote: at.quote.slice(0, 300) } : {})
         }
@@ -221,7 +227,10 @@ export class ChatManager {
     this.emit(chat.id, {
       kind: 'notice',
       id: randomUUID(),
-      text: `Abgezweigt aus „${src.title}“ – der bisherige Verlauf ist bekannt. Screens von dort erscheinen hier nicht.`
+      text:
+        `Abgezweigt aus „${src.title}“ – der bisherige Verlauf ist bekannt. Screens von dort erscheinen hier nicht.` +
+        // Beim Abzweigen mitten im Verlauf: Die CLI-Session ist eine Kopie der ganzen, nicht nur bis hierher.
+        (turn < turns ? ` Abgezweigt nach Nachricht ${turn} von ${turns}; die späteren kennt der Agent trotzdem.` : '')
     })
     return chat
   }

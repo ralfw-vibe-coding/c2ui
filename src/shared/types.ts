@@ -145,6 +145,9 @@ export interface AgentSettings {
   defaultMode: PermissionMode
 }
 
+/** Titel, der beim ersten Senden durch den Anfang der Nachricht ersetzt wird. */
+export const NEW_CHAT_TITLE = 'Neuer Chat'
+
 export interface Settings {
   agents: Record<AgentKind, AgentSettings>
   /** Nach so vielen Minuten Leerlauf wird ein dauerhafter CLI-Prozess (Claude) beendet. */
