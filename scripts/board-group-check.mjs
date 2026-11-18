@@ -190,7 +190,40 @@ await zeile('Motive').locator('.board-group-drop').click()
 await page.waitForTimeout(400)
 check((await page.locator('.board-row.group-head').count()) === 1, 'innere Gruppe aufgelöst')
 
+// Ein Ast, der ganz in einer zugeklappten Gruppe steckt: Kante und Zusammenführung müssen am
+// Ordner hängen, nicht an einer Zeile, die es nicht gibt (sonst Linien nach oben ins Nichts).
+await zeile('Welche Motive').click({ modifiers: ['Shift'] })
+await page.waitForTimeout(300)
+await page.locator('.board-pick-bar input').fill('Motivsuche')
+await page.locator('.board-pick-bar .btn.primary').click()
+await page.waitForTimeout(400)
+await zeile('Motivsuche').click()
+await page.waitForTimeout(500)
+const astZu = await zeilen()
+log('Ast zugeklappt:', astZu.join(' | '))
+check(!astZu.some((z) => /Welche Motive/.test(z)), 'die Nachricht des Asts steckt in der Gruppe')
+const ordnerOben = parseFloat(await zeile('Motivsuche').evaluate((n) => n.style.top)) + 15
+const graph = await page.evaluate(() => ({
+  kanten: [...document.querySelectorAll('.board-edge')].map((p) => p.getAttribute('d')),
+  linien: [...document.querySelectorAll('.board-graph line')].map((l) => ({
+    x: Math.round(+l.getAttribute('x1')),
+    y1: +l.getAttribute('y1'),
+    y2: +l.getAttribute('y2')
+  }))
+}))
+log('Graph:', JSON.stringify(graph), 'Ordner bei y =', ordnerOben)
+// Die Kante beginnt an der Abzweigstelle im Ursprung und führt über die Spur des Asts zum Ordner.
+const beginn = /^M [0-9.]+ ([0-9.]+)/.exec(graph.kanten[0] ?? '')
+const astLinien = graph.linien.filter((l) => l.x !== 14)
+check(!!beginn, 'es gibt eine Kante aus dem Ursprung')
+check(astLinien.length > 0, 'und ein Stück Spur beim Ast')
+check(astLinien.every((l) => l.y1 >= +beginn[1]), 'nichts auf der Spur des Asts läuft über die Abzweigstelle hinaus nach oben')
+check(Math.abs(Math.max(...astLinien.map((l) => l.y2)) - ordnerOben) <= 12, 'und sie endet am Ordner')
+
 // Auflösen
+await zeile('Motivsuche').hover()
+await zeile('Motivsuche').locator('.board-group-drop').click()
+await page.waitForTimeout(400)
 await zeile('Bildbeschaffung').hover()
 await zeile('Bildbeschaffung').locator('.board-group-drop').click()
 await page.waitForTimeout(400)

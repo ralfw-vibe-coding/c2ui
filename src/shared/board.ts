@@ -432,13 +432,23 @@ export function boardModel(
   nodes.length = 0
   nodes.push(...shown)
 
-  const byChat = new Map<string, BoardNode[]>()
-  for (const n of nodes) byChat.set(n.chatId, [...(byChat.get(n.chatId) ?? []), n])
+  /**
+   * In welcher Zeile ein Knoten zu sehen ist: in seiner eigenen – oder, wenn er in einer
+   * zugeklappten Gruppe steckt, in deren Ordnerzeile. Steckt er in einem eingeklappten Ast, ist er
+   * nirgends zu sehen. Ohne diese Zuordnung zeigten Kanten auf die Zeilen verborgener Knoten, deren
+   * Nummer nie vergeben wurde – sie liefen nach oben ins Leere.
+   */
+  const rowOf = new Map<BoardNode, number>()
+  for (const n of shown) rowOf.set(n, n.row)
+  for (const r of runs) for (const it of r.items) if (!rowOf.has(it)) rowOf.set(it, r.row)
+  const zeilen = (chatId: string): number[] =>
+    (allOfChat.get(chatId) ?? []).map((n) => rowOf.get(n)).filter((r): r is number => r !== undefined)
+
   for (const l of lanes) {
-    const ns = byChat.get(l.chatId)
-    if (ns?.length) {
-      l.first = ns[0].row
-      l.last = ns[ns.length - 1].row
+    const rows = zeilen(l.chatId)
+    if (rows.length) {
+      l.first = Math.min(...rows)
+      l.last = Math.max(...rows)
     }
   }
 
@@ -446,19 +456,21 @@ export function boardModel(
   for (const c of order) {
     const p = c.forkFrom?.chatId
     const parent = p ? laneOf.get(p) : undefined
-    const childFirst = byChat.get(c.id)?.[0]
+    const rows = zeilen(c.id)
     const at = anchors.get(c.id)
-    if (!parent || !childFirst || !at) continue
-    edges.push({ from: { lane: parent.lane, row: at.row }, to: { lane: laneOf.get(c.id)!.lane, row: childFirst.row }, childId: c.id })
+    const from = at ? rowOf.get(at) : undefined
+    if (!parent || !rows.length || from === undefined) continue
+    edges.push({ from: { lane: parent.lane, row: from }, to: { lane: laneOf.get(c.id)!.lane, row: Math.min(...rows) }, childId: c.id })
   }
 
   // Zusammenführungen: aus dem Stand im Nebenchat (fehlt er, dessen letzter Knoten davor) zur Übernahme.
-  const merges: BoardMerge[] = mergePairs.map((m) => ({
-    from: { lane: m.from.lane, row: m.from.row },
-    to: { lane: m.to.lane, row: m.to.row },
-    sourceId: m.sourceId,
-    itemId: m.itemId
-  }))
+  const merges: BoardMerge[] = mergePairs.flatMap((m) => {
+    const from = rowOf.get(m.from)
+    const to = rowOf.get(m.to)
+    return from === undefined || to === undefined
+      ? []
+      : [{ from: { lane: m.from.lane, row: from }, to: { lane: m.to.lane, row: to }, sourceId: m.sourceId, itemId: m.itemId }]
+  })
 
   const collapsed: BoardCollapsed[] = []
   for (const { node, parent, color } of folded) {
@@ -473,7 +485,7 @@ export function boardModel(
       chatId: node.chat.id,
       title: node.chat.title,
       lane: laneOf.get(parent.id)!.lane,
-      row: at?.row,
+      row: at ? rowOf.get(at) : undefined,
       color,
       messages: all.reduce((n, c) => n + userItems(c.id).length, 0),
       chats: all.length

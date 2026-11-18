@@ -217,6 +217,46 @@ describe('Diskursboard', () => {
   })
 })
 
+describe('zugeklappte Gruppe auf einem Ast', () => {
+  // Wurzel mit vier Nachrichten; nach der zweiten zweigt ein Ast ab, dessen drei Nachrichten alle in
+  // einer zugeklappten Gruppe stecken. Am Ende übernimmt die Wurzel das Ergebnis des Asts.
+  const cs = [chat('r', 1), chat('a', 25, 'r', 2)]
+  const t: Record<string, Transcript> = {
+    r: [
+      user('r1', 10),
+      user('r2', 20),
+      user('r3', 60),
+      user('r4', 70, 'Nimm auf', { merge: { role: 'adopt', fromChatId: 'a', fromItemId: 'a3', fromTitle: 'T-a' } })
+    ] as unknown as Transcript,
+    a: [user('a1', 30), user('a2', 40), user('a3', 50)] as unknown as Transcript
+  }
+  const zu: BoardGroup = { id: 'g', chatId: 'a', fromItemId: 'a1', toItemId: 'a3', label: 'Vorarbeit', closed: true, createdAt: 1 }
+
+  it('zeigt die Abzweigung und die Zusammenführung am Ordner statt im Nichts', () => {
+    const m = boardModel(cs, t, 'r', { groups: [zu] })
+    expect(m.runs).toHaveLength(1)
+    const ordner = m.runs[0].row
+    expect(m.nodes.some((n) => n.chatId === 'a')).toBe(false)
+    // Die Kante aus der Wurzel endet am Ordner, nicht in Zeile 0.
+    expect(m.edges).toEqual([{ from: { lane: 0, row: 1 }, to: { lane: 1, row: ordner }, childId: 'a' }])
+    // Die Zusammenführung beginnt dort ebenfalls.
+    const auf = m.nodes.find((n) => n.itemId === 'r4')!
+    expect(m.merges).toEqual([{ from: { lane: 1, row: ordner }, to: { lane: 0, row: auf.row }, sourceId: 'a', itemId: 'r4' }])
+    // Die Spur des Asts ist auf den Ordner geschrumpft – es gibt nichts zu zeichnen.
+    const ast = m.lanes.find((l) => l.chatId === 'a')!
+    expect([ast.first, ast.last]).toEqual([ordner, ordner])
+  })
+
+  it('zieht die Spur bis zum Ordner, wenn nur ein Teil des Asts zugeklappt ist', () => {
+    const m = boardModel(cs, t, 'r', { groups: [{ ...zu, toItemId: 'a2' }] })
+    const ordner = m.runs[0].row
+    const a3 = m.nodes.find((n) => n.itemId === 'a3')!
+    const ast = m.lanes.find((l) => l.chatId === 'a')!
+    expect([ast.first, ast.last]).toEqual([ordner, a3.row])
+    expect(m.edges[0].to).toEqual({ lane: 1, row: ordner })
+  })
+})
+
 describe('laneSegments', () => {
   it('lässt die Spur ganz, wenn kein Ordner darauf sitzt', () => {
     expect(laneSegments(10, 100, [], 9)).toEqual([[10, 100]])
