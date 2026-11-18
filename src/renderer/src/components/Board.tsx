@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { boardModel, branchesInRange, nodeOfItem, sameAsTitle, type BoardModel, type BoardNode } from '@shared/board'
+import { boardModel, branchesInRange, laneSegments, nodeOfItem, sameAsTitle, type BoardModel, type BoardNode } from '@shared/board'
 import type { BoardGroup } from '@shared/types'
 import type { ChatComment } from '@shared/types'
 import * as L from '@shared/layout'
@@ -12,6 +12,8 @@ const LANE = 20
 const PAD = 14
 /** Abstand der Klammern geschachtelter Gruppen. */
 const BRACKET = 10
+/** Kantenlänge der Ordnermarke auf der Spur. */
+const FOLDER = 18
 /** Farben der Spuren (in beiden Themes lesbar). */
 const COLORS = ['#d97757', '#4a8fd9', '#3fa66b', '#a970d6', '#d9a441', '#d95f8c', '#3fb0b0', '#8a8f98']
 const colorOf = (lane: number): string => COLORS[lane % COLORS.length]
@@ -412,7 +414,7 @@ export function Board({ rootId, cellId }: { rootId: string; cellId: string }) {
                   )}
                   {running && <span className="spinner" />}
                   <button
-                    className="board-fork"
+                    className="board-row-fork"
                     title="Hier abzweigen: Nebenchat mit dem bisherigen Verlauf, eigene Frage"
                     onClick={(e) => {
                       e.stopPropagation()
@@ -616,34 +618,47 @@ function Graph({
   onLaneDrop: (chatId: string, e: React.DragEvent) => void
 }) {
   const forks = forksOf(model)
+  // Wo auf einer Spur ein Ordner sitzt, wird keine Linie gezogen – weder die Spur selbst noch die
+  // senkrechten Stücke der Abzweigungen und Zusammenführungen. So überdeckt nichts den Ordner und
+  // der Graph braucht keinen Fleck in der Hintergrundfarbe.
+  const marken = new Map<number, number[]>()
+  for (const r of model.runs) marken.set(r.lane, [...(marken.get(r.lane) ?? []), y(r.row)])
+  for (const h of model.heads) marken.set(h.lane, [...(marken.get(h.lane) ?? []), y(h.row)])
+  const strich = (lane: number, von: number, bis: number, color: string, key: string): React.ReactNode =>
+    laneSegments(von, bis, marken.get(lane) ?? [], FOLDER / 2 + 1).map(([y1, y2]) => (
+      <line key={`${key}:${y1}`} x1={x(lane)} y1={y1} x2={x(lane)} y2={y2} stroke={color} strokeWidth={2} />
+    ))
   return (
     <svg className="board-graph" width={width} height={height}>
       {/* Wo man im aktiven Chat gerade ist: gelber Hof um den Knoten */}
       {activeRow !== undefined && activeLane !== undefined && (
         <circle className="board-active-node" cx={x(activeLane)} cy={y(activeRow)} r={10} />
       )}
-      {/* Spuren */}
+      {/* Spuren – unterbrochen, wo ein Ordner sitzt */}
       {model.lanes.map((l) =>
-        l.first !== undefined && l.last !== undefined && l.last > l.first ? (
-          <line key={l.chatId} x1={x(l.lane)} y1={y(l.first)} x2={x(l.lane)} y2={y(l.last)} stroke={colorOf(l.color)} strokeWidth={2} />
-        ) : null
+        l.first !== undefined && l.last !== undefined && l.last > l.first
+          ? strich(l.lane, y(l.first), y(l.last), colorOf(l.color), l.chatId)
+          : null
       )}
       {/* Abzweigungen: aus dem Ursprung in die Spur des Nebenchats, dann senkrecht bis zum ersten Knoten */}
-      {model.edges.map((e) => (
-        <path key={e.childId} d={edgePath(e)} fill="none" stroke={colorOf(model.lanes[e.to.lane].color)} strokeWidth={2} />
-      ))}
+      {model.edges.map((e) => {
+        const color = colorOf(model.lanes[e.to.lane].color)
+        return (
+          <g key={e.childId}>
+            <path className="board-edge" d={edgeCurve(e)} fill="none" stroke={color} strokeWidth={2} />
+            {strich(e.to.lane, edgeEnd(e), y(e.to.row), color, `e-${e.childId}`)}
+          </g>
+        )
+      })}
       {/* Zusammenführungen: aus dem Nebenchat senkrecht hinunter, dann in die Spur des Ziels */}
       {model.merges.map((m) => {
         const src = model.lanes.find((l) => l.chatId === m.sourceId)
+        const color = colorOf(src?.color ?? 0)
         return (
-          <path
-            key={`m-${m.itemId}`}
-            className="board-merge"
-            d={mergePath(m)}
-            fill="none"
-            stroke={colorOf(src?.color ?? 0)}
-            strokeWidth={2}
-          />
+          <g key={`m-${m.itemId}`}>
+            {strich(m.from.lane, y(m.from.row), mergeStart(m), color, `m-${m.itemId}`)}
+            <path className="board-merge" d={mergeCurve(m)} fill="none" stroke={color} strokeWidth={2} />
+          </g>
         )
       })}
       {/* Offene Gruppen: Ordner an der Kopfzeile und Klammer über ihre Zeilen, in der Farbe der Spur */}
@@ -673,7 +688,6 @@ function Graph({
           <g key={r.groupId} className="board-run" role="button" aria-label={`Gruppe ${r.label} aufklappen`} onClick={() => onGroup(r.groupId)}>
             <rect x={cx - 9} y={cy - 10} width={18} height={20} rx={7} className="board-run-hit" />
             <Folder x={cx} y={cy} color={color} />
-            {!!r.branches && <path d={`M ${cx + 9} ${cy} h 9`} stroke={color} strokeWidth={2} strokeDasharray="3 3" />}
           </g>
         )
       })}
@@ -723,38 +737,71 @@ function Graph({
   )
 }
 
-/** Ordner auf der Spur: offen, solange die Gruppe aufgeklappt ist (Lucide „folder“/„folder-open“). */
+/**
+ * Ordner auf der Spur (Lucide „folder“/„folder-open“). Zugeklappt ist er eine gefüllte Marke in der
+ * Farbe der Spur – wie ein Knoten, nur eckig: Die Spur und die Zeile darunter bleiben unangetastet.
+ * Aufgeklappt steht nur das offene Zeichen da, die Spur hat an dieser Stelle ohnehin eine Lücke.
+ */
 function Folder({ x: cx, y: cy, color, open }: { x: number; y: number; color: string; open?: boolean }) {
-  const d = open
-    ? 'm6 14 1.45-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.55 6a2 2 0 0 1-1.94 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2'
-    : 'M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z'
+  if (open) {
+    return (
+      <g transform={`translate(${cx - 8} ${cy - 8}) scale(0.667)`}>
+        <path
+          d="m6 14 1.45-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.55 6a2 2 0 0 1-1.94 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"
+          fill="none"
+          stroke={color}
+          strokeWidth={2.4}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </g>
+    )
+  }
   return (
-    <g transform={`translate(${cx - 8} ${cy - 8}) scale(0.667)`}>
-      <rect x={-2} y={0} width={28} height={24} className="board-folder-bg" />
-      <path d={d} fill="none" stroke={color} strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" />
+    <g>
+      <rect x={cx - FOLDER / 2} y={cy - FOLDER / 2} width={FOLDER} height={FOLDER} rx={6} fill={color} />
+      <g transform={`translate(${cx - 7} ${cy - 7}) scale(0.583)`}>
+        <path
+          d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"
+          fill="none"
+          className="board-folder-mark"
+          strokeWidth={2.6}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </g>
     </g>
   )
 }
 
-/** Abzweigung: aus dem Ursprung in die Spur des Nebenchats, dann senkrecht bis zu seinem ersten Knoten. */
-function edgePath(e: BoardModel['edges'][number]): string {
+/** Wo die Kurve einer Abzweigung in der Spur des Nebenchats ankommt (darunter geht es senkrecht weiter). */
+function edgeEnd(e: BoardModel['edges'][number]): number {
+  return Math.min(y(e.to.row), y(e.from.row) + ROW * 0.9)
+}
+
+/** Abzweigung: aus dem Ursprung hinüber in die Spur des Nebenchats. */
+function edgeCurve(e: BoardModel['edges'][number]): string {
   const x1 = x(e.from.lane)
   const y1 = y(e.from.row)
   const x2 = x(e.to.lane)
-  const yb = Math.min(y(e.to.row), y1 + ROW * 0.9)
+  const yb = edgeEnd(e)
   const mid = (y1 + yb) / 2
-  return `M ${x1} ${y1} C ${x1} ${mid}, ${x2} ${mid}, ${x2} ${yb} L ${x2} ${y(e.to.row)}`
+  return `M ${x1} ${y1} C ${x1} ${mid}, ${x2} ${mid}, ${x2} ${yb}`
 }
 
-/** Zusammenführung: in der Spur des Nebenchats hinunter bis kurz vor die Übernahme, dann hinüber ins Ziel. */
-function mergePath(m: BoardModel['merges'][number]): string {
+/** Wo die Kurve einer Zusammenführung aus der Spur des Nebenchats ausschert (darüber geht es senkrecht hoch). */
+function mergeStart(m: BoardModel['merges'][number]): number {
+  return Math.max(y(m.from.row), y(m.to.row) - ROW * 0.9)
+}
+
+/** Zusammenführung: aus der Spur des Nebenchats hinüber ins Ziel. */
+function mergeCurve(m: BoardModel['merges'][number]): string {
   const x1 = x(m.from.lane)
-  const y1 = y(m.from.row)
   const x2 = x(m.to.lane)
   const y2 = y(m.to.row)
-  const yb = Math.max(y1, y2 - ROW * 0.9)
+  const yb = mergeStart(m)
   const mid = (yb + y2) / 2
-  return `M ${x1} ${y1} L ${x1} ${yb} C ${x1} ${mid}, ${x2} ${mid}, ${x2} ${y2}`
+  return `M ${x1} ${yb} C ${x1} ${mid}, ${x2} ${mid}, ${x2} ${y2}`
 }
 
 function time(ts: number): string {

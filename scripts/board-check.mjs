@@ -121,7 +121,12 @@ check((await page.locator('.board-fork[data-state="closed"]').count()) === 1, 'K
 await page.locator('.board-fork[data-state="closed"]').click()
 check((await page.locator('.board-row').count()) === 11, '„+“-Knoten klappt wieder auf')
 check((await page.locator('.cell').count()) === cellsBefore, 'Knotenklick öffnet keinen Chat')
-check((await page.locator('.board-graph > path').count()) === 3, 'drei Abzweig-Kanten')
+check((await page.locator('.board-edge').count()) === 3, 'drei Abzweig-Kanten')
+// Die Abzweigknoten im Graphen dürfen nicht mit dem Knopf in der Zeile verwechselt werden.
+check(
+  (await page.locator('.board-graph .board-fork').first().evaluate((e) => getComputedStyle(e).opacity)) === '1',
+  'und die Abzweigknoten sind sichtbar'
+)
 check((await page.locator('.cell-title', { hasText: 'Diskurs: Hausarbeit' }).count()) === 1, 'Zellentitel nennt den Diskurs')
 await page.screenshot({ path: join(out, '1-board.png') })
 const chips = await page.evaluate(() =>

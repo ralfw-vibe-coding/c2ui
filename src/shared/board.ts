@@ -498,3 +498,22 @@ export function nodeOfItem(transcript: Transcript): Map<string, string> {
   }
   return map
 }
+
+/**
+ * Spur in Striche zerlegen, damit sie nicht durch die Ordner der Gruppen läuft.
+ * @param from Anfang der Spur, @param to ihr Ende (beides y-Werte)
+ * @param marken y-Werte, an denen ein Ordner sitzt
+ * @param r halbe Höhe eines Ordners – so viel bleibt darüber und darunter frei
+ * @returns Striche [Anfang, Ende]; Stummel unter 3 px entfallen – die sähen nach Dreck aus
+ */
+export function laneSegments(from: number, to: number, marken: readonly number[], r: number): [number, number][] {
+  const MIN = 3
+  const out: [number, number][] = []
+  let start = from
+  for (const m of [...marken].sort((a, b) => a - b)) {
+    if (m - r - start >= MIN) out.push([start, m - r])
+    start = Math.max(start, m + r)
+  }
+  if (to - start >= MIN) out.push([start, to])
+  return out
+}

@@ -103,7 +103,17 @@ check((await umfang.locator('.icon').count()) === 2, 'Umfang steht mit Symbolen 
 check(/4 Nachrichten, 1 Ast/.test((await umfang.getAttribute('title')) ?? ''), 'ausgeschrieben steht es im Tooltip')
 check(!nachher.some((z) => /Nachricht 4\b/.test(z)), 'was in der Gruppe liegt, ist weg')
 check(!nachher.some((z) => /Welche Motive/.test(z)), 'der Ast darin ebenfalls')
-check((await page.locator('.board-folder-bg').count()) === 1, 'auf der Spur steht ein Ordner')
+check((await page.locator('.board-run .board-folder-mark').count()) === 1, 'auf der Spur steht eine Ordnermarke')
+check((await page.locator('.board-folder-bg').count()) === 0, 'und kein Fleck in der Hintergrundfarbe darüber')
+// Die Spur läuft nicht durch die Marke, sondern hat dort eine Lücke (Zeile 3 → Mitte bei y = 75).
+const striche = await page.evaluate(() =>
+  [...document.querySelectorAll('.board-graph line')]
+    .filter((l) => Math.round(+l.getAttribute('x1')) === 14)
+    .map((l) => [+l.getAttribute('y1'), +l.getAttribute('y2')])
+)
+log('Striche der Wurzelspur:', JSON.stringify(striche))
+check(striche.length === 2, 'die Spur besteht aus zwei Strichen')
+check(striche.every(([a, b]) => b < 75 - 6 || a > 75 + 6), 'keiner davon läuft durch die Marke')
 await page.screenshot({ path: join(out, '2-zugeklappt.png') })
 
 // Gespeichert wird beim Baum, nicht im Browser

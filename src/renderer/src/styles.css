@@ -2513,8 +2513,9 @@ li > .fork-slot {
   white-space: nowrap;
   text-overflow: ellipsis;
 }
-/* Abzweigen an einer Zeile: erscheint beim Überfahren, links neben der Uhrzeit. */
-.board-fork {
+/* Abzweigen an einer Zeile: erscheint beim Überfahren, links neben der Uhrzeit.
+   (Nicht .board-fork – so heißen die Abzweigknoten im Graphen.) */
+.board-row-fork {
   flex: none;
   margin-left: auto;
   display: inline-flex;
@@ -2527,11 +2528,11 @@ li > .fork-slot {
   cursor: pointer;
   opacity: 0;
 }
-.board-row:hover .board-fork,
-.board-fork:focus-visible {
+.board-row:hover .board-row-fork,
+.board-row-fork:focus-visible {
   opacity: 1;
 }
-.board-fork:hover {
+.board-row-fork:hover {
   background: var(--bg);
   color: var(--accent);
 }
@@ -3262,8 +3263,9 @@ li > .fork-slot {
 .board-group-size .icon:first-child {
   margin-left: 0;
 }
-.board-folder-bg {
-  fill: var(--bg);
+/* Ordner in der gefüllten Marke: ausgespart in der Farbe der Zelle */
+.board-folder-mark {
+  stroke: var(--bg-elev);
 }
 .board-group {
   cursor: pointer;

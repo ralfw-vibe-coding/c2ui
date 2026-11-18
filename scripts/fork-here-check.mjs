@@ -52,10 +52,16 @@ const letzteFuss = fuss.last()
 const letzterKnopf = page.locator('.msg-turn .turn-fork').last()
 const deckkraft = async () => letzterKnopf.evaluate((e) => getComputedStyle(e).opacity)
 check((await deckkraft()) === '0', 'der Knopf ist unsichtbar, solange die Maus woanders ist')
-const kasten = await letzteFuss.boundingBox()
-await page.mouse.move(kasten.x + kasten.width / 2, kasten.y + kasten.height / 2)
-await page.waitForTimeout(200)
-check((await deckkraft()) === '1', 'beim Überfahren der Zeile erscheint er')
+// Zweimal versuchen: Rollt das Transkript nach dem Öffnen noch, rutscht die Zeile unter der Maus weg.
+let sichtbar = '0'
+for (let i = 0; i < 2 && sichtbar !== '1'; i++) {
+  const kasten = await letzteFuss.boundingBox()
+  await page.mouse.move(kasten.x + 10, kasten.y + kasten.height / 2)
+  await page.mouse.move(kasten.x + kasten.width / 2, kasten.y + kasten.height / 2)
+  await page.waitForTimeout(250)
+  sichtbar = await deckkraft()
+}
+check(sichtbar === '1', 'beim Überfahren der Zeile erscheint er')
 await page.screenshot({ path: join(out, '1-turnfuss.png') })
 
 // 2. Klick zweigt ab: neue Zelle daneben, nichts gesendet
@@ -93,7 +99,7 @@ await page.locator('.chat-item', { hasText: 'Erkläre mir den Bundestag' }).firs
 await page.locator('.chat-item', { hasText: 'Erkläre mir den Bundestag' }).first().locator('.icon-btn[title*="Diskursboard"]').click()
 await page.locator('.board-row').first().waitFor()
 const zeile = page.locator('.board-row', { hasText: 'Wer schreibt die Gesetze' }).first()
-const boardKnopf = zeile.locator('.board-fork')
+const boardKnopf = zeile.locator('.board-row-fork')
 check((await boardKnopf.count()) === 1, 'jede Board-Zeile hat einen Knopf zum Abzweigen')
 check((await boardKnopf.evaluate((e) => getComputedStyle(e).opacity)) === '0', 'der ist unsichtbar, bis die Maus auf der Zeile steht')
 await zeile.hover()

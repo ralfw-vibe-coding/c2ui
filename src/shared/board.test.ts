@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { boardModel, messageLabel, nodeOfItem, rootOf, sameAsTitle } from './board'
+import { boardModel, laneSegments, messageLabel, nodeOfItem, rootOf, sameAsTitle } from './board'
 import { A2UI_ACTION_PREFIX } from './a2ui'
 import type { BoardGroup, Chat, Transcript } from './types'
 
@@ -214,5 +214,37 @@ describe('Diskursboard', () => {
       expect(m.runs.map((r) => [r.label, r.items.length])).toEqual([['Außen', 8]])
       expect(m.nodes.filter((n) => n.chatId === 'r').map((n) => n.itemId)).toEqual(['r1', 'r10'])
     })
+  })
+})
+
+describe('laneSegments', () => {
+  it('lässt die Spur ganz, wenn kein Ordner darauf sitzt', () => {
+    expect(laneSegments(10, 100, [], 9)).toEqual([[10, 100]])
+  })
+
+  it('schneidet um jeden Ordner ein Loch', () => {
+    expect(laneSegments(10, 100, [50], 9)).toEqual([
+      [10, 41],
+      [59, 100]
+    ])
+    expect(laneSegments(10, 100, [30, 70], 9)).toEqual([
+      [10, 21],
+      [39, 61],
+      [79, 100]
+    ])
+  })
+
+  it('lässt Striche weg, für die kein Platz bleibt', () => {
+    // Ordner gleich am Anfang bzw. am Ende der Spur: dort kein Strich.
+    expect(laneSegments(10, 100, [10], 9)).toEqual([[19, 100]])
+    expect(laneSegments(10, 100, [100], 9)).toEqual([[10, 91]])
+    expect(laneSegments(10, 30, [10, 30], 9)).toEqual([])
+  })
+
+  it('kommt mit dicht beieinander liegenden Ordnern zurecht', () => {
+    expect(laneSegments(0, 60, [20, 30], 9)).toEqual([
+      [0, 11],
+      [39, 60]
+    ])
   })
 })
