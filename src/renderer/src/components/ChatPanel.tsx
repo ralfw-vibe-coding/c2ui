@@ -246,6 +246,14 @@ export function ChatPanel({ chatId, active }: { chatId: string; active: boolean 
             <span>
               Läuft im Hintergrund: {background.map((t) => t.label).join(' · ')} – danach arbeitet der Chat weiter.
             </span>
+            {/* C2UI weiß nur, was die CLI meldet. Wer den Befehl anderswo beendet hat, hakt hier ab. */}
+            <button
+              className="background-off"
+              title="Abhaken – läuft doch nicht mehr. Ändert nichts an der CLI; meldet sie den Befehl doch noch, geht es wie gewohnt weiter."
+              onClick={() => void window.api.clearBackground(chatId)}
+            >
+              <Icon name="close" size={11} />
+            </button>
           </div>
         )}
         </div>

@@ -1,7 +1,7 @@
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { chatModel, type Attachment, type Block } from '@shared/types'
-import { startedTask, taskIdOf, taskReports, withoutReported, type BackgroundTask } from '@shared/background'
+import { startedTask, stoppedTaskId, taskIdOf, taskReports, withoutReported, type BackgroundTask } from '@shared/background'
 import { childEnv } from '../env'
 import { claudeA2uiArgs, workshopPrompt } from './a2ui'
 import { claudeImageBlocks, textWithAttachments } from './attachments'
@@ -26,6 +26,8 @@ class ClaudeSession implements AgentSession {
   private background: BackgroundTask[] = []
   /** Id der CLI → Id des Werkzeugaufrufs (falls eine Meldung nur die erste nennt). */
   private taskIds = new Map<string, string>()
+  /** Laufende Stopp-Aufrufe: Id des Werkzeugaufrufs → Id der CLI-Aufgabe, die er beenden soll. */
+  private stopping = new Map<string, string>()
   private turnStartedAt = 0
   // Streaming-Zustand der aktuellen API-Nachricht
   private curMsgId = ''
@@ -242,6 +244,12 @@ class ClaudeSession implements AgentSession {
         // Befehle im Hintergrund laufen über das Turn-Ende hinaus weiter.
         const started = blocks.map((b) => startedTask(b)).filter((t): t is BackgroundTask => !!t)
         if (started.length) this.setBackground([...this.background, ...started])
+        // Beendet der Agent einen Hintergrundbefehl selbst, bleibt die Fertigmeldung aus. Den
+        // Aufruf merken; abgehakt wird, sobald sein Ergebnis da ist (er kann auch scheitern).
+        for (const b of blocks) {
+          const stop = stoppedTaskId(b)
+          if (stop && b.type === 'tool_use') this.stopping.set(b.id, stop)
+        }
         const index = msgId === this.curMsgId ? this.curIndex : undefined
         this.cb.onEvent({ kind: 'assistant', msgId, blocks, index })
         return
@@ -271,6 +279,11 @@ class ClaudeSession implements AgentSession {
           // Die CLI vergibt dem Hintergrundbefehl eine eigene Id; sie steht in ihrer Startmeldung.
           const taskId = taskIdOf(text)
           if (taskId && this.background.some((t) => t.id === c.tool_use_id)) this.taskIds.set(taskId, c.tool_use_id)
+          const stopped = this.stopping.get(c.tool_use_id)
+          if (stopped !== undefined) {
+            this.stopping.delete(c.tool_use_id)
+            if (!c.is_error) this.forgetTask(stopped)
+          }
           this.cb.onEvent({
             kind: 'tool-result',
             toolUseId: c.tool_use_id,
@@ -351,6 +364,23 @@ class ClaudeSession implements AgentSession {
       if (!this._busy) this.armIdle()
     }
     this.cb.onEvent({ kind: 'background', tasks })
+  }
+
+  /**
+   * Der Mensch hakt die Anzeige ab. Für die CLI ändert das nichts – kommt doch noch eine
+   * Fertigmeldung, arbeitet der Chat wie gehabt weiter.
+   */
+  forgetBackground(): void {
+    if (this.background.length) this.setBackground([])
+  }
+
+  /** Vom Agenten beendete Aufgabe aus der Liste nehmen – für sie kommt keine Fertigmeldung. */
+  private forgetTask(cliTaskId: string): void {
+    const toolUseId = this.taskIds.get(cliTaskId)
+    if (!toolUseId) return
+    this.taskIds.delete(cliTaskId)
+    const rest = this.background.filter((t) => t.id !== toolUseId)
+    if (rest.length !== this.background.length) this.setBackground(rest)
   }
 
   /** Meldet die CLI einen fertigen Hintergrundbefehl, ist er aus der Liste raus. */

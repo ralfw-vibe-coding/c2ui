@@ -402,6 +402,22 @@ export class ChatManager {
     this.session(chat).send(text, attachments)
   }
 
+  /**
+   * „Läuft im Hintergrund“ von Hand abhaken. C2UI weiß nur, was die CLI meldet; beendet jemand
+   * den Befehl außerhalb, bleibt die Meldung aus und die Anzeige stünde für immer da.
+   */
+  clearBackground(id: string): void {
+    const session = this.sessions.get(id)
+    if (session?.forgetBackground) {
+      session.forgetBackground()
+      return
+    }
+    const chat = this.chats.get(id)
+    if (!chat?.background) return
+    this.chats.set(id, { ...chat, background: undefined })
+    this.saveChats()
+  }
+
   /** Zwischenruf in den laufenden Turn; erscheint im Verlauf, sobald der Agent ihn aufnimmt. */
   steer(id: string, text: string, attachments: Attachment[] = []): void | Promise<void> {
     const s = this.sessions.get(id)

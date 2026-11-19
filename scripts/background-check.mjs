@@ -25,10 +25,35 @@ writeFileSync(fake, `#!/usr/bin/env node
 const say = (o) => process.stdout.write(JSON.stringify(o) + '\\n')
 const ergebnis = (ms) => say({ type: 'result', subtype: 'success', duration_ms: ms, total_cost_usd: 0.01, usage: { input_tokens: 10, output_tokens: 5 }, modelUsage: { 'claude-test': { contextWindow: 200000 } } })
 say({ type: 'system', subtype: 'init', session_id: 'sitzung-1' })
-let ersterTurn = true
+let turn = 0
 process.stdin.on('data', () => {
-  if (!ersterTurn) return
-  ersterTurn = false
+  turn++
+  // Zweiter Turn: ein Befehl, der im Hintergrund läuft und von dem nie eine Fertigmeldung kommt.
+  if (turn === 2) return setTimeout(() => {
+    say({ type: 'assistant', message: { id: 'msg_3', model: 'claude-test', content: [
+      { type: 'tool_use', id: 'toolu_2', name: 'Bash', input: { command: './mvc dev', description: 'Lokalen Server starten', run_in_background: true } }
+    ] } })
+    say({ type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: 'toolu_2', content: 'Command running in background with ID: bg8y. Output is being written to: /tmp/bg8y.output. You will be notified when it completes.' }] } })
+    ergebnis(200)
+  }, 200)
+  // Dritter Turn: der Agent beendet ihn selbst – die CLI meldet das nur als Ergebnis des Aufrufs.
+  if (turn === 3) return setTimeout(() => {
+    say({ type: 'assistant', message: { id: 'msg_4', model: 'claude-test', content: [
+      { type: 'tool_use', id: 'toolu_3', name: 'TaskStop', input: { task_id: 'bg8y' } }
+    ] } })
+    say({ type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: 'toolu_3', content: JSON.stringify({ message: 'Successfully stopped task: bg8y (./mvc dev)', task_id: 'bg8y', task_type: 'local_bash', command: './mvc dev' }) }] } })
+    say({ type: 'assistant', message: { id: 'msg_5', model: 'claude-test', content: [{ type: 'text', text: 'Der Server ist gestoppt.' }] } })
+    ergebnis(200)
+  }, 200)
+  // Vierter Turn: wieder etwas im Hintergrund, das von sich aus nie endet.
+  if (turn === 4) return setTimeout(() => {
+    say({ type: 'assistant', message: { id: 'msg_6', model: 'claude-test', content: [
+      { type: 'tool_use', id: 'toolu_4', name: 'Bash', input: { command: './mvc dev', description: 'Server noch einmal starten', run_in_background: true } }
+    ] } })
+    say({ type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: 'toolu_4', content: 'Command running in background with ID: bg9z. Output is being written to: /tmp/bg9z.output.' }] } })
+    ergebnis(200)
+  }, 200)
+  if (turn !== 1) return
   setTimeout(() => {
     say({ type: 'assistant', message: { id: 'msg_1', model: 'claude-test', content: [
       { type: 'text', text: 'Ich starte die Bilder im Hintergrund.' },
@@ -103,6 +128,33 @@ check(/Im Hintergrund fertig: „Sechs Bilder erzeugen“/.test(verlauf), 'der V
 check(/Die sechs Bilder sind fertig\./.test(verlauf), 'die Antwort danach steht im Verlauf')
 check((await page.locator('.cell .working').count()) === 0, 'danach ist der Chat wieder ruhig')
 await page.screenshot({ path: join(out, '2-fertig.png') })
+
+// Beendet der Agent den Befehl selbst (TaskStop), bleibt die Fertigmeldung aus – die Anzeige
+// muss trotzdem verschwinden, sonst steht dort „läuft“, obwohl nichts mehr läuft.
+await ta.fill('Starte den lokalen Server.')
+await ta.press('Enter')
+await page.locator('.working.background').waitFor({ timeout: 15_000 })
+check(/Lokalen Server starten/.test(await page.locator('.working.background').innerText()), 'der Server läuft im Hintergrund')
+await page.screenshot({ path: join(out, '3-server.png') })
+await ta.fill('Stopp den Server.')
+await ta.press('Enter')
+await page.locator('.transcript', { hasText: 'Der Server ist gestoppt.' }).waitFor({ timeout: 15_000 })
+await page.waitForTimeout(800)
+check((await page.locator('.working.background').count()) === 0, 'nach dem Stoppen ist die Anzeige weg – ohne Fertigmeldung')
+check((await page.locator('.chat-item .chat-background').count()) === 0, 'in der Seitenleiste ebenso')
+
+// Und wenn gar nichts gemeldet wird: von Hand abhaken
+await ta.fill('Starte ihn nochmal.')
+await ta.press('Enter')
+await page.locator('.working.background').waitFor({ timeout: 15_000 })
+check(/Server noch einmal starten/.test(await page.locator('.working.background').innerText()), 'er läuft wieder')
+const abhaken = page.locator('.working.background .background-off')
+check((await abhaken.count()) === 1, 'an der Anzeige steht ein Knopf zum Abhaken')
+await page.screenshot({ path: join(out, '4-abhaken.png') })
+await abhaken.click()
+await page.waitForTimeout(600)
+check((await page.locator('.working.background').count()) === 0, 'der Klick nimmt die Anzeige weg')
+check((await page.locator('.chat-item .chat-background').count()) === 0, 'auch in der Seitenleiste')
 
 await app.close()
 log(failed ? 'FEHLGESCHLAGEN' : 'alles OK')

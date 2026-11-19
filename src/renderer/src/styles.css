@@ -3178,6 +3178,22 @@ li > .fork-slot {
   gap: 6px;
   color: #b8860b;
 }
+/* Abhaken, wenn nichts mehr läuft (die CLI meldet nicht jedes Ende). */
+.background-off {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px;
+  border: 0;
+  border-radius: 5px;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  opacity: 0.6;
+}
+.background-off:hover {
+  opacity: 1;
+  background: var(--bg);
+}
 /* Sichtbar aktiv, aber ruhiger als der laufende Turn. */
 .working.background .spinner {
   border-top-color: #d9a441;

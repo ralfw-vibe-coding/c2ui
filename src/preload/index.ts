@@ -73,6 +73,8 @@ const api = {
     }
   },
   interrupt: (id: string): Promise<void> => ipcRenderer.invoke('agent:interrupt', id),
+  /** „Läuft im Hintergrund“ abhaken; die CLI erfährt davon nichts. */
+  clearBackground: (id: string): Promise<void> => ipcRenderer.invoke('agent:clearBackground', id),
   steer: (id: string, text: string, attachments?: Attachment[]): Promise<void> => ipcRenderer.invoke('agent:steer', id, text, attachments),
   pickDirectory: (defaultPath?: string): Promise<string | null> => ipcRenderer.invoke('dialog:pickDirectory', defaultPath),
   listModels: (agent: AgentKind): Promise<ModelList> => ipcRenderer.invoke('models:list', agent),

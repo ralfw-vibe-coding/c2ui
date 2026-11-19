@@ -61,6 +61,24 @@ export function taskReports(text: string): TaskReport[] {
   return out
 }
 
+/** Werkzeuge, mit denen der Agent einen Hintergrundbefehl von sich aus beendet. */
+const STOP_TOOLS = new Set(['TaskStop', 'KillShell', 'KillBash', 'KillTask'])
+
+/**
+ * Beendet dieser Block einen Hintergrundbefehl? Dann die Id, unter der die CLI ihn führt.
+ * Für einen so beendeten Befehl kommt **keine** Fertigmeldung mehr – ohne das hier bliebe die
+ * Anzeige „läuft im Hintergrund“ stehen, obwohl längst nichts mehr läuft.
+ */
+export function stoppedTaskId(block: Block): string | undefined {
+  if (block.type !== 'tool_use' || !STOP_TOOLS.has(block.name)) return undefined
+  const input = (block.input ?? {}) as Record<string, unknown>
+  for (const k of ['task_id', 'shell_id', 'bash_id', 'id']) {
+    const v = input[k]
+    if (typeof v === 'string' && v.trim()) return v.trim()
+  }
+  return undefined
+}
+
 /** Die Id, die die CLI beim Start gemeldet hat („Command running in background with ID: …“). */
 export function taskIdOf(result: string): string | undefined {
   return /running in background with ID:\s*([A-Za-z0-9_-]+)/.exec(result)?.[1]

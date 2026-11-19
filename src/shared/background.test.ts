@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { startedTask, taskIdOf, taskReports, withoutReported } from './background'
+import { startedTask, stoppedTaskId, taskIdOf, taskReports, withoutReported } from './background'
 import type { Block } from './types'
 
 const bash = (id: string, input: Record<string, unknown>): Block => ({ type: 'tool_use', id, name: 'Bash', input }) as unknown as Block
@@ -49,5 +49,25 @@ describe('Arbeit im Hintergrund', () => {
   it('findet die Id aus der Startmeldung', () => {
     expect(taskIdOf('Command running in background with ID: bfa9ppq5q. Output is being written to: /tmp/x')).toBe('bfa9ppq5q')
     expect(taskIdOf('Alles erledigt.')).toBeUndefined()
+  })
+})
+
+describe('vom Agenten beendete Hintergrundbefehle', () => {
+  const stop = (name: string, input: Record<string, unknown>): Block => ({ type: 'tool_use', id: 'x', name, input }) as Block
+
+  it('erkennt TaskStop und nennt die Id der CLI', () => {
+    expect(stoppedTaskId(stop('TaskStop', { task_id: 'bviu8bvbv' }))).toBe('bviu8bvbv')
+  })
+
+  it('kennt auch die anderen Namen und Felder', () => {
+    expect(stoppedTaskId(stop('KillShell', { shell_id: 'abc' }))).toBe('abc')
+    expect(stoppedTaskId(stop('KillBash', { bash_id: 'def' }))).toBe('def')
+    expect(stoppedTaskId(stop('KillTask', { id: 'ghi' }))).toBe('ghi')
+  })
+
+  it('lässt alles andere in Ruhe', () => {
+    expect(stoppedTaskId(stop('Bash', { command: 'kill 123' }))).toBeUndefined()
+    expect(stoppedTaskId(stop('TaskStop', {}))).toBeUndefined()
+    expect(stoppedTaskId({ type: 'text', text: 'TaskStop' } as Block)).toBeUndefined()
   })
 })

@@ -13,6 +13,8 @@ export interface AgentSession {
   steer?(text: string, attachments?: Attachment[]): void | Promise<void>
   /** Bricht den laufenden Turn ab. */
   interrupt(): void
+  /** Vergisst gemerkte Hintergrundbefehle (der Mensch hakt die Anzeige ab). */
+  forgetBackground?(): void
   /** Beendet einen eventuell laufenden Prozess. */
   dispose(): void
 }
