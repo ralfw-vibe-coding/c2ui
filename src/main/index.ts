@@ -270,6 +270,9 @@ function registerIpc(): void {
   ipcMain.handle('attachments:import', (_e, chatId: string, path: string) => manager.importAttachment(chatId, path))
   ipcMain.handle('agent:interrupt', (_e, id: string) => manager.interrupt(id))
   ipcMain.handle('agent:clearBackground', (_e, id: string) => manager.clearBackground(id))
+  ipcMain.handle('chats:moveWorkdir', (_e, cwd: string, picked: string, move: boolean) =>
+    manager.moveWorkdir(cwd, picked, move, homedir())
+  )
   ipcMain.handle('agent:steer', (_e, id: string, text: string, attachments?: Attachment[]) =>
     manager.steer(id, text, attachments ?? [])
   )

@@ -26,6 +26,7 @@ import {
   NEW_CHAT_TITLE
 } from '@shared/types'
 import { addComment, cleanComments, removeComment, updateComment } from './comments'
+import { checkMove, moveWorkdirFiles, normPath, targetPath } from './movedir'
 import { cleanGroups } from './groups'
 import { addBookmark, cleanBookmarks, labelBookmark, removeBookmark } from './bookmarks'
 import { createClaudeSession } from './agents/claude'
@@ -400,6 +401,40 @@ export class ChatManager {
 
     this.emit(id, { kind: 'user', id: randomUUID(), text, ts: Date.now(), ...(attachments.length ? { attachments } : {}), ...(merge ? { merge } : {}) })
     this.session(chat).send(text, attachments)
+  }
+
+  /**
+   * Arbeitsverzeichnis umziehen: alle Chats, die in diesem Ordner arbeiten, ziehen mit – der Ordner
+   * ist gewandert, nicht ein einzelner Chat. `move` verschiebt ihn dabei selbst (das Ziel ist dann
+   * der Ordner, *in* den er kommt); sonst ist `picked` der Pfad, an dem er schon liegt.
+   * @returns neuer Pfad, betroffene Chats und was im alten Projektordner bleiben musste
+   */
+  moveWorkdir(cwd: string, picked: string, move: boolean, home: string): { cwd: string; chats: number; skipped: string[] } {
+    const from = normPath(cwd)
+    const to = targetPath(from, picked, move)
+    const betroffen = [...this.chats.values()].filter((c) => normPath(c.cwd) === from)
+    if (!betroffen.length) throw new Error('Kein Chat arbeitet in diesem Ordner.')
+    const beschaeftigt = betroffen.find((c) => this.isBusy(c.id))
+    if (beschaeftigt) throw new Error(`„${beschaeftigt.title}“ arbeitet noch – erst abwarten, dann umziehen.`)
+    const fehler = checkMove(from, to, move)
+    if (fehler) throw new Error(fehler)
+    // Erst die Prozesse beenden: Ein laufender Claude schreibt in die Verlaufsdatei, die gleich wandert.
+    for (const c of betroffen) {
+      this.sessions.get(c.id)?.dispose()
+      this.sessions.delete(c.id)
+    }
+    const skipped = moveWorkdirFiles(from, to, move, home)
+    for (const c of betroffen) this.chats.set(c.id, { ...this.chats.get(c.id)!, cwd: to })
+    this.setSettings({ lastDirectory: to, recentDirectories: withRecentDir(this.settings.recentDirectories, to) })
+    this.saveChats()
+    for (const c of betroffen) {
+      this.emit(c.id, {
+        kind: 'notice',
+        id: randomUUID(),
+        text: `Arbeitsverzeichnis umgezogen: ${from} → ${to}`
+      })
+    }
+    return { cwd: to, chats: betroffen.length, skipped }
   }
 
   /**

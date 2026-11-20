@@ -501,15 +501,46 @@ body.resizing-row * {
 .cell-meta .icon {
   opacity: 0.75;
 }
-/* Der Ordner im Zellenkopf öffnet ihn im Finder. */
+/* Der Ordner im Zellenkopf öffnet ihn im Finder; der Pfeil daneben zieht ihn um. */
+.cell-cwd-group {
+  min-width: 0;
+  padding: 1px 2px 1px 4px;
+  gap: 1px;
+}
 button.cell-cwd {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  padding: 1px 4px;
   border: 0;
+  border-radius: 5px;
   background: none;
+  color: inherit;
   font: inherit;
   font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   cursor: pointer;
 }
 button.cell-cwd:hover {
+  background: var(--bg-sunken);
+  color: var(--text);
+}
+.cell-cwd-move {
+  flex: none;
+  display: inline-flex;
+  padding: 2px;
+  border: 0;
+  border-radius: 5px;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  opacity: 0.5;
+}
+.cell-cwd-move:hover {
+  opacity: 1;
   background: var(--bg-sunken);
   color: var(--text);
 }
@@ -1982,9 +2013,8 @@ button.a2ui-update:hover {
   min-width: 0;
   overflow: hidden;
 }
-.cell-meta.cell-cwd {
+.cell-meta.cell-cwd-group {
   flex-shrink: 3;
-  text-overflow: ellipsis;
 }
 .model-chip-text {
   overflow: hidden;
@@ -2758,6 +2788,29 @@ li > .fork-slot {
 }
 .adopt-meta {
   flex: none;
+  white-space: nowrap;
+}
+
+/* Umzug des Arbeitsverzeichnisses */
+.move-dialog {
+  width: 460px;
+}
+.move-now {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 13px;
+}
+.move-actions {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 6px 10px;
+}
+.move-actions .btn {
   white-space: nowrap;
 }
 

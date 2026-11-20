@@ -72,14 +72,19 @@ export function Cell({ cellId, chatId, board }: { cellId: string; chatId: string
           </div>
         ) : null}
         {chat && (
-          <button
-            className="cell-meta cell-cwd"
-            title={`${chat.cwd}\nKlick: Ordner im Finder öffnen`}
-            onClick={() => void window.api.reveal(chat.cwd)}
-          >
-            <Icon name="folder" size={13} />
-            {displayDir(chat.cwd, home)}
-          </button>
+          <span className="cell-meta cell-cwd-group">
+            <button className="cell-cwd" title={`${chat.cwd}\nKlick: Ordner im Finder öffnen`} onClick={() => void window.api.reveal(chat.cwd)}>
+              <Icon name="folder" size={13} />
+              {displayDir(chat.cwd, home)}
+            </button>
+            <button
+              className="cell-cwd-move"
+              title="Arbeitsverzeichnis umziehen – der Ordner ist woanders hin"
+              onClick={() => useStore.getState().setMoveDir(chat.cwd)}
+            >
+              <Icon name="chevron-down" size={12} />
+            </button>
+          </span>
         )}
         {chat && <ChatModelSelect chat={chat} />}
         {chat && <ContextGauge chat={chat} />}

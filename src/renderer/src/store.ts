@@ -65,6 +65,8 @@ interface State {
   adoptOpen: boolean
   /** Neuer Chat, für den noch das Arbeitsverzeichnis gewählt wird. */
   dirPick: { agent: AgentKind; cellId?: string } | null
+  /** Arbeitsverzeichnis, das gerade umziehen soll (Pfad), sonst null. */
+  moveDir: string | null
   /** Dialog zum Zusammenführen (Einrichten, Aufarbeitung prüfen, Fehler). */
   mergeDialog: MergeDialogState | null
   /** Nebenchats, deren Aufarbeitung für eine Zusammenführung gerade läuft (→ Ziel). */
@@ -115,6 +117,9 @@ interface Actions {
   startChatIn(dir: string): Promise<void>
   /** Verzeichniswahl abbrechen – es entsteht kein Chat. */
   cancelNewChat(): void
+  setMoveDir(cwd: string | null): void
+  /** Arbeitsverzeichnis umziehen; alle Chats darin ziehen mit. Wirft bei Fehlern. */
+  moveWorkdir(cwd: string, picked: string, move: boolean): Promise<void>
   /** Werkstatt-Chat zum Bauen/Bearbeiten eigener Komponenten in einer neuen Zelle öffnen. */
   openWorkshop(component?: string): Promise<void>
   closeChat(cellId: string): Promise<void>
@@ -319,6 +324,7 @@ export const useStore = create<State & Actions>((set, get) => {
     editingComment: null,
     adoptOpen: false,
     dirPick: null,
+    moveDir: null,
     mergeDialog: null,
     merging: {},
 
@@ -412,6 +418,22 @@ export const useStore = create<State & Actions>((set, get) => {
 
     cancelNewChat() {
       set({ dirPick: null })
+    },
+
+    setMoveDir(cwd) {
+      set({ moveDir: cwd })
+    },
+
+    async moveWorkdir(cwd, picked, move) {
+      const r = await window.api.moveWorkdir(cwd, picked, move)
+      // Pfade stecken in den Chats; die neue Liste kommt ohnehin gleich vom Hauptprozess.
+      set((s) => ({ chats: s.chats.map((c) => (c.cwd === cwd ? { ...c, cwd: r.cwd } : c)) }))
+      if (r.skipped.length) {
+        window.alert(
+          `Umgezogen nach ${r.cwd}.\n\nIm alten Projektordner blieb liegen, was es am Ziel schon gab:\n` +
+            r.skipped.map((p) => `· ${p}`).join('\n')
+        )
+      }
     },
 
     async startChatIn(dir) {

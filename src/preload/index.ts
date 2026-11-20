@@ -73,6 +73,9 @@ const api = {
     }
   },
   interrupt: (id: string): Promise<void> => ipcRenderer.invoke('agent:interrupt', id),
+  /** Arbeitsverzeichnis umziehen (mit Verlauf und Gedächtnis); alle Chats darin ziehen mit. */
+  moveWorkdir: (cwd: string, picked: string, move: boolean): Promise<{ cwd: string; chats: number; skipped: string[] }> =>
+    ipcRenderer.invoke('chats:moveWorkdir', cwd, picked, move),
   /** „Läuft im Hintergrund“ abhaken; die CLI erfährt davon nichts. */
   clearBackground: (id: string): Promise<void> => ipcRenderer.invoke('agent:clearBackground', id),
   steer: (id: string, text: string, attachments?: Attachment[]): Promise<void> => ipcRenderer.invoke('agent:steer', id, text, attachments),
