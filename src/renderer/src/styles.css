@@ -2166,12 +2166,15 @@ button.a2ui-update:hover {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.update-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--accent);
-  margin-left: 4px;
+/* Auf Updates prüfen (Seitenleiste unten): eingefärbt, solange eines bereitliegt. */
+.sidebar-bottom .update-btn {
+  padding: 4px 6px;
+}
+.update-btn.available {
+  color: var(--accent);
+}
+.update-btn.available:hover {
+  color: var(--accent);
 }
 fieldset.agent-settings {
   min-width: 0;

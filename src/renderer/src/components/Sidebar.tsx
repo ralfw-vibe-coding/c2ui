@@ -2,6 +2,7 @@ import { useState, useSyncExternalStore } from 'react'
 import { chatTree, visibleRows } from '@shared/chatTree'
 import * as L from '@shared/layout'
 import { AGENT_KINDS, AGENTS, type Chat } from '@shared/types'
+import { parseUpdateState, type UpdateState } from '@shared/update'
 import { baseName, CHAT_MIME, shortPath, useStore } from '../store'
 import { AgentLogo } from './AgentLogo'
 import { ConfirmButton } from './ConfirmButton'
@@ -12,7 +13,6 @@ import { SearchBox, SearchResults } from './Search'
 import type { SearchResult } from '../../../main/search'
 
 export function Sidebar() {
-  const updateReady = useStore((s) => s.update.state === 'available')
   const chats = useStore((s) => s.chats)
   const root = useStore((s) => s.layout.root)
   const selectedCellId = useStore((s) => s.layout.selectedCellId)
@@ -115,13 +115,103 @@ export function Sidebar() {
         >
           <Icon name="folder-up" size={15} /> <span>Session</span>
         </button>
+        <UpdateButton />
         <button className="icon-btn" title="Einstellungen" onClick={() => useStore.getState().setSettingsOpen(true)}>
           <Icon name="gear" /> <span>Einstellungen</span>
-          {updateReady && <span className="update-dot" title="Neue Version verfügbar" />}
         </button>
       </div>
     </aside>
   )
+}
+
+/**
+ * Auf Updates prüfen, ohne den Umweg über die Einstellungen. Ist eines da, bleibt das Zeichen
+ * eingefärbt, bis aktualisiert wurde; ein Klick darauf aktualisiert dann auch.
+ */
+function UpdateButton() {
+  const update = useStore((s) => s.update)
+  const [working, setWorking] = useState(false)
+  /** Kurz nach einer Prüfung ohne Fund: ein Haken statt des Pfeils, damit der Klick eine Antwort hat. */
+  const [geprueft, setGeprueft] = useState(false)
+  if (update.state === 'unavailable') return null
+
+  const da = update.state === 'available'
+  const run = async (f: () => Promise<unknown>): Promise<UpdateState> => {
+    setWorking(true)
+    try {
+      const u = parseUpdateState(await f())
+      useStore.setState({ update: u })
+      return u
+    } finally {
+      setWorking(false)
+    }
+  }
+  const click = (): void => {
+    // Ohne Update-Ordner gibt es nichts zu prüfen – dort wird er gewählt.
+    if (update.state === 'off') {
+      useStore.getState().setSettingsOpen(true)
+      return
+    }
+    if (da) {
+      void (async () => {
+        const busy = Object.values(useStore.getState().busy).filter(Boolean).length
+        if (
+          busy &&
+          !(await window.api.confirm(
+            `${busy} Chat(s) arbeiten noch.`,
+            'Beim Aktualisieren wird C2UI beendet und neu gestartet; laufende Antworten werden abgebrochen.',
+            'Aktualisieren'
+          ))
+        )
+          return
+        await run(() => window.api.updateInstall())
+      })()
+      return
+    }
+    void run(() => window.api.updateCheck()).then((u) => {
+      if (u.state !== 'current') return
+      setGeprueft(true)
+      setTimeout(() => setGeprueft(false), 1800)
+    })
+  }
+
+  return (
+    <button
+      className={`icon-btn update-btn${da ? ' available' : ''}`}
+      disabled={working || update.state === 'installing'}
+      title={updateTitle(update, geprueft)}
+      onClick={click}
+    >
+      <Icon name={geprueft ? 'check' : 'circle-arrow-down'} size={16} />
+    </button>
+  )
+}
+
+function updateTitle(update: UpdateState, geprueft: boolean): string {
+  switch (update.state) {
+    case 'available':
+      return `Build ${update.offer.build} liegt bereit – klicken zum Aktualisieren (C2UI startet neu)`
+    case 'installing':
+      return 'Wird aktualisiert …'
+    case 'off':
+      return 'Auf Updates prüfen – dafür fehlt noch der Update-Ordner (Einstellungen)'
+    case 'failed':
+      return `Letzter Versuch fehlgeschlagen: ${update.message}. Klicken: noch einmal prüfen`
+    case 'current':
+      return geprueft ? 'Alles aktuell' : `Auf Updates prüfen · zuletzt geprüft ${timeOf(update.checked)}`
+    default:
+      return 'Auf Updates prüfen'
+  }
+}
+
+/** Uhrzeit bzw. Datum einer Prüfung, kurz. */
+function timeOf(iso: string): string {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return '–'
+  const heute = new Date().toDateString() === d.toDateString()
+  return heute
+    ? d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })
+    : d.toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
 }
 
 // Breite der Seitenleiste (pro Rechner, im localStorage).
