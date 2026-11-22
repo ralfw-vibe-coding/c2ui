@@ -9,6 +9,8 @@ import { Icon } from './Icon'
 import { TranscriptView } from './TranscriptView'
 
 const NEAR_BOTTOM_PX = 60
+/** So weit gilt als „ganz unten“: erst dort klebt der Chat wieder von selbst am Ende. */
+const AT_END_PX = 8
 const NO_STEERING: never[] = []
 import { drafts } from '../drafts'
 import { AttachmentChips } from './Attachments'
@@ -109,17 +111,19 @@ export function ChatPanel({ chatId, active }: { chatId: string; active: boolean 
     // Zwischenstände der eigenen weichen Fahrt nicht als „der Mensch scrollt“ lesen; sie endet
     // ohnehin gleich am Ende. Will er trotzdem weg, kommt das über das Rad (onWheel) an.
     if (performance.now() < smoothUntil.current) return
-    const near = el.scrollHeight - el.scrollTop - el.clientHeight < NEAR_BOTTOM_PX
-    // Nach einem eigenen Sprung ans Ende kann der Inhalt gewachsen sein: Dann steht die Ansicht
-    // noch dort, wo wir sie hingesetzt haben, ist aber nicht mehr das Ende – also nachfassen.
-    // Ist sie dagegen weiter oben, hat der Mensch gescrollt; dann gehört ihm die Ansicht.
-    const gewachsen = el.scrollTop >= stickTop.current - 2
-    if (!near && stickRef.current && gewachsen && performance.now() < programmaticUntil.current) {
+    const rest = el.scrollHeight - el.scrollTop - el.clientHeight
+    const near = rest < NEAR_BOTTOM_PX
+    // Steht die Ansicht weiter oben, als der letzte eigene Sprung sie gesetzt hat, war es der Mensch.
+    const hochgeschoben = el.scrollTop < stickTop.current - 2
+    // Sonst, kurz nach so einem Sprung: Der Inhalt ist gewachsen, das Ende liegt tiefer – nachfassen.
+    if (!near && !hochgeschoben && stickRef.current && performance.now() < programmaticUntil.current) {
       scrollToEnd()
       return
     }
-    stickRef.current = near
-    setAtBottom(near)
+    // Wer nach oben geschoben hat, klebt erst wieder, wenn er ganz unten ankommt. Sonst zöge schon
+    // ein kleiner Schubser (der die Zone am Ende nicht verlässt) die Ansicht sofort zurück.
+    stickRef.current = hochgeschoben ? rest <= AT_END_PX : near
+    setAtBottom(stickRef.current)
   }
 
   /** Rad nach oben heißt: Der Mensch will hier bleiben, auch wenn die Antwort weiterwächst. */

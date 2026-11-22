@@ -87,6 +87,22 @@ check(spaeter.rest > 300, 'die Stelle bleibt stehen, während die Antwort weiter
 check((await page.locator('.to-bottom').count()) === 1, 'der Knopf „Zum Ende“ steht bereit')
 await page.screenshot({ path: join(out, '1-oben.png') })
 
+// Ein kleiner Schubser (weniger als die Zone am Ende) muss genauso stehen bleiben.
+await page.locator('.to-bottom').click()
+await page.waitForTimeout(1000)
+const vorSchubser = await stand()
+log('wieder am Ende:', JSON.stringify(vorSchubser))
+await page.mouse.wheel(0, -40)
+await page.waitForTimeout(700)
+const schubser = await stand()
+log('nach kleinem Schubser:', JSON.stringify(schubser))
+check(schubser.rest > 20, 'auch ein kleiner Schubser nach oben bleibt stehen')
+check((await page.locator('.to-bottom').count()) === 1, 'und der Knopf „Zum Ende“ zeigt den Weg zurück')
+await page.waitForTimeout(700)
+const schubserSpaeter = await stand()
+log('kurz danach:', JSON.stringify(schubserSpaeter))
+check(schubserSpaeter.top <= schubser.top + 5, 'der Chat zieht die Ansicht nicht wieder ans Ende')
+
 // Zurück ans Ende: dann klebt der Chat wieder von selbst.
 await page.locator('.to-bottom').click()
 await page.waitForTimeout(1200)
