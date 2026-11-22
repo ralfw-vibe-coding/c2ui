@@ -115,10 +115,13 @@ export function Sidebar() {
         >
           <Icon name="folder-up" size={15} /> <span>Session</span>
         </button>
-        <UpdateButton />
-        <button className="icon-btn" title="Einstellungen" onClick={() => useStore.getState().setSettingsOpen(true)}>
-          <Icon name="gear" /> <span>Einstellungen</span>
-        </button>
+        {/* Rechts nur die beiden Zeichen, mit etwas Abstand. */}
+        <div className="sidebar-bottom-icons">
+          <UpdateButton />
+          <button className="icon-btn" title="Einstellungen" onClick={() => useStore.getState().setSettingsOpen(true)}>
+            <Icon name="gear" />
+          </button>
+        </div>
       </div>
     </aside>
   )

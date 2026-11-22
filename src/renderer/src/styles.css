@@ -312,6 +312,11 @@ textarea {
   padding: 4px 8px;
   gap: 6px;
 }
+.sidebar-bottom-icons {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
 
 /* ---------- Buttons ---------- */
 
