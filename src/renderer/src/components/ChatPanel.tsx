@@ -64,6 +64,12 @@ export function ChatPanel({ chatId, active }: { chatId: string; active: boolean 
   // Scroll-Ereignisse kommen asynchron. Folgt eines kurz auf einen eigenen Sprung ans Ende,
   // ist der Inhalt evtl. inzwischen gewachsen – das ist kein Wegscrollen des Nutzers.
   const programmaticUntil = useRef(0)
+  /** Wohin der letzte eigene Sprung gegangen ist: Nur von dort aus ist es gewachsener Inhalt. */
+  const stickTop = useRef(0)
+  /** Läuft gerade die weiche Fahrt ans Ende? Ihre Zwischenstände sagen nichts über den Willen des Menschen. */
+  const smoothUntil = useRef(0)
+  const smoothTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => () => void (smoothTimer.current && clearTimeout(smoothTimer.current)), [])
 
   // Welcher Turn steht oben im sichtbaren Bereich? (Das Board markiert ihn.)
   const viewRaf = useRef(0)
@@ -100,8 +106,15 @@ export function ChatPanel({ chatId, active }: { chatId: string; active: boolean 
     trackViewTurn()
     const el = scrollRef.current
     if (!el) return
+    // Zwischenstände der eigenen weichen Fahrt nicht als „der Mensch scrollt“ lesen; sie endet
+    // ohnehin gleich am Ende. Will er trotzdem weg, kommt das über das Rad (onWheel) an.
+    if (performance.now() < smoothUntil.current) return
     const near = el.scrollHeight - el.scrollTop - el.clientHeight < NEAR_BOTTOM_PX
-    if (!near && stickRef.current && performance.now() < programmaticUntil.current) {
+    // Nach einem eigenen Sprung ans Ende kann der Inhalt gewachsen sein: Dann steht die Ansicht
+    // noch dort, wo wir sie hingesetzt haben, ist aber nicht mehr das Ende – also nachfassen.
+    // Ist sie dagegen weiter oben, hat der Mensch gescrollt; dann gehört ihm die Ansicht.
+    const gewachsen = el.scrollTop >= stickTop.current - 2
+    if (!near && stickRef.current && gewachsen && performance.now() < programmaticUntil.current) {
       scrollToEnd()
       return
     }
@@ -109,13 +122,38 @@ export function ChatPanel({ chatId, active }: { chatId: string; active: boolean 
     setAtBottom(near)
   }
 
+  /** Rad nach oben heißt: Der Mensch will hier bleiben, auch wenn die Antwort weiterwächst. */
+  function onWheel(e: React.WheelEvent): void {
+    if (e.deltaY >= 0 || !stickRef.current) return
+    stopSmooth()
+    stickRef.current = false
+    programmaticUntil.current = 0
+    setAtBottom(false)
+  }
+
   function scrollToEnd(smooth = false): void {
     const el = scrollRef.current
     if (!el) return
     programmaticUntil.current = performance.now() + (smooth ? 900 : 200)
+    stickTop.current = el.scrollHeight - el.clientHeight
     el.scrollTo({ top: el.scrollHeight, behavior: smooth ? 'smooth' : 'auto' })
     stickRef.current = true
     setAtBottom(true)
+    if (smoothTimer.current) clearTimeout(smoothTimer.current)
+    if (!smooth) return
+    smoothUntil.current = performance.now() + 900
+    // Wächst die Antwort während der Fahrt weiter, endet sie zu früh: danach noch einmal nachsetzen.
+    smoothTimer.current = setTimeout(() => {
+      smoothUntil.current = 0
+      if (stickRef.current) scrollToEnd()
+    }, 900)
+  }
+
+  /** Rad nach oben heißt auch: weiche Fahrt abbrechen. */
+  function stopSmooth(): void {
+    smoothUntil.current = 0
+    if (smoothTimer.current) clearTimeout(smoothTimer.current)
+    smoothTimer.current = null
   }
 
   /**
@@ -224,7 +262,7 @@ export function ChatPanel({ chatId, active }: { chatId: string; active: boolean 
       {fileOver && <div className="file-drop-hint">Dateien hier ablegen, um sie anzuhängen</div>}
       <ScreenStrip chatId={chatId} surfaceIds={activeSurfaces} />
       <QuoteSelection chatId={chatId} scrollRef={scrollRef} />
-      <div className="transcript" ref={scrollRef} onScroll={onScroll}>
+      <div className="transcript" ref={scrollRef} onScroll={onScroll} onWheel={onWheel}>
         <div className="transcript-inner" ref={innerRef}>
         <CommentLayer chatId={chatId} innerRef={innerRef} />
         {!transcript ? (
