@@ -1,7 +1,7 @@
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { chatModel, type Attachment, type Block } from '@shared/types'
-import { startedTask, stoppedTaskId, taskIdOf, taskReports, withoutReported, type BackgroundTask } from '@shared/background'
+import { cliTasks, startedTask, stoppedTaskId, taskIdOf, taskReports, withoutReported, type BackgroundTask } from '@shared/background'
 import { childEnv } from '../env'
 import { claudeA2uiArgs, workshopPrompt } from './a2ui'
 import { claudeImageBlocks, textWithAttachments } from './attachments'
@@ -28,6 +28,11 @@ class ClaudeSession implements AgentSession {
   private taskIds = new Map<string, string>()
   /** Laufende Stopp-Aufrufe: Id des Werkzeugaufrufs → Id der CLI-Aufgabe, die er beenden soll. */
   private stopping = new Map<string, string>()
+  /**
+   * Führt diese CLI die Liste der Hintergrundbefehle selbst (`background_tasks_changed`)? Dann ist
+   * sie maßgeblich, und das eigene Mitzählen am Werkzeugaufruf entfällt.
+   */
+  private cliFuehrtListe = false
   private turnStartedAt = 0
   // Streaming-Zustand der aktuellen API-Nachricht
   private curMsgId = ''
@@ -210,6 +215,20 @@ class ClaudeSession implements AgentSession {
     switch (m.type) {
       case 'system':
         if (m.subtype === 'init' && m.session_id) this.cb.onEvent({ kind: 'session', sessionId: m.session_id })
+        // Die CLI schickt ihre eigene Liste – ab jetzt gilt nur noch sie.
+        if (m.subtype === 'background_tasks_changed' && Array.isArray(m.tasks)) {
+          this.cliFuehrtListe = true
+          this.taskIds.clear()
+          this.stopping.clear()
+          const next = cliTasks(m.tasks, this.background)
+          if (JSON.stringify(next) !== JSON.stringify(this.background)) this.setBackground(next)
+          return
+        }
+        // Und sie sagt, wie ein Befehl geendet ist (fertig, abgebrochen, abgeschossen).
+        if (m.subtype === 'task_notification') {
+          this.meldeTaskEnde(typeof m.task_id === 'string' ? m.task_id : undefined, String(m.status ?? 'completed'), typeof m.summary === 'string' ? m.summary : undefined)
+          return
+        }
         return
 
       case 'stream_event': {
@@ -242,13 +261,15 @@ class ClaudeSession implements AgentSession {
         const blocks = (m.message?.content ?? []).map(toBlock).filter(Boolean) as Block[]
         if (blocks.length === 0) return
         // Befehle im Hintergrund laufen über das Turn-Ende hinaus weiter.
-        const started = blocks.map((b) => startedTask(b)).filter((t): t is BackgroundTask => !!t)
+        const started = this.cliFuehrtListe ? [] : blocks.map((b) => startedTask(b)).filter((t): t is BackgroundTask => !!t)
         if (started.length) this.setBackground([...this.background, ...started])
         // Beendet der Agent einen Hintergrundbefehl selbst, bleibt die Fertigmeldung aus. Den
         // Aufruf merken; abgehakt wird, sobald sein Ergebnis da ist (er kann auch scheitern).
-        for (const b of blocks) {
-          const stop = stoppedTaskId(b)
-          if (stop && b.type === 'tool_use') this.stopping.set(b.id, stop)
+        if (!this.cliFuehrtListe) {
+          for (const b of blocks) {
+            const stop = stoppedTaskId(b)
+            if (stop && b.type === 'tool_use') this.stopping.set(b.id, stop)
+          }
         }
         const index = msgId === this.curMsgId ? this.curIndex : undefined
         this.cb.onEvent({ kind: 'assistant', msgId, blocks, index })
@@ -374,6 +395,17 @@ class ClaudeSession implements AgentSession {
     if (this.background.length) this.setBackground([])
   }
 
+  /** Ende eines Hintergrundbefehls, wie die CLI es meldet: als Hinweis in den Verlauf. */
+  private meldeTaskEnde(taskId: string | undefined, status: string, summary?: string): void {
+    const bekannt = taskId ? this.background.find((t) => t.id === taskId) : undefined
+    const was = bekannt?.label ?? summary?.replace(/\s+/g, ' ').slice(0, 120) ?? 'Hintergrundbefehl'
+    this.cb.onEvent({
+      kind: 'notice',
+      id: randomUUID(),
+      text: status === 'completed' ? `Im Hintergrund fertig: „${was}“` : `Im Hintergrund beendet: „${was}“ (${status})`
+    })
+  }
+
   /** Vom Agenten beendete Aufgabe aus der Liste nehmen – für sie kommt keine Fertigmeldung. */
   private forgetTask(cliTaskId: string): void {
     const toolUseId = this.taskIds.get(cliTaskId)
@@ -386,7 +418,8 @@ class ClaudeSession implements AgentSession {
   /** Meldet die CLI einen fertigen Hintergrundbefehl, ist er aus der Liste raus. */
   private onTaskNews(text: string): void {
     const reports = taskReports(text)
-    if (!reports.length) return
+    // Neuere CLIs melden dasselbe als `system`-Ereignis; dann ist das hier nur noch ein Echo.
+    if (!reports.length || this.cliFuehrtListe) return
     const rest = withoutReported(this.background, reports, this.taskIds)
     for (const r of reports) {
       const done = this.background.find((t) => t.id === r.toolUseId || (r.taskId && this.taskIds.get(r.taskId) === t.id))

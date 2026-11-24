@@ -61,6 +61,32 @@ export function taskReports(text: string): TaskReport[] {
   return out
 }
 
+/**
+ * Neuere Claude-CLIs (ab etwa 2.1.3) führen die Liste der laufenden Hintergrundbefehle selbst und
+ * schicken sie bei jeder Änderung als `system`-Ereignis `background_tasks_changed`. Das ist die
+ * verlässliche Quelle: Sie stimmt auch dann, wenn ein Befehl abgeschossen, abgebrochen oder vom
+ * Agenten gestoppt wurde – Fälle, in denen keine Fertigmeldung kommt. Ältere CLIs kennen das nicht;
+ * für die bleiben die Erkennung am Werkzeugaufruf und die `<task-notification>` als Rückfall.
+ */
+export function cliTasks(list: unknown, bisher: readonly BackgroundTask[] = [], now = Date.now()): BackgroundTask[] {
+  if (!Array.isArray(list)) return []
+  const out: BackgroundTask[] = []
+  for (const t of list) {
+    const o = (t ?? {}) as Record<string, unknown>
+    const id = typeof o.task_id === 'string' ? o.task_id.trim() : ''
+    if (!id || out.some((x) => x.id === id)) continue
+    const beschreibung = typeof o.description === 'string' ? o.description.trim().replace(/\s+/g, ' ') : ''
+    // Schon bekannt? Dann Beginn und Beschriftung behalten – die Liste kommt bei jeder Änderung neu.
+    const alt = bisher.find((x) => x.id === id)
+    out.push({
+      id,
+      label: (beschreibung || alt?.label || 'Hintergrundbefehl').slice(0, 120),
+      startedAt: alt?.startedAt ?? now
+    })
+  }
+  return out
+}
+
 /** Werkzeuge, mit denen der Agent einen Hintergrundbefehl von sich aus beendet. */
 const STOP_TOOLS = new Set(['TaskStop', 'KillShell', 'KillBash', 'KillTask'])
 

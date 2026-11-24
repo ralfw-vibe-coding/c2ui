@@ -45,6 +45,21 @@ process.stdin.on('data', () => {
     say({ type: 'assistant', message: { id: 'msg_5', model: 'claude-test', content: [{ type: 'text', text: 'Der Server ist gestoppt.' }] } })
     ergebnis(200)
   }, 200)
+  // Fünfter und sechster Turn: so meldet es die heutige CLI – über System-Ereignisse mit eigener
+  // Liste statt über eine eingeschobene Nutzernachricht.
+  if (turn === 5) return setTimeout(() => {
+    say({ type: 'system', subtype: 'task_started', task_id: 'bneu1', tool_use_id: 'toolu_5', description: 'Vorschau auf Port 4000', is_backgrounded: true, task_type: 'local_bash' })
+    say({ type: 'system', subtype: 'background_tasks_changed', tasks: [{ task_id: 'bneu1', run_id: 'r1', task_type: 'local_bash', description: 'Vorschau auf Port 4000' }] })
+    say({ type: 'assistant', message: { id: 'msg_7', model: 'claude-test', content: [{ type: 'text', text: 'Die Vorschau läuft.' }] } })
+    ergebnis(200)
+  }, 200)
+  if (turn === 6) return setTimeout(() => {
+    say({ type: 'system', subtype: 'task_updated', task_id: 'bneu1', patch: { status: 'killed' } })
+    say({ type: 'system', subtype: 'task_notification', task_id: 'bneu1', tool_use_id: 'toolu_5', status: 'killed', summary: 'Background command "Vorschau auf Port 4000" was killed' })
+    say({ type: 'system', subtype: 'background_tasks_changed', tasks: [] })
+    say({ type: 'assistant', message: { id: 'msg_8', model: 'claude-test', content: [{ type: 'text', text: 'Die Vorschau ist gestoppt.' }] } })
+    ergebnis(200)
+  }, 200)
   // Vierter Turn: wieder etwas im Hintergrund, das von sich aus nie endet.
   if (turn === 4) return setTimeout(() => {
     say({ type: 'assistant', message: { id: 'msg_6', model: 'claude-test', content: [
@@ -155,6 +170,22 @@ await abhaken.click()
 await page.waitForTimeout(600)
 check((await page.locator('.working.background').count()) === 0, 'der Klick nimmt die Anzeige weg')
 check((await page.locator('.chat-item .chat-background').count()) === 0, 'auch in der Seitenleiste')
+
+// Die heutige CLI führt die Liste selbst: C2UI übernimmt sie, statt mitzuzählen.
+await ta.fill('Starte die Vorschau.')
+await ta.press('Enter')
+await page.locator('.working.background').waitFor({ timeout: 15_000 })
+const ausCli = await page.locator('.working.background').innerText()
+log('Anzeige aus der CLI-Liste:', ausCli.replace(/\s+/g, ' '))
+check(/Vorschau auf Port 4000/.test(ausCli), 'die Anzeige nennt, was die CLI führt')
+await ta.fill('Stopp die Vorschau.')
+await ta.press('Enter')
+await page.locator('.transcript', { hasText: 'Die Vorschau ist gestoppt.' }).waitFor({ timeout: 15_000 })
+await page.waitForTimeout(800)
+check((await page.locator('.working.background').count()) === 0, 'leert die CLI ihre Liste, ist auch die Anzeige weg')
+const verlauf2 = (await page.locator('.transcript-inner').innerText()).replace(/\s+/g, ' ')
+check(/Im Hintergrund beendet: „Vorschau auf Port 4000“ \(killed\)/.test(verlauf2), 'und der Verlauf hält fest, wie es geendet ist')
+await page.screenshot({ path: join(out, '5-cli-liste.png') })
 
 await app.close()
 log(failed ? 'FEHLGESCHLAGEN' : 'alles OK')

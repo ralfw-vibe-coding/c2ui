@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { startedTask, stoppedTaskId, taskIdOf, taskReports, withoutReported } from './background'
+import { cliTasks, startedTask, stoppedTaskId, taskIdOf, taskReports, withoutReported } from './background'
 import type { Block } from './types'
 
 const bash = (id: string, input: Record<string, unknown>): Block => ({ type: 'tool_use', id, name: 'Bash', input }) as unknown as Block
@@ -69,5 +69,31 @@ describe('vom Agenten beendete Hintergrundbefehle', () => {
     expect(stoppedTaskId(stop('Bash', { command: 'kill 123' }))).toBeUndefined()
     expect(stoppedTaskId(stop('TaskStop', {}))).toBeUndefined()
     expect(stoppedTaskId({ type: 'text', text: 'TaskStop' } as Block)).toBeUndefined()
+  })
+})
+
+describe('Liste der CLI (background_tasks_changed)', () => {
+  it('übernimmt Id und Beschreibung', () => {
+    const t = cliTasks([{ task_id: 'b1', description: 'Server starten', task_type: 'local_bash' }], [], 1000)
+    expect(t).toEqual([{ id: 'b1', label: 'Server starten', startedAt: 1000 }])
+  })
+
+  it('behält Beginn und Beschriftung bekannter Befehle', () => {
+    const bisher = [{ id: 'b1', label: 'Server starten', startedAt: 500 }]
+    const t = cliTasks([{ task_id: 'b1' }, { task_id: 'b2', description: 'Tests' }], bisher, 1000)
+    expect(t).toEqual([
+      { id: 'b1', label: 'Server starten', startedAt: 500 },
+      { id: 'b2', label: 'Tests', startedAt: 1000 }
+    ])
+  })
+
+  it('ist die ganze Wahrheit – eine leere Liste heißt: nichts läuft mehr', () => {
+    expect(cliTasks([], [{ id: 'b1', label: 'Server', startedAt: 1 }])).toEqual([])
+  })
+
+  it('übergeht Unsinn und Dubletten', () => {
+    expect(cliTasks(null)).toEqual([])
+    expect(cliTasks([{}, { task_id: '' }, { task_id: 'b1' }, { task_id: 'b1' }], [], 1).map((t) => t.id)).toEqual(['b1'])
+    expect(cliTasks([{ task_id: 'b1' }], [], 1)[0].label).toBe('Hintergrundbefehl')
   })
 })
