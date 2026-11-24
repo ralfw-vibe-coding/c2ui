@@ -64,6 +64,7 @@ log('Staging aufgeräumt:', !existsSync(join(apps, '.C2UI Update')))
 // Gleich signiert → wird angeboten (Einstellungen zeigen es) und getauscht
 log('gut:', JSON.stringify(await page.evaluate((d) => window.api.updateFolder(d), goodDir)))
 await page.locator('button[title="Einstellungen"]').click()
+await page.locator('.modal-tab', { hasText: 'Aktualisieren' }).click()
 await page.locator('.update-status').waitFor()
 log('Einstellungen:', await page.locator('fieldset', { hasText: 'Aktualisierung' }).innerText().then((t) => t.replace(/\n/g, ' | ')))
 log('Zeichen in der Seitenleiste eingefärbt:', await page.locator('.update-btn.available').count())

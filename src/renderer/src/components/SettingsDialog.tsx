@@ -6,9 +6,20 @@ import { useStore } from '../store'
 import { AgentLogo } from './AgentLogo'
 import { Icon } from './Icon'
 
+/** Reiter des Dialogs; der zuletzt gewählte bleibt, solange die App läuft. */
+const TABS = [
+  { id: 'allgemein', label: 'Allgemein' },
+  { id: 'ki', label: 'KI' },
+  { id: 'a2ui', label: 'A2UI' },
+  { id: 'update', label: 'Aktualisieren' }
+] as const
+type TabId = (typeof TABS)[number]['id']
+let lastTab: TabId = 'allgemein'
+
 export function SettingsDialog() {
   const settings = useStore((s) => s.settings)
   const [draft, setDraft] = useState<Settings | null>(settings)
+  const [tab, setTab] = useState<TabId>(lastTab)
   useAutoSave(draft, settings)
   // Escape schließt. Am Dokument, denn beim Öffnen liegt der Fokus noch auf dem Knopf daneben.
   useEffect(() => {
@@ -22,99 +33,128 @@ export function SettingsDialog() {
   const close = (): void => useStore.getState().setSettingsOpen(false)
   const setAgent = (a: AgentKind, patch: Partial<AgentSettings>): void =>
     setDraft({ ...draft, agents: { ...draft.agents, [a]: { ...draft.agents[a], ...patch } } })
+  const zeige = (id: TabId): void => {
+    lastTab = id
+    setTab(id)
+  }
 
   return (
     <div className="modal-backdrop" onMouseDown={close}>
-      <div className="modal" onMouseDown={(e) => e.stopPropagation()}>
+      <div className="modal settings-dialog" onMouseDown={(e) => e.stopPropagation()}>
         <div className="modal-head">
           <h2>Einstellungen</h2>
           <button className="icon-btn modal-close" title="Schließen (Esc)" onClick={close}>
             <Icon name="close" size={14} />
           </button>
         </div>
-        {AGENT_KINDS.map((a) => (
-          <fieldset key={a} className="agent-settings">
-            <legend>
-              <AgentLogo agent={a} size={16} /> {AGENTS[a].label}
-            </legend>
+        <div className="modal-tabs" role="tablist">
+          {TABS.map((t) => (
+            <button
+              key={t.id}
+              role="tab"
+              aria-selected={tab === t.id}
+              className={`modal-tab${tab === t.id ? ' active' : ''}`}
+              onClick={() => zeige(t.id)}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+
+        {tab === 'allgemein' && (
+          <>
             <label>
-              <span>Standardmodus für neue Chats</span>
-              <select value={draft.agents[a].defaultMode} onChange={(e) => setAgent(a, { defaultMode: e.target.value })}>
-                {AGENTS[a].modes.map((m) => (
-                  <option key={m.value} value={m.value}>
-                    {m.label}
-                  </option>
-                ))}
-              </select>
+              <span>Größte Breite des Chats in einer Zelle (Pixel, 0 = so breit wie die Zelle)</span>
+              <input
+                type="number"
+                min={0}
+                step={20}
+                value={draft.chatWidth}
+                onChange={(e) => setDraft({ ...draft, chatWidth: Math.max(0, Math.round(Number(e.target.value) || 0)) })}
+              />
             </label>
             <div className="field-row">
               <label>
-                <span>Modell</span>
-                <ModelSelect agent={a} value={draft.agents[a].model} onChange={(model) => setAgent(a, { model })} />
+                <span>Eingefügter Text wird ab … Zeilen ein Anhang (0 = nie)</span>
+                <input
+                  type="number"
+                  min={0}
+                  value={draft.paste.lines}
+                  onChange={(e) => setDraft({ ...draft, paste: { ...draft.paste, lines: Math.max(0, Math.round(Number(e.target.value) || 0)) } })}
+                />
               </label>
               <label>
-                <span>Pfad zur Binary (leer = über PATH)</span>
+                <span>… oder ab … Zeichen (0 = nie)</span>
                 <input
-                  value={draft.agents[a].path}
-                  placeholder={a}
-                  onChange={(e) => setAgent(a, { path: e.target.value.trim() })}
+                  type="number"
+                  min={0}
+                  step={100}
+                  value={draft.paste.chars}
+                  onChange={(e) => setDraft({ ...draft, paste: { ...draft.paste, chars: Math.max(0, Math.round(Number(e.target.value) || 0)) } })}
                 />
               </label>
             </div>
-          </fieldset>
-        ))}
-        <label>
-          <span>Leerlauf, nach dem ein Claude-Prozess beendet wird (Minuten)</span>
-          <input
-            type="number"
-            min={1}
-            value={draft.idleTimeoutMinutes}
-            onChange={(e) => setDraft({ ...draft, idleTimeoutMinutes: Math.max(1, Number(e.target.value) || 1) })}
-          />
-        </label>
-        <label>
-          <span>Größte Breite des Chats in einer Zelle (Pixel, 0 = so breit wie die Zelle)</span>
-          <input
-            type="number"
-            min={0}
-            step={20}
-            value={draft.chatWidth}
-            onChange={(e) => setDraft({ ...draft, chatWidth: Math.max(0, Math.round(Number(e.target.value) || 0)) })}
-          />
-        </label>
-        <div className="field-row">
-          <label>
-            <span>Eingefügter Text wird ab … Zeilen ein Anhang (0 = nie)</span>
-            <input
-              type="number"
-              min={0}
-              value={draft.paste.lines}
-              onChange={(e) => setDraft({ ...draft, paste: { ...draft.paste, lines: Math.max(0, Math.round(Number(e.target.value) || 0)) } })}
-            />
-          </label>
-          <label>
-            <span>… oder ab … Zeichen (0 = nie)</span>
-            <input
-              type="number"
-              min={0}
-              step={100}
-              value={draft.paste.chars}
-              onChange={(e) => setDraft({ ...draft, paste: { ...draft.paste, chars: Math.max(0, Math.round(Number(e.target.value) || 0)) } })}
-            />
-          </label>
-        </div>
-        <label className="check-row">
-          <input
-            type="checkbox"
-            checked={draft.collapseSteps}
-            onChange={(e) => setDraft({ ...draft, collapseSteps: e.target.checked })}
-          />
-          <span>Arbeitsschritte (Werkzeugaufrufe, Zwischentexte) im Chat einklappen</span>
-        </label>
-        <NotifySection value={draft.notifications} onChange={(notifications) => setDraft({ ...draft, notifications })} />
-        <MergeSection value={draft.merge} onChange={(merge) => setDraft({ ...draft, merge })} />
-        <ComponentsSection />
-        <UpdateSection />
+            <label className="check-row">
+              <input
+                type="checkbox"
+                checked={draft.collapseSteps}
+                onChange={(e) => setDraft({ ...draft, collapseSteps: e.target.checked })}
+              />
+              <span>Arbeitsschritte (Werkzeugaufrufe, Zwischentexte) im Chat einklappen</span>
+            </label>
+            <NotifySection value={draft.notifications} onChange={(notifications) => setDraft({ ...draft, notifications })} />
+            <MergeSection value={draft.merge} onChange={(merge) => setDraft({ ...draft, merge })} />
+          </>
+        )}
+
+        {tab === 'ki' && (
+          <>
+            {AGENT_KINDS.map((a) => (
+              <fieldset key={a} className="agent-settings">
+                <legend>
+                  <AgentLogo agent={a} size={16} /> {AGENTS[a].label}
+                </legend>
+                <label>
+                  <span>Standardmodus für neue Chats</span>
+                  <select value={draft.agents[a].defaultMode} onChange={(e) => setAgent(a, { defaultMode: e.target.value })}>
+                    {AGENTS[a].modes.map((m) => (
+                      <option key={m.value} value={m.value}>
+                        {m.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <div className="field-row">
+                  <label>
+                    <span>Modell</span>
+                    <ModelSelect agent={a} value={draft.agents[a].model} onChange={(model) => setAgent(a, { model })} />
+                  </label>
+                  <label>
+                    <span>Pfad zur Binary (leer = über PATH)</span>
+                    <input
+                      value={draft.agents[a].path}
+                      placeholder={a}
+                      onChange={(e) => setAgent(a, { path: e.target.value.trim() })}
+                    />
+                  </label>
+                </div>
+              </fieldset>
+            ))}
+            <label>
+              <span>Leerlauf, nach dem ein Claude-Prozess beendet wird (Minuten)</span>
+              <input
+                type="number"
+                min={1}
+                value={draft.idleTimeoutMinutes}
+                onChange={(e) => setDraft({ ...draft, idleTimeoutMinutes: Math.max(1, Number(e.target.value) || 1) })}
+              />
+            </label>
+          </>
+        )}
+
+        {tab === 'a2ui' && <ComponentsSection />}
+        {tab === 'update' && <UpdateSection />}
+
         <p className="muted small">
           Änderungen werden gleich gespeichert; sie gelten für neu gestartete CLI-Prozesse.
         </p>
@@ -308,7 +348,18 @@ function UpdateSection() {
   useEffect(() => {
     void window.api.updateCurrent().then((b) => setBuild(b && typeof b === 'object' ? (b as Build) : null))
   }, [])
-  if (update.state === 'unavailable') return null
+  // Aus dem Repo gestartet: Es gibt keine Build-Nummer, also auch nichts zu vergleichen.
+  // Auf einem eigenen Reiter darf das nicht einfach leer bleiben – lieber sagen, warum.
+  if (update.state === 'unavailable')
+    return (
+      <fieldset className="agent-settings">
+        <legend>Aktualisierung</legend>
+        <span className="muted small">
+          Diese App läuft aus dem Repo (ohne Build-Nummer) und aktualisiert sich nicht selbst. In der
+          installierten C2UI steht hier der Update-Ordner.
+        </span>
+      </fieldset>
+    )
 
   const apply = (u: unknown): void => useStore.setState({ update: parseUpdateState(u) })
   const run = async (f: () => Promise<unknown>): Promise<void> => {

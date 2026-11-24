@@ -1115,6 +1115,40 @@ button.cell-cwd:hover {
   flex-direction: column;
   gap: 12px;
 }
+/* Reiter im Einstellungsdialog: eine Zeile unter dem Kopf, der gewählte trägt die Akzentlinie. */
+.modal-tabs {
+  display: flex;
+  gap: 2px;
+  margin: -4px -20px 4px;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--border);
+}
+.modal-tab {
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 13px;
+  padding: 5px 10px;
+  margin-bottom: -1px;
+  border-radius: 6px 6px 0 0;
+  cursor: pointer;
+}
+.modal-tab:hover {
+  background: var(--bg);
+  color: var(--text);
+}
+.modal-tab.active {
+  color: var(--text);
+  font-weight: 600;
+  border-bottom-color: var(--accent);
+}
+/* Mit Reitern ist jede Seite kurz – der Dialog soll deshalb nicht bei jedem Wechsel springen. */
+.settings-dialog {
+  min-height: min(560px, calc(100vh - 40px));
+}
+
 /* Kopfzeile mit „x“: bleibt beim Scrollen im langen Dialog oben stehen. */
 .modal-head {
   position: sticky;

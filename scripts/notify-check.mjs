@@ -41,7 +41,7 @@ const page = await app.firstWindow()
 await page.waitForSelector('.chat-item')
 
 // Einstellungen: Voreinstellung, ändern, speichern
-await page.locator('.icon-btn', { hasText: 'Einstellungen' }).click()
+await page.locator('.icon-btn[title="Einstellungen"]').click()
 const section = page.locator('.agent-settings', { hasText: 'Benachrichtigungen' })
 await section.waitFor()
 const boxes = section.locator('.check-row input')
@@ -63,7 +63,7 @@ check(saved.done === false && saved.stalled === true && saved.stalledMinutes ===
 // Überstehen den Neustart
 await page.reload()
 await page.waitForSelector('.chat-item')
-await page.locator('.icon-btn', { hasText: 'Einstellungen' }).click()
+await page.locator('.icon-btn[title="Einstellungen"]').click()
 const section2 = page.locator('.agent-settings', { hasText: 'Benachrichtigungen' })
 await section2.waitFor()
 check((await section2.locator('.notify-minutes input').inputValue()) === '7', 'Einstellung übersteht den Neustart')
