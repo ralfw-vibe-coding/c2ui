@@ -39,7 +39,8 @@ export function Cell({ cellId, chatId, board }: { cellId: string; chatId: string
               setDragging({ chatId: chat.id })
             }}
             onDragEnd={() => setDragging(null)}
-            title="Ziehen: in andere Zelle verschieben · Doppelklick auf den Titel: umbenennen"
+            // In einer schmalen Zelle bleibt vom Titel nichts übrig – hier steht er trotzdem.
+            title={`${chat.title}\nZiehen: in andere Zelle verschieben · Doppelklick auf den Titel: umbenennen`}
           >
             {busy ? <span className="spinner" /> : <AgentLogo agent={chat.agent} />}
             <EditableTitle
